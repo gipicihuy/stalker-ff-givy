@@ -1,0 +1,94 @@
+@font-face {
+  font-family: "GFF Latin";
+  font-weight: 300;
+  font-display: swap;
+  src: url("/fonts/GFF-Latin-Thin.ttf") format("truetype");
+}
+@font-face {
+  font-family: "GFF Latin";
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/GFF-Latin-Regular.ttf") format("truetype");
+}
+@font-face {
+  font-family: "GFF Latin";
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/GFF-Latin-Medium.ttf") format("truetype");
+}
+@font-face {
+  font-family: "GFF Latin";
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/GFF-Latin-Bold.ttf") format("truetype");
+}
+
+:root {
+  --font-family: "GFF Latin", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+  --background: #14161b;
+  --panel-bg: #1c1f26;
+  --panel-bg-alt: #262a33;
+  --panel-border: rgba(255, 255, 255, 0.07);
+  --gold: #fabf00;
+  --gold-hover: #fdda25;
+  --gold-soft: rgba(250, 191, 0, 0.12);
+  --light-text: #d1d4da;
+  --muted-text: #888d97;
+  --white: #ffffff;
+  --error-bg: rgba(180, 40, 40, 0.15);
+  --error-border: rgba(180, 40, 40, 0.4);
+  --error-text: #ff8a8a;
+  --success: #4ade80;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-family);
+  font-weight: 400;
+  background-color: var(--background);
+  background-image:
+    radial-gradient(ellipse 900px 500px at 15% -10%, rgba(250, 191, 0, 0.08), transparent 60%),
+    radial-gradient(ellipse 700px 500px at 100% 10%, rgba(250, 191, 0, 0.05), transparent 60%);
+  color: var(--light-text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+input, button {
+  font-family: var(--font-family);
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--panel-bg); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
