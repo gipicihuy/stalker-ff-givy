@@ -49,6 +49,11 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -69,10 +74,22 @@ input, button {
 
 button {
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  transition: transform 0.1s ease, background 0.15s ease;
+}
+
+button:active {
+  transform: scale(0.96);
+}
+
+.icon-btn:active {
+  background: var(--gold-soft) !important;
 }
 
 a {
   color: inherit;
+  -webkit-tap-highlight-color: transparent;
 }
 
 :focus-visible {
