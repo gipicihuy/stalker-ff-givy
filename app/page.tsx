@@ -315,14 +315,14 @@ export default function Page() {
               />
             </div>
             <div style={{ flex: 1, minWidth: 180 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
                 <div style={{ fontSize: 19, fontWeight: 700, color: 'var(--white)', wordBreak: 'break-word' }}>{basic.nickname}</div>
                 {basic.primeInfo?.primeLevel ? (
                   <img
                     src={`/image/prime${basic.primeInfo.primeLevel}.png`}
                     alt={`Prime ${basic.primeInfo.primeLevel}`}
                     title={`Prime Level ${basic.primeInfo.primeLevel}`}
-                    style={{ width: 20, height: 20, objectFit: 'contain' }}
+                    style={{ width: 32, height: 32, objectFit: 'contain', flexShrink: 0 }}
                     onError={(e) => { e.currentTarget.style.display = 'none'; }}
                   />
                 ) : null}
