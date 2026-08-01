@@ -16,11 +16,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const upstream = await fetch(`${SOURCE_API}?uid=${encodeURIComponent(String(uid))}`, {
-      headers: { Accept: 'application/json' },
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        Referer: 'https://adenpedia.my.id/',
+      },
       cache: 'no-store',
     });
 
     if (!upstream.ok) {
+      const bodyText = await upstream.text().catch(() => '');
+      console.error('upstream_error', upstream.status, bodyText.slice(0, 300));
       return res.status(upstream.status === 404 ? 404 : 502).json({
         error: upstream.status === 404
           ? 'Akun tidak ditemukan. Cek lagi UID-nya.'
@@ -36,7 +42,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
     return res.status(200).json(data);
-  } catch {
+  } catch (err) {
+    console.error('fetch_error', err);
     return res.status(500).json({ error: 'Gagal mengambil data. Coba lagi nanti.' });
   }
 }
