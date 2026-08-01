@@ -198,7 +198,7 @@ export default function Page() {
   const customTag = basic ? CUSTOM_TAGS[basic.accountId] : null;
   const accountAgeDays = basic ? calculateAccountAgeDays(basic.createAt) : null;
   const estimatedTopup = basic ? estimateTopupPrice(basic) : 0;
-  const avatarSrc = basic?.headPic ? `https://ff.garena.com/avatar/${basic.headPic}.png` : '/image/default-avatar.png';
+  const avatarSrc = basic?.headPic ? `https://ff.garena.com/avatar/${basic.headPic}.png` : '/image/avatar1.jpg';
 
   return (
     <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 16px 64px' }}>
@@ -271,7 +271,7 @@ export default function Page() {
                 src={avatarSrc}
                 alt="Avatar"
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                onError={(e) => { e.currentTarget.src = '/image/default-avatar.png'; }}
+                onError={(e) => { e.currentTarget.src = '/image/avatar1.jpg'; }}
               />
             </div>
             <div style={{ flex: 1, minWidth: 180 }}>
