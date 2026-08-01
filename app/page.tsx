@@ -114,6 +114,16 @@ function AngleDivider() {
   );
 }
 
+function AngleDividerDouble() {
+  return (
+    <svg width="100%" height="5" viewBox="0 0 560 5" preserveAspectRatio="none" aria-hidden="true" style={{ display: 'block' }}>
+      <path d="M0 4H560" stroke="#fabf00" strokeMiterlimit="10" />
+      <path d="M430 0H560V4H420L424.76 1.20615C425.66 0.429117 426.81 0.000859238 430 0Z" fill="#fabf00" />
+      <path d="M130 0H0V4H140L135.24 1.20615C134.34 0.429117 133.19 0.000859238 130 0Z" fill="#fabf00" />
+    </svg>
+  );
+}
+
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <p style={{ fontWeight: 500, fontSize: 12, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
@@ -423,8 +433,21 @@ export default function Page() {
         </section>
       ) : null}
 
-      <footer style={{ marginTop: 56, fontSize: 12, color: 'var(--muted-text)', textAlign: 'center' }}>
-        Fan-made, tidak berafiliasi dengan Garena.
+      <footer style={{ marginTop: 56, textAlign: 'center' }}>
+        <div style={{ marginBottom: 10 }}>
+          <AngleDividerDouble />
+        </div>
+        <p style={{ margin: 0, fontSize: 11, fontWeight: 500, letterSpacing: '0.01em', color: 'var(--light-text)' }}>
+          Givy Stalk Epep <span style={{ color: 'var(--panel-border)', margin: '0 2px' }}>-</span>{' '}
+          <a
+            href="https://wa.me/+62895423300395?text=halo+givy+ganteng"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: 'var(--gold)' }}
+          >
+            @givy
+          </a>
+        </p>
       </footer>
     </main>
   );
