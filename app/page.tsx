@@ -317,6 +317,20 @@ export default function Page() {
             <div style={{ flex: 1, minWidth: 180 }}>
               <div style={{ fontSize: 19, fontWeight: 700, color: 'var(--white)', wordBreak: 'break-word' }}>{basic.nickname}</div>
               <div style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--muted-text)', marginTop: 2 }}>UID: {basic.accountId}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6, flexWrap: 'wrap' }}>
+                {basic.liked !== undefined ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <img src="/image/like.png" alt="" style={{ width: 14, height: 14, objectFit: 'contain' }}
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--light-text)' }}>{formatNumber(basic.liked)}</span>
+                  </div>
+                ) : null}
+                {basic.region ? (
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--light-text)' }}>
+                    REG : {basic.region}
+                  </span>
+                ) : null}
+              </div>
               {customTag ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
                   {customTag.badge ? (
@@ -402,7 +416,6 @@ export default function Page() {
             <SectionLabel>Statistik Akun</SectionLabel>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
               <StatCard icon="/image/prime.png" label="Prime Level" value={basic.primeInfo?.primeLevel ?? '—'} />
-              <StatCard icon="/image/like.png" label="Jumlah Like" value={formatNumber(basic.liked)} />
               <StatCard icon="/image/bpmati.png" label="Booyah Pass" value="BooyahPass" accent="var(--gold)" sub={`Badge: ${basic.badgeCnt ?? '—'}`} />
               <StatCard icon="/image/level.png" label="Level Player" value={basic.level ?? '—'} />
               <StatCard icon="/image/exp.png" label="Exp Level" value={formatNumber(basic.exp)} />
