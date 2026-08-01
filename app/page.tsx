@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
+import { Search, X, Tag, CalendarDays, Copy, Check } from 'lucide-react';
 
 type PrimeInfo = { primeLevel?: number };
 type BasicInfo = {
@@ -124,24 +125,24 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function Spinner() {
   return (
     <span style={{
-      display: 'inline-block', width: 15, height: 15,
+      display: 'inline-block', width: 14, height: 14,
       border: '2px solid rgba(20,22,27,0.35)', borderTop: '2px solid #14161b',
       borderRadius: '50%', animation: 'spin 0.7s linear infinite',
-      verticalAlign: 'middle', marginRight: 8,
+      verticalAlign: 'middle',
     }} />
   );
 }
 
 function StatCard({ icon, label, value, sub, accent }: { icon?: string; label: string; value: React.ReactNode; sub?: string; accent?: string }) {
   return (
-    <div style={{ background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 16, padding: '24px 16px', textAlign: 'center' }}>
+    <div style={{ background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 14, padding: '18px 14px', textAlign: 'center' }}>
       {icon ? (
-        <img src={icon} alt="" style={{ width: 56, height: 56, objectFit: 'contain', margin: '0 auto 12px' }}
+        <img src={icon} alt="" style={{ width: 40, height: 40, objectFit: 'contain', margin: '0 auto 10px' }}
           onError={(e) => { e.currentTarget.style.display = 'none'; }} />
       ) : null}
-      <p style={{ fontSize: 13, color: 'var(--muted-text)', marginBottom: 8 }}>{label}</p>
-      <p style={{ fontSize: 24, fontWeight: 700, color: accent || 'var(--white)' }}>{value}</p>
-      {sub ? <p style={{ fontSize: 13, color: 'var(--light-text)', marginTop: 4 }}>{sub}</p> : null}
+      <p style={{ fontSize: 12, color: 'var(--muted-text)', marginBottom: 6 }}>{label}</p>
+      <p style={{ fontSize: 20, fontWeight: 700, color: accent || 'var(--white)' }}>{value}</p>
+      {sub ? <p style={{ fontSize: 12, color: 'var(--light-text)', marginTop: 4 }}>{sub}</p> : null}
     </div>
   );
 }
@@ -151,7 +152,16 @@ export default function Page() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<FfResponse | null>(null);
+  const [copied, setCopied] = useState(false);
   const lastCheckRef = useRef(0);
+
+  const copySignature = useCallback((text: string) => {
+    if (!text) return;
+    navigator.clipboard?.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }, []);
 
   const cekID = useCallback(async () => {
     const trimmed = uid.trim();
@@ -206,16 +216,16 @@ export default function Page() {
       <header style={{ width: '100%', maxWidth: 720, marginBottom: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
-            width: 38, height: 38, borderRadius: 12,
+            width: 32, height: 32, borderRadius: 10,
             background: 'linear-gradient(135deg, var(--gold), #ff9d00)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: 700, color: '#14161b', fontSize: 16,
+            fontWeight: 700, color: '#14161b', fontSize: 13,
           }}>
             FF
           </div>
           <div>
-            <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--white)', letterSpacing: '0.02em' }}>GIVY - STALK EPEP</h1>
-            <p style={{ fontSize: 12, color: 'var(--muted-text)' }}>Cek info akun Free Fire lewat UID</p>
+            <h1 style={{ fontSize: 16, fontWeight: 700, color: 'var(--white)', letterSpacing: '0.02em' }}>GIVY - STALK EPEP</h1>
+            <p style={{ fontSize: 11, color: 'var(--muted-text)' }}>Cek info akun Free Fire lewat UID</p>
           </div>
         </div>
       </header>
@@ -224,7 +234,7 @@ export default function Page() {
 
       <section style={{ width: '100%', maxWidth: 720 }}>
         <SectionLabel>Masukkan UID</SectionLabel>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', width: '100%' }}>
           <input
             type="text"
             inputMode="numeric"
@@ -234,21 +244,40 @@ export default function Page() {
             onChange={(e) => setUid(e.target.value.replace(/[^0-9]/g, ''))}
             onKeyDown={onKeyDown}
             style={{
-              flex: '1 1 240px', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)',
-              borderRadius: 12, padding: '14px 16px', fontSize: 16, color: 'var(--white)', outline: 'none',
+              width: '100%', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)',
+              borderRadius: 12, padding: '13px 84px 13px 16px', fontSize: 15, color: 'var(--white)', outline: 'none',
             }}
           />
-          <button
-            onClick={cekID}
-            disabled={loading}
-            style={{
-              background: loading ? 'var(--gold-hover)' : 'var(--gold)', color: '#14161b',
-              fontWeight: 700, fontSize: 15, border: 'none', borderRadius: 12,
-              padding: '14px 28px', opacity: loading ? 0.85 : 1, transition: 'background 0.15s ease',
-            }}
-          >
-            {loading ? (<><Spinner />Memeriksa...</>) : 'CEK ID'}
-          </button>
+          <div style={{ position: 'absolute', right: 6, top: 6, bottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+            {uid ? (
+              <button
+                type="button"
+                aria-label="Bersihkan"
+                onClick={() => { setUid(''); setError(null); setResult(null); }}
+                className="icon-btn"
+                style={{
+                  width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'transparent', border: 'none', borderRadius: 9, color: 'var(--muted-text)',
+                }}
+              >
+                <X size={17} />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              aria-label="Cek ID"
+              onClick={cekID}
+              disabled={loading}
+              className="icon-btn"
+              style={{
+                width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: loading ? 'var(--gold-hover)' : 'var(--gold)', border: 'none', borderRadius: 9,
+                color: '#14161b', opacity: loading ? 0.85 : 1,
+              }}
+            >
+              {loading ? <Spinner /> : <Search size={16} />}
+            </button>
+          </div>
         </div>
 
         {error ? (
@@ -264,10 +293,10 @@ export default function Page() {
       {basic ? (
         <section style={{
           width: '100%', maxWidth: 720, marginTop: 32, background: 'var(--panel-bg)',
-          border: '1px solid var(--panel-border)', borderRadius: 20, padding: 24, animation: 'fadeUp 0.35s ease',
+          border: '1px solid var(--panel-border)', borderRadius: 18, padding: 20, animation: 'fadeUp 0.35s ease',
         }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'center', paddingBottom: 20, borderBottom: '1px solid var(--panel-border)' }}>
-            <div style={{ width: 76, height: 76, borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--gold)', flexShrink: 0, background: 'var(--panel-bg-alt)' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', paddingBottom: 18, borderBottom: '1px solid var(--panel-border)' }}>
+            <div style={{ width: 60, height: 60, borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--gold)', flexShrink: 0, background: 'var(--panel-bg-alt)' }}>
               <img
                 src={avatarSrc}
                 alt="Avatar"
@@ -276,8 +305,8 @@ export default function Page() {
               />
             </div>
             <div style={{ flex: 1, minWidth: 180 }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--white)', wordBreak: 'break-word' }}>{basic.nickname}</div>
-              <div style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--muted-text)', marginTop: 2 }}>UID: {basic.accountId}</div>
+              <div style={{ fontSize: 19, fontWeight: 700, color: 'var(--white)', wordBreak: 'break-word' }}>{basic.nickname}</div>
+              <div style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--muted-text)', marginTop: 2 }}>UID: {basic.accountId}</div>
               {customTag ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
                   {customTag.badge ? (
@@ -324,16 +353,16 @@ export default function Page() {
             gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 18,
           }}>
             <div>
-              <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                🏷️ Estimasi Topup Kamu
+              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Tag size={14} /> Estimasi Topup Kamu
               </p>
-              <p style={{ fontSize: 26, fontWeight: 700, color: 'var(--white)' }}>{formatRupiah(estimatedTopup)}</p>
+              <p style={{ fontSize: 22, fontWeight: 700, color: 'var(--white)' }}>{formatRupiah(estimatedTopup)}</p>
             </div>
             <div>
-              <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                📅 Dibuat Pada
+              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <CalendarDays size={14} /> Dibuat Pada
               </p>
-              <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--white)' }}>{formatFullDate(basic.createAt)}</p>
+              <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--white)' }}>{formatFullDate(basic.createAt)}</p>
               {accountAgeDays !== null ? (
                 <p style={{ fontSize: 12, color: 'var(--muted-text)', marginTop: 4 }}>{timeAgoFromDays(accountAgeDays)}</p>
               ) : null}
@@ -343,10 +372,25 @@ export default function Page() {
           <div style={{ marginTop: 18 }}>
             <SectionLabel>Signature</SectionLabel>
             <div style={{
-              background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12,
-              padding: '12px 14px', fontSize: 13, color: 'var(--light-text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+              position: 'relative', background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12,
+              padding: '12px 40px 12px 14px', fontSize: 13, color: 'var(--light-text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
             }}>
               {social?.signature ? social.signature : 'Tidak ada signature / bio.'}
+              {social?.signature ? (
+                <button
+                  type="button"
+                  aria-label="Salin signature"
+                  onClick={() => copySignature(social.signature || '')}
+                  className="icon-btn"
+                  style={{
+                    position: 'absolute', top: 8, right: 8, width: 26, height: 26,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'transparent', border: 'none', borderRadius: 7, color: copied ? 'var(--success)' : 'var(--muted-text)',
+                  }}
+                >
+                  {copied ? <Check size={14} /> : <Copy size={14} />}
+                </button>
+              ) : null}
             </div>
           </div>
 
@@ -355,13 +399,11 @@ export default function Page() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
               <StatCard icon="/image/prime.png" label="Prime Level" value={basic.primeInfo?.primeLevel ?? '—'} />
               <StatCard icon="/image/like.png" label="Jumlah Like" value={formatNumber(basic.liked)} />
-              <StatCard icon="/image/badge1.png" label="Booyah Pass" value="BooyahPass" accent="var(--gold)" sub={`Badge: ${basic.badgeCnt ?? '—'}`} />
+              <StatCard icon="/image/bpmati.png" label="Booyah Pass" value="BooyahPass" accent="var(--gold)" sub={`Badge: ${basic.badgeCnt ?? '—'}`} />
               <StatCard icon="/image/level.png" label="Level Player" value={basic.level ?? '—'} />
               <StatCard icon="/image/exp.png" label="Exp Level" value={formatNumber(basic.exp)} />
               <StatCard icon="/image/region.png" label="Server Region" value={getRegionName(basic.region)} />
               <StatCard icon="/image/skor.png" label="Credit Score" value={credit?.creditScore ?? '—'} accent="var(--success)" />
-              <StatCard label="Rank BR" value={basic.rank ? `#${formatNumber(basic.rank)}` : '—'} />
-              <StatCard label="Rank CS" value={basic.csRank ? `#${formatNumber(basic.csRank)}` : '—'} />
             </div>
           </div>
 
@@ -374,7 +416,9 @@ export default function Page() {
         </section>
       ) : (!loading && !error) ? (
         <section style={{ width: '100%', maxWidth: 720, marginTop: 48, textAlign: 'center', color: 'var(--muted-text)' }}>
-          <div style={{ fontSize: 46, marginBottom: 12, opacity: 0.5 }}>🔍</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, opacity: 0.5 }}>
+            <Search size={36} />
+          </div>
           <p>Masukkan UID Free Fire di atas buat lihat detail akun.</p>
         </section>
       ) : null}
