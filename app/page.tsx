@@ -132,15 +132,16 @@ function Spinner() {
   );
 }
 
-function StatCard({ icon, label, value, accent }: { icon?: string; label: string; value: React.ReactNode; accent?: string }) {
+function StatCard({ icon, label, value, sub, accent }: { icon?: string; label: string; value: React.ReactNode; sub?: string; accent?: string }) {
   return (
-    <div style={{ background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 14, padding: '18px 14px', textAlign: 'center' }}>
+    <div style={{ background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 16, padding: '24px 16px', textAlign: 'center' }}>
       {icon ? (
-        <img src={icon} alt="" style={{ width: 30, height: 30, objectFit: 'contain', margin: '0 auto 8px' }}
+        <img src={icon} alt="" style={{ width: 56, height: 56, objectFit: 'contain', margin: '0 auto 12px' }}
           onError={(e) => { e.currentTarget.style.display = 'none'; }} />
       ) : null}
-      <p style={{ fontSize: 11, color: 'var(--muted-text)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</p>
-      <p style={{ fontSize: 20, fontWeight: 700, color: accent || 'var(--white)' }}>{value}</p>
+      <p style={{ fontSize: 13, color: 'var(--muted-text)', marginBottom: 8 }}>{label}</p>
+      <p style={{ fontSize: 24, fontWeight: 700, color: accent || 'var(--white)' }}>{value}</p>
+      {sub ? <p style={{ fontSize: 13, color: 'var(--light-text)', marginTop: 4 }}>{sub}</p> : null}
     </div>
   );
 }
@@ -351,15 +352,16 @@ export default function Page() {
 
           <div style={{ marginTop: 20 }}>
             <SectionLabel>Statistik Akun</SectionLabel>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 12 }}>
-              <StatCard icon="/image/level.png" label="Level" value={basic.level ?? '—'} />
-              <StatCard icon="/image/exp.png" label="EXP" value={formatNumber(basic.exp)} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
               <StatCard icon="/image/prime.png" label="Prime Level" value={basic.primeInfo?.primeLevel ?? '—'} />
-              <StatCard icon="/image/region.png" label="Region" value={getRegionName(basic.region)} />
+              <StatCard icon="/image/like.png" label="Jumlah Like" value={formatNumber(basic.liked)} />
+              <StatCard icon="/image/badge1.png" label="Booyah Pass" value="BooyahPass" accent="var(--gold)" sub={`Badge: ${basic.badgeCnt ?? '—'}`} />
+              <StatCard icon="/image/level.png" label="Level Player" value={basic.level ?? '—'} />
+              <StatCard icon="/image/exp.png" label="Exp Level" value={formatNumber(basic.exp)} />
+              <StatCard icon="/image/region.png" label="Server Region" value={getRegionName(basic.region)} />
               <StatCard icon="/image/skor.png" label="Credit Score" value={credit?.creditScore ?? '—'} accent="var(--success)" />
               <StatCard label="Rank BR" value={basic.rank ? `#${formatNumber(basic.rank)}` : '—'} />
               <StatCard label="Rank CS" value={basic.csRank ? `#${formatNumber(basic.csRank)}` : '—'} />
-              <StatCard label="Badge" value={basic.badgeCnt ?? '—'} />
             </div>
           </div>
 
