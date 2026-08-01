@@ -327,7 +327,7 @@ export default function Page() {
                 ) : null}
                 {basic.region ? (
                   <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--light-text)' }}>
-                    REG : {basic.region}
+                    Region : {basic.region}
                   </span>
                 ) : null}
               </div>
@@ -419,7 +419,6 @@ export default function Page() {
               <StatCard icon="/image/bpmati.png" label="Booyah Pass" value="BooyahPass" accent="var(--gold)" sub={`Badge: ${basic.badgeCnt ?? '—'}`} />
               <StatCard icon="/image/level.png" label="Level Player" value={basic.level ?? '—'} />
               <StatCard icon="/image/exp.png" label="Exp Level" value={formatNumber(basic.exp)} />
-              <StatCard icon="/image/region.png" label="Server Region" value={getRegionName(basic.region)} />
               <StatCard icon="/image/skor.png" label="Credit Score" value={credit?.creditScore ?? '—'} accent="var(--success)" />
             </div>
           </div>
