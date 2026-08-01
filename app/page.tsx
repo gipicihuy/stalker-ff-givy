@@ -315,7 +315,18 @@ export default function Page() {
               />
             </div>
             <div style={{ flex: 1, minWidth: 180 }}>
-              <div style={{ fontSize: 19, fontWeight: 700, color: 'var(--white)', wordBreak: 'break-word' }}>{basic.nickname}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <div style={{ fontSize: 19, fontWeight: 700, color: 'var(--white)', wordBreak: 'break-word' }}>{basic.nickname}</div>
+                {basic.primeInfo?.primeLevel ? (
+                  <img
+                    src={`/image/prime${basic.primeInfo.primeLevel}.png`}
+                    alt={`Prime ${basic.primeInfo.primeLevel}`}
+                    title={`Prime Level ${basic.primeInfo.primeLevel}`}
+                    style={{ width: 20, height: 20, objectFit: 'contain' }}
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                ) : null}
+              </div>
               <div style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--muted-text)', marginTop: 2 }}>UID: {basic.accountId}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6, flexWrap: 'wrap' }}>
                 {basic.liked !== undefined ? (
@@ -415,7 +426,6 @@ export default function Page() {
           <div style={{ marginTop: 20 }}>
             <SectionLabel>Statistik Akun</SectionLabel>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-              <StatCard icon="/image/prime.png" label="Prime Level" value={basic.primeInfo?.primeLevel ?? '—'} />
               <StatCard icon="/image/bpmati.png" label="Booyah Pass" value="BooyahPass" accent="var(--gold)" sub={`Badge: ${basic.badgeCnt ?? '—'}`} />
               <StatCard icon="/image/level.png" label="Level Player" value={basic.level ?? '—'} />
               <StatCard icon="/image/exp.png" label="Exp Level" value={formatNumber(basic.exp)} />
