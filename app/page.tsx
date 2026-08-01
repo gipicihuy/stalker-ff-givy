@@ -333,12 +333,6 @@ export default function Page() {
                 </div>
               ) : null}
             </div>
-            {basic.liked !== undefined ? (
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ fontSize: 11, color: 'var(--muted-text)', textTransform: 'uppercase' }}>Likes</p>
-                <p style={{ fontSize: 20, fontWeight: 700, color: 'var(--gold)' }}>{formatNumber(basic.liked)}</p>
-              </div>
-            ) : null}
           </div>
 
           {clan?.clanName ? (
@@ -438,7 +432,7 @@ export default function Page() {
           <AngleDividerDouble />
         </div>
         <p style={{ margin: 0, fontSize: 11, fontWeight: 500, letterSpacing: '0.01em', color: 'var(--light-text)' }}>
-          Givy Stalk Epep <span style={{ color: 'var(--panel-border)', margin: '0 2px' }}>-</span>{' '}
+          Givy Stalk Epep <span style={{ color: 'var(--gold)', margin: '0 4px', fontWeight: 700 }}>-</span>
           <a
             href="https://wa.me/+62895423300395?text=halo+givy+ganteng"
             target="_blank"
