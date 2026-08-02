@@ -34,7 +34,6 @@ type FfResponse = {
   creditScoreInfo?: CreditInfo;
 };
 
-const DAYS_ID = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', "Jum'at", 'Sabtu'];
 const MONTHS_ID = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 const REGION_NAMES: Record<string, string> = {
   ID: 'Indonesia', SG: 'Singapura', MY: 'Malaysia', TH: 'Thailand', VN: 'Vietnam',
@@ -56,25 +55,53 @@ function pad2(n: number) {
   return n < 10 ? `0${n}` : `${n}`;
 }
 
+function getJakartaParts(date: Date) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Jakarta',
+    weekday: 'short',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false,
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '0';
+  return {
+    weekdayShort: get('weekday'),
+    day: Number(get('day')),
+    month: Number(get('month')) - 1,
+    year: Number(get('year')),
+    hour: get('hour') === '24' ? 0 : Number(get('hour')),
+    minute: Number(get('minute')),
+  };
+}
+
+const WEEKDAY_SHORT_TO_ID: Record<string, string> = {
+  Sun: 'Minggu', Mon: 'Senin', Tue: 'Selasa', Wed: 'Rabu', Thu: 'Kamis', Fri: "Jum'at", Sat: 'Sabtu',
+};
+
 function formatFullDate(timestamp?: string) {
   if (!timestamp) return '—';
   const date = new Date(Number(timestamp) * 1000);
   if (Number.isNaN(date.getTime())) return '—';
-  return `${DAYS_ID[date.getDay()]}, ${date.getDate()} ${MONTHS_ID[date.getMonth()]} ${date.getFullYear()}`;
+  const p = getJakartaParts(date);
+  return `${WEEKDAY_SHORT_TO_ID[p.weekdayShort] ?? p.weekdayShort}, ${p.day} ${MONTHS_ID[p.month]} ${p.year}`;
 }
 
 function formatFullDateTime(timestamp?: string) {
   if (!timestamp) return '—';
   const date = new Date(Number(timestamp) * 1000);
   if (Number.isNaN(date.getTime())) return '—';
-  return `${date.getDate()} ${MONTHS_ID[date.getMonth()]} ${date.getFullYear()}, ${pad2(date.getHours())}.${pad2(date.getMinutes())}`;
+  const p = getJakartaParts(date);
+  return `${p.day} ${MONTHS_ID[p.month]} ${p.year}, ${pad2(p.hour)}.${pad2(p.minute)}`;
 }
 
 function formatDateTime(timestamp?: string) {
   if (!timestamp) return '—';
   const date = new Date(Number(timestamp) * 1000);
   if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return date.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 function calculateAccountAgeDays(timestamp?: string) {
@@ -340,7 +367,9 @@ export default function Page() {
   const estimatedTopup = basic ? estimateTopupPrice(basic) : 0;
   const avatarSrc =
     basic?.avatarUrl ||
-    (basic?.headPic ? `https://ff.garena.com/avatar/${basic.headPic}.png` : '/image/avatar1.jpg');
+    (basic?.headPic ? `https://ff.garena.com/avatar/${basic.headPic}.png` : null) ||
+    basic?.equippedCharacterIconUrl ||
+    '/image/avatar1.jpg';
 
   return (
     <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 16px 64px' }}>
@@ -451,7 +480,14 @@ export default function Page() {
               src={avatarSrc}
               alt="Avatar"
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              onError={(e) => { e.currentTarget.src = '/image/avatar1.jpg'; }}
+              onError={(e) => {
+                const fallback = basic?.equippedCharacterIconUrl || '/image/avatar1.jpg';
+                if (e.currentTarget.src !== fallback) {
+                  e.currentTarget.src = fallback;
+                } else if (fallback !== '/image/avatar1.jpg') {
+                  e.currentTarget.src = '/image/avatar1.jpg';
+                }
+              }}
             />
           </div>
 
