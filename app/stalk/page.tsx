@@ -136,12 +136,11 @@ function formatRupiah(n: number) {
 }
 
 type SignatureSegment = { text: string; bold: boolean; italic: boolean; color: string | null };
-type SignatureLine = { align: 'left' | 'center' | 'right'; segments: SignatureSegment[] };
+type SignatureLine = { segments: SignatureSegment[] };
 
 function parseSignatureLine(line: string): SignatureLine {
   let bold = false;
   let italic = false;
-  let align: 'left' | 'center' | 'right' = 'left';
   let color: string | null = null;
   const segments: SignatureSegment[] = [];
   let buffer = '';
@@ -164,9 +163,7 @@ function parseSignatureLine(line: string): SignatureLine {
         if (lower === '/b') { flush(); bold = false; i = end + 1; continue; }
         if (lower === 'i') { flush(); italic = true; i = end + 1; continue; }
         if (lower === '/i') { flush(); italic = false; i = end + 1; continue; }
-        if (lower === 'c') { align = 'center'; i = end + 1; continue; }
-        if (lower === 'l') { align = 'left'; i = end + 1; continue; }
-        if (lower === 'r') { align = 'right'; i = end + 1; continue; }
+        if (lower === 'c' || lower === 'l' || lower === 'r') { i = end + 1; continue; }
         if (/^#?[0-9a-fA-F]{6}$/.test(tag)) {
           flush();
           color = tag.startsWith('#') ? tag : `#${tag}`;
@@ -181,7 +178,7 @@ function parseSignatureLine(line: string): SignatureLine {
     i += 1;
   }
   flush();
-  return { align, segments };
+  return { segments };
 }
 
 function parseSignature(text: string): SignatureLine[] {
@@ -191,9 +188,9 @@ function parseSignature(text: string): SignatureLine[] {
 function SignatureText({ text }: { text: string }) {
   const lines = parseSignature(text);
   return (
-    <div style={{ fontFamily: 'var(--font-display)', fontSize: 13, lineHeight: 1.6 }}>
+    <div style={{ fontFamily: 'var(--font-display)', fontSize: 13 }}>
       {lines.map((line, li) => (
-        <div key={li} style={{ textAlign: line.align, minHeight: line.segments.length ? undefined : '1em', wordBreak: 'break-word' }}>
+        <div key={li} style={{ lineHeight: '19px', minHeight: '19px', wordBreak: 'break-word' }}>
           {line.segments.map((seg, si) => (
             <span
               key={si}
