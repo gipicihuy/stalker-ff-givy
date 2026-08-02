@@ -156,7 +156,7 @@ function AngleDividerDouble() {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p style={{ fontWeight: 600, fontSize: 11.5, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 12 }}>
+    <p style={{ fontWeight: 600, fontSize: 10.5, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8 }}>
       {children}
     </p>
   );
@@ -175,28 +175,28 @@ function Spinner() {
 
 function StatCard({ icon, label, value, sub, accent }: { icon?: string; label: string; value: React.ReactNode; sub?: string; accent?: string }) {
   return (
-    <div style={{ background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 14, padding: '18px 14px', textAlign: 'center' }}>
+    <div style={{ background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12, padding: '13px 10px', textAlign: 'center' }}>
       {icon ? (
-        <img src={icon} alt="" style={{ width: 40, height: 40, objectFit: 'contain', margin: '0 auto 10px' }}
+        <img src={icon} alt="" style={{ width: 30, height: 30, objectFit: 'contain', margin: '0 auto 7px' }}
           onError={(e) => { e.currentTarget.style.display = 'none'; }} />
       ) : null}
-      <p style={{ fontSize: 12, color: 'var(--muted-text)', marginBottom: 6 }}>{label}</p>
-      <p style={{ fontSize: 20, fontWeight: 700, color: accent || 'var(--white)', fontFamily: 'var(--font-display)' }}>{value}</p>
-      {sub ? <p style={{ fontSize: 12, color: 'var(--light-text)', marginTop: 4 }}>{sub}</p> : null}
+      <p style={{ fontSize: 10.5, color: 'var(--muted-text)', marginBottom: 4 }}>{label}</p>
+      <p style={{ fontSize: 15, fontWeight: 700, color: accent || 'var(--white)', fontFamily: 'var(--font-display)' }}>{value}</p>
+      {sub ? <p style={{ fontSize: 10.5, color: 'var(--light-text)', marginTop: 3 }}>{sub}</p> : null}
     </div>
   );
 }
 
 function InfoRow({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="info-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 4px' }}>
+    <div className="info-row" style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 2px' }}>
       <span style={{
-        width: 32, height: 32, borderRadius: 10, background: 'var(--panel-bg)', border: '1px solid var(--panel-border)',
+        width: 24, height: 24, borderRadius: 8, background: 'var(--panel-bg)', border: '1px solid var(--panel-border)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold)', flexShrink: 0,
       }}>
         {icon}
       </span>
-      <span style={{ fontSize: 13.5, color: 'var(--light-text)', lineHeight: 1.4 }}>{children}</span>
+      <span style={{ fontSize: 12.5, color: 'var(--light-text)', lineHeight: 1.35 }}>{children}</span>
     </div>
   );
 }
@@ -349,8 +349,8 @@ export default function Page() {
 
       {basic ? (
         <section className="profile-card" style={{
-          width: '100%', maxWidth: 720, marginTop: 32, background: 'var(--panel-bg)',
-          border: '1px solid var(--panel-border)', borderRadius: 24, padding: 24, animation: 'fadeUp 0.35s ease',
+          width: '100%', maxWidth: 720, marginTop: 28, background: 'var(--panel-bg)',
+          border: '1px solid var(--panel-border)', borderRadius: 20, padding: 18, animation: 'fadeUp 0.35s ease',
         }}>
           <button
             type="button"
@@ -359,17 +359,17 @@ export default function Page() {
             disabled={loading}
             className="icon-btn"
             style={{
-              position: 'absolute', top: 18, right: 18, width: 34, height: 34, borderRadius: '50%',
+              position: 'absolute', top: 14, right: 14, width: 28, height: 28, borderRadius: '50%',
               background: 'rgba(0,0,0,0.35)', border: '1px solid var(--panel-border)', color: 'var(--light-text)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2,
             }}
           >
-            <RefreshCw size={15} style={{ transform: loading ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s ease' }} />
+            <RefreshCw size={13} style={{ transform: loading ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s ease' }} />
           </button>
 
           <div style={{
-            width: 88, height: 88, borderRadius: 20, overflow: 'hidden', border: '2px solid rgba(255,255,255,0.85)',
-            background: 'var(--panel-bg-alt)', boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+            width: 64, height: 64, borderRadius: 16, overflow: 'hidden', border: '2px solid rgba(255,255,255,0.85)',
+            background: 'var(--panel-bg-alt)', boxShadow: '0 6px 18px rgba(0,0,0,0.3)',
           }}>
             <img
               src={avatarSrc}
@@ -379,26 +379,26 @@ export default function Page() {
             />
           </div>
 
-          <div style={{ marginTop: 18 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <h2 style={{ fontSize: 25, fontWeight: 700, color: 'var(--white)', wordBreak: 'break-word', fontFamily: 'var(--font-display)' }}>
+          <div style={{ marginTop: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <h2 style={{ fontSize: 19, fontWeight: 700, color: 'var(--white)', wordBreak: 'break-word', fontFamily: 'var(--font-display)' }}>
                 {basic.nickname}
               </h2>
               {basic.level ? (
                 <span style={{
-                  fontSize: 12.5, fontWeight: 700, color: 'var(--gold)', background: 'var(--gold-soft)',
-                  border: '1px solid rgba(250,191,0,0.35)', borderRadius: 999, padding: '3px 12px', fontFamily: 'var(--font-display)',
+                  fontSize: 11, fontWeight: 700, color: 'var(--gold)', background: 'var(--gold-soft)',
+                  border: '1px solid rgba(250,191,0,0.35)', borderRadius: 999, padding: '2px 10px', fontFamily: 'var(--font-display)',
                 }}>
                   Lv.{basic.level}
                 </span>
               ) : null}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginTop: 10, flexWrap: 'wrap', fontSize: 13.5, color: 'var(--muted-text)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 6, flexWrap: 'wrap', fontSize: 12, color: 'var(--muted-text)' }}>
               <span>ID: {basic.accountId}</span>
               {basic.liked !== undefined ? (
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--light-text)' }}>
-                  <Heart size={14} color="#ff6b6b" fill="#ff6b6b" /> Likes: {formatNumber(basic.liked)}
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--light-text)' }}>
+                  <Heart size={12} color="#ff6b6b" fill="#ff6b6b" /> Likes: {formatNumber(basic.liked)}
                 </span>
               ) : null}
               {basic.region ? <span>Region: {basic.region}</span> : null}
@@ -406,21 +406,21 @@ export default function Page() {
 
             {accountAgeDays !== null && ageBreakdown ? (
               <span style={{
-                display: 'inline-block', marginTop: 14, fontSize: 12.5, fontWeight: 600, color: 'var(--gold)',
-                border: '1px solid rgba(250,191,0,0.4)', borderRadius: 999, padding: '5px 16px',
+                display: 'inline-block', marginTop: 9, fontSize: 11, fontWeight: 600, color: 'var(--gold)',
+                border: '1px solid rgba(250,191,0,0.4)', borderRadius: 999, padding: '3px 12px',
               }}>
                 {ageBreakdown.years} Tahun
               </span>
             ) : null}
 
             {customTag ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
                 {customTag.badge ? (
-                  <img src={customTag.badge} alt="" style={{ width: 20, height: 20, objectFit: 'contain' }}
+                  <img src={customTag.badge} alt="" style={{ width: 18, height: 18, objectFit: 'contain' }}
                     onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                 ) : null}
                 <span style={{
-                  fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 999,
+                  fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 999,
                   background: 'var(--gold-soft)', color: customTag.color || 'var(--gold)',
                   border: '1px solid rgba(250,191,0,0.3)',
                 }}>
@@ -431,46 +431,46 @@ export default function Page() {
           </div>
 
           <div style={{
-            marginTop: 22, background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)',
-            borderRadius: 16, padding: '4px 14px',
+            marginTop: 14, background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)',
+            borderRadius: 14, padding: '2px 12px',
           }}>
-            <InfoRow icon={<CalendarDays size={16} />}>
+            <InfoRow icon={<CalendarDays size={13} />}>
               Akun dibuat pada {formatFullDateTime(basic.createAt)}
             </InfoRow>
             {ageBreakdown ? (
-              <InfoRow icon={<CalendarDays size={16} />}>
+              <InfoRow icon={<CalendarDays size={13} />}>
                 berusia {ageBreakdown.years} tahun, {ageBreakdown.months} bulan dan {ageBreakdown.days} hari
               </InfoRow>
             ) : null}
-            <InfoRow icon={<Clock size={16} />}>
+            <InfoRow icon={<Clock size={13} />}>
               Login terakhir {formatFullDateTime(basic.lastLoginAt)}
             </InfoRow>
           </div>
 
-          <div style={{ height: 1, background: 'var(--panel-border)', margin: '24px 0' }} />
+          <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
 
           <div>
             <SectionLabel>Estimasi &amp; Statistik</SectionLabel>
             <div style={{
               background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)',
-              borderRadius: 16, padding: '18px 18px 14px', display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 18, marginBottom: 16,
+              borderRadius: 14, padding: '14px 14px 10px', display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 12,
             }}>
               <div>
-                <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Tag size={14} /> Estimasi Topup Kamu
+                <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <Tag size={12} /> Estimasi Topup Kamu
                 </p>
-                <p style={{ fontSize: 22, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)' }}>{formatRupiah(estimatedTopup)}</p>
+                <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)' }}>{formatRupiah(estimatedTopup)}</p>
               </div>
               <div>
-                <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <CalendarDays size={14} /> Dibuat Pada
+                <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <CalendarDays size={12} /> Dibuat Pada
                 </p>
-                <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--white)' }}>{formatFullDate(basic.createAt)}</p>
+                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--white)' }}>{formatFullDate(basic.createAt)}</p>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
               <StatCard icon="/image/bpmati.png" label="Booyah Pass" value="BooyahPass" accent="var(--gold)" sub={`Badge: ${basic.badgeCnt ?? '—'}`} />
               <StatCard icon="/image/level.png" label="Level Player" value={basic.level ?? '—'} />
               <StatCard icon="/image/exp.png" label="Exp Level" value={formatNumber(basic.exp)} />
@@ -478,13 +478,13 @@ export default function Page() {
             </div>
           </div>
 
-          <div style={{ height: 1, background: 'var(--panel-border)', margin: '24px 0' }} />
+          <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
 
           <div>
             <SectionLabel>Bio</SectionLabel>
             <div style={{
-              position: 'relative', background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 14,
-              padding: '14px 42px 14px 16px', fontSize: 13, color: 'var(--light-text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+              position: 'relative', background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12,
+              padding: '11px 36px 11px 13px', fontSize: 12, color: 'var(--light-text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
             }}>
               {social?.signature ? social.signature : 'Tidak ada signature / bio.'}
               {social?.signature ? (
@@ -494,41 +494,41 @@ export default function Page() {
                   onClick={() => copySignature(social.signature || '')}
                   className="icon-btn"
                   style={{
-                    position: 'absolute', top: 10, right: 10, width: 26, height: 26,
+                    position: 'absolute', top: 8, right: 8, width: 22, height: 22,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: 'transparent', border: 'none', borderRadius: 7, color: copied ? 'var(--success)' : 'var(--muted-text)',
+                    background: 'transparent', border: 'none', borderRadius: 6, color: copied ? 'var(--success)' : 'var(--muted-text)',
                   }}
                 >
-                  {copied ? <Check size={14} /> : <Copy size={14} />}
+                  {copied ? <Check size={13} /> : <Copy size={13} />}
                 </button>
               ) : null}
             </div>
           </div>
 
-          <div style={{ height: 1, background: 'var(--panel-border)', margin: '24px 0' }} />
+          <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
 
           <div>
             <SectionLabel>Guild</SectionLabel>
             {guild?.guildName ? (
               <>
                 <div style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--blue-soft)',
+                  display: 'inline-flex', alignItems: 'center', gap: 7, background: 'var(--blue-soft)',
                   border: '1px solid rgba(90,169,230,0.4)', color: 'var(--blue)', borderRadius: 999,
-                  padding: '7px 16px', fontSize: 14, fontWeight: 700,
+                  padding: '5px 13px', fontSize: 12.5, fontWeight: 700,
                 }}>
-                  <Users size={15} /> {guild.guildName}
+                  <Users size={13} /> {guild.guildName}
                 </div>
                 <div style={{
-                  marginTop: 14, background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)',
-                  borderRadius: 14, padding: '14px 16px', display: 'flex', gap: 20, flexWrap: 'wrap',
-                  fontSize: 13.5, color: 'var(--light-text)',
+                  marginTop: 10, background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)',
+                  borderRadius: 12, padding: '10px 13px', display: 'flex', gap: 16, flexWrap: 'wrap',
+                  fontSize: 12, color: 'var(--light-text)',
                 }}>
                   <span>Level: <strong style={{ color: 'var(--white)' }}>{guild.guildLevel ?? '—'}</strong></span>
                   <span>Anggota: <strong style={{ color: 'var(--white)' }}>{guild.memberNum ?? '—'}/{guild.capacity ?? '—'}</strong></span>
                 </div>
               </>
             ) : (
-              <p style={{ fontSize: 13.5, color: 'var(--muted-text)' }}>Tidak tergabung dalam guild.</p>
+              <p style={{ fontSize: 12, color: 'var(--muted-text)' }}>Tidak tergabung dalam guild.</p>
             )}
           </div>
         </section>
