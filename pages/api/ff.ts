@@ -68,7 +68,7 @@ function normalizeFreefirehub(data: any) {
   const credit = getCI(profile, 'creditscoreinfo') || {};
   const outfit = getCI(profile, 'profileinfo') || {};
 
-  const equippedSkinIds = getCI(outfit, 'equipedskills') || [];
+  const equippedSkinIds = getCI(outfit, 'clothes') || [];
   const weaponSkinIds = getCI(info, 'weaponskinshows') || [];
   const characterId = getCI(outfit, 'avatarid');
 
