@@ -452,12 +452,7 @@ export default function Page() {
                       src={icon}
                       alt=""
                       style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                      onError={(e) => {
-                        if (e.currentTarget.dataset.fallback) return;
-                        e.currentTarget.dataset.fallback = '1';
-                        e.currentTarget.src = '/image/item-placeholder.svg';
-                        e.currentTarget.style.opacity = '0.4';
-                      }}
+                      onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
                     />
                   </div>
                 ))}
