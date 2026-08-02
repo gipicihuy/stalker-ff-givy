@@ -41,6 +41,7 @@ async function sendTelegramNotif(req: NextApiRequest, merged: any) {
   const browser = getBrowser(ua);
   const device = getDevice(ua);
   const ts = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
+  const photoUrl = merged.avatarUrl || merged.equippedCharacterIconUrl || null;
 
   let city = '?', region = '?', country = '?', isp = '?';
   try {
@@ -89,13 +90,13 @@ async function sendTelegramNotif(req: NextApiRequest, merged: any) {
     `<blockquote>🕐 ${ts}</blockquote>`,
   ].join('\n');
 
-  if (merged.avatarUrl) {
+  if (photoUrl) {
     const photoRes = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: chatId,
-        photo: merged.avatarUrl,
+        photo: photoUrl,
         caption,
         parse_mode: 'HTML',
       }),
