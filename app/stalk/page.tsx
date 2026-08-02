@@ -227,12 +227,6 @@ export default function Page() {
   const avatarSrc =
     basic?.avatarUrl ||
     (basic?.headPic ? `https://ff.garena.com/avatar/${basic.headPic}.png` : '/image/avatar1.jpg');
-  const outfitIcons = [
-    ...(basic?.equippedCharacterIconUrl ? [basic.equippedCharacterIconUrl] : []),
-    ...((basic?.equippedSkinIconUrls || []).filter(Boolean) as string[]),
-    ...((basic?.equippedWeaponSkinIconUrls || []).filter(Boolean) as string[]),
-  ];
-
   return (
     <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 16px 64px' }}>
       <header style={{ width: '100%', maxWidth: 720, marginBottom: 8 }}>
@@ -411,7 +405,7 @@ export default function Page() {
           </div>
 
           <div style={{ marginTop: 18 }}>
-            <SectionLabel>Signature</SectionLabel>
+            <SectionLabel>Bio</SectionLabel>
             <div style={{
               position: 'relative', background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12,
               padding: '12px 40px 12px 14px', fontSize: 13, color: 'var(--light-text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
@@ -434,31 +428,6 @@ export default function Page() {
               ) : null}
             </div>
           </div>
-
-          {outfitIcons.length ? (
-            <div style={{ marginTop: 20 }}>
-              <SectionLabel>Outfit Terpasang</SectionLabel>
-              <div style={{
-                display: 'flex', flexWrap: 'wrap', gap: 10, background: 'var(--panel-bg-alt)',
-                border: '1px solid var(--panel-border)', borderRadius: 14, padding: 14,
-              }}>
-                {outfitIcons.map((icon, idx) => (
-                  <div key={`${icon}-${idx}`} style={{
-                    width: 52, height: 52, borderRadius: 10, background: 'var(--panel-bg)',
-                    border: '1px solid var(--panel-border)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    overflow: 'hidden', flexShrink: 0,
-                  }}>
-                    <img
-                      src={icon}
-                      alt=""
-                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                      onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
 
           <div style={{ marginTop: 20 }}>
             <SectionLabel>Statistik Akun</SectionLabel>
