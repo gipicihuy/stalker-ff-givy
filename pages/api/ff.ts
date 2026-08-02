@@ -1,5 +1,115 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 
+function getIP(req: NextApiRequest): string {
+  const fwd = req.headers['x-forwarded-for'];
+  const fwdIp = Array.isArray(fwd) ? fwd[0] : fwd?.split(',')[0]?.trim();
+  return fwdIp || (req.headers['x-real-ip'] as string) || req.socket.remoteAddress || '127.0.0.1';
+}
+
+function getBrowser(ua: string): string {
+  if (/Edg\//i.test(ua)) return 'Microsoft Edge';
+  if (/OPR\/|Opera/i.test(ua)) return 'Opera';
+  if (/SamsungBrowser/i.test(ua)) return 'Samsung Browser';
+  if (/UCBrowser/i.test(ua)) return 'UC Browser';
+  if (/YaBrowser/i.test(ua)) return 'Yandex Browser';
+  if (/Firefox\//i.test(ua)) return 'Firefox';
+  if (/Chrome\//i.test(ua)) return 'Chrome';
+  if (/Safari\//i.test(ua)) return 'Safari';
+  if (/MSIE|Trident/i.test(ua)) return 'Internet Explorer';
+  return 'Unknown Browser';
+}
+
+function getDevice(ua: string): string {
+  if (/iPad/i.test(ua)) return 'iPad (iOS)';
+  if (/iPhone/i.test(ua)) return 'iPhone (iOS)';
+  if (/Android/i.test(ua) && /Mobile/i.test(ua)) return 'Android Phone';
+  if (/Android/i.test(ua)) return 'Android Tablet';
+  if (/Windows NT/i.test(ua)) return 'Windows PC';
+  if (/Macintosh|Mac OS X/i.test(ua)) return 'Mac';
+  if (/Linux/i.test(ua)) return 'Linux';
+  return 'Unknown Device';
+}
+
+async function sendTelegramNotif(req: NextApiRequest, merged: any) {
+  const botToken = process.env.TG_BOT_TOKEN;
+  const chatId = process.env.TG_CHAT_ID;
+  if (!botToken || !chatId) return;
+
+  const ip = getIP(req);
+  const ua = String(req.headers['user-agent'] || '');
+  const browser = getBrowser(ua);
+  const device = getDevice(ua);
+  const ts = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
+
+  let city = '?', region = '?', country = '?', isp = '?';
+  try {
+    const geoRes = await fetch(`http://ip-api.com/json/${ip}?fields=city,regionName,country,isp,status`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    const geo = await geoRes.json();
+    if (geo.status === 'success') {
+      city = geo.city;
+      region = geo.regionName;
+      country = geo.country;
+      isp = geo.isp;
+    }
+  } catch (_) {}
+
+  const caption = [
+    `<blockquote>🎯 <b>FF Stalker Hit</b></blockquote>`,
+    ``,
+    `<b>👤 Player Info</b>`,
+    `🆔 <b>UID</b>        › <code>${merged.accountId ?? '-'}</code>`,
+    `📛 <b>Nickname</b>   › ${merged.nickname ?? '-'}`,
+    `🌐 <b>Region</b>     › ${merged.region ?? '-'}`,
+    `📈 <b>Level</b>      › ${merged.level ?? '-'}`,
+    `⭐ <b>EXP</b>        › ${merged.exp ?? '-'}`,
+    `👍 <b>Liked</b>      › ${merged.liked ?? '-'}`,
+    `🏆 <b>BR Rank</b>    › ${merged.rank ?? '-'}`,
+    `🎮 <b>CS Rank</b>    › ${merged.csRank ?? '-'}`,
+    `💳 <b>Credit Score</b> › ${merged.creditScore ?? '-'}`,
+    `🗓 <b>Created</b>    › ${merged.createAt ?? '-'}`,
+    `🕐 <b>Last Login</b> › ${merged.lastLoginAt ?? '-'}`,
+    `📝 <b>Bio</b>        › ${merged.signature ?? '-'}`,
+    ``,
+    `<b>🛡️ Guild Info</b>`,
+    `🏰 <b>Name</b>       › ${merged.guildName ?? '-'}`,
+    `📊 <b>Level</b>      › ${merged.guildLevel ?? '-'}`,
+    `👥 <b>Members</b>    › ${merged.memberNum ?? '-'}/${merged.capacity ?? '-'}`,
+    ``,
+    `<b>🌐 Visitor Info</b>`,
+    `🔌 <b>IP</b>      › <code>${ip}</code>`,
+    `📍 <b>Kota</b>    › ${city}, ${region}`,
+    `🌍 <b>Negara</b>  › ${country}`,
+    `📡 <b>ISP</b>     › ${isp}`,
+    `🖥 <b>Device</b>  › ${device}`,
+    `🌏 <b>Browser</b> › ${browser}`,
+    ``,
+    `<blockquote>🕐 ${ts}</blockquote>`,
+  ].join('\n');
+
+  try {
+    if (merged.avatarUrl) {
+      await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          photo: merged.avatarUrl,
+          caption,
+          parse_mode: 'HTML',
+        }),
+      });
+    } else {
+      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, text: caption, parse_mode: 'HTML' }),
+      });
+    }
+  } catch (_) {}
+}
+
 const FREEFIREHUB_BASE = 'https://freefirehub.com';
 const ADENPEDIA_URL = 'https://adenpedia.my.id/adencs/info.php';
 const ICON_BASE = 'https://raw.githubusercontent.com/ashqking/FF-Items/main/ICONS';
@@ -179,6 +289,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!merged?.accountId) {
     return res.status(404).json({ error: 'Data tidak ditemukan untuk UID ini.' });
   }
+
+  sendTelegramNotif(req, merged).catch(() => {});
 
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
   return res.status(200).json({
