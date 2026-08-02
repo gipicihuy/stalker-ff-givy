@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
-import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw } from 'lucide-react';
+import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare } from 'lucide-react';
 
 type PrimeInfo = { primeLevel?: number };
 type BasicInfo = {
@@ -173,14 +173,14 @@ function Spinner() {
   );
 }
 
-function StatCard({ icon, label, value, sub, accent }: { icon?: string; label: string; value: React.ReactNode; sub?: string; accent?: string }) {
+function StatCard({ icon, label, value, sub, accent }: { icon?: string; label?: string; value: React.ReactNode; sub?: string; accent?: string }) {
   return (
     <div style={{ background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12, padding: '13px 10px', textAlign: 'center' }}>
       {icon ? (
         <img src={icon} alt="" style={{ width: 30, height: 30, objectFit: 'contain', margin: '0 auto 7px' }}
           onError={(e) => { e.currentTarget.style.display = 'none'; }} />
       ) : null}
-      <p style={{ fontSize: 10.5, color: 'var(--muted-text)', marginBottom: 4 }}>{label}</p>
+      {label ? <p style={{ fontSize: 10.5, color: 'var(--muted-text)', marginBottom: 4 }}>{label}</p> : null}
       <p style={{ fontSize: 15, fontWeight: 700, color: accent || 'var(--white)', fontFamily: 'var(--font-display)' }}>{value}</p>
       {sub ? <p style={{ fontSize: 10.5, color: 'var(--light-text)', marginTop: 3 }}>{sub}</p> : null}
     </div>
@@ -287,7 +287,9 @@ export default function Page() {
         </div>
       </header>
 
-      <AngleDivider />
+      <div style={{ margin: '28px 0' }}>
+        <AngleDividerDouble />
+      </div>
 
       <section style={{ width: '100%', maxWidth: 720 }}>
         <SectionLabel>Masukkan UID</SectionLabel>
@@ -409,7 +411,7 @@ export default function Page() {
                 display: 'inline-block', marginTop: 9, fontSize: 11, fontWeight: 600, color: 'var(--gold)',
                 border: '1px solid rgba(250,191,0,0.4)', borderRadius: 999, padding: '3px 12px',
               }}>
-                {ageBreakdown.years} Tahun
+                {ageBreakdown.years} Years Old
               </span>
             ) : null}
 
@@ -463,45 +465,47 @@ export default function Page() {
                 <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)' }}>{formatRupiah(estimatedTopup)}</p>
               </div>
               <div>
-                <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <CalendarDays size={12} /> Dibuat Pada
+                <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--blue)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <MessageSquare size={12} /> Bio
                 </p>
-                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--white)' }}>{formatFullDate(basic.createAt)}</p>
+                <div style={{
+                  position: 'relative', background: 'var(--panel-bg)', border: '1px solid rgba(90,169,230,0.25)',
+                  borderRadius: 10, padding: '8px 26px 8px 10px',
+                }}>
+                  <p style={{
+                    fontSize: 12, color: 'var(--light-text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                  }}>
+                    {social?.signature ? social.signature : 'Tidak ada signature / bio.'}
+                  </p>
+                  {social?.signature ? (
+                    <button
+                      type="button"
+                      aria-label="Salin signature"
+                      onClick={() => copySignature(social.signature || '')}
+                      className="icon-btn"
+                      style={{
+                        position: 'absolute', top: 6, right: 6, width: 20, height: 20,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'transparent', border: 'none', borderRadius: 6, color: copied ? 'var(--success)' : 'var(--muted-text)',
+                      }}
+                    >
+                      {copied ? <Check size={12} /> : <Copy size={12} />}
+                    </button>
+                  ) : null}
+                </div>
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-              <StatCard icon="/image/bpmati.png" label="Booyah Pass" value="BooyahPass" accent="var(--gold)" sub={`Badge: ${basic.badgeCnt ?? '—'}`} />
-              <StatCard icon="/image/level.png" label="Level Player" value={basic.level ?? '—'} />
+              <StatCard icon="/image/bpmati.png" value="Booyah Pass" accent="var(--gold)" sub={`Badge: ${basic.badgeCnt ?? '—'}`} />
+              <StatCard
+                icon={`/image/prime${basic.primeInfo?.primeLevel || 1}.png`}
+                label="Prime Level"
+                value={basic.primeInfo?.primeLevel ? `Prime ${basic.primeInfo.primeLevel}` : '—'}
+                accent="var(--blue)"
+              />
               <StatCard icon="/image/exp.png" label="Exp Level" value={formatNumber(basic.exp)} />
               <StatCard icon="/image/skor.png" label="Credit Score" value={credit?.creditScore ?? '—'} accent="var(--success)" />
-            </div>
-          </div>
-
-          <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
-
-          <div>
-            <SectionLabel>Bio</SectionLabel>
-            <div style={{
-              position: 'relative', background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12,
-              padding: '11px 36px 11px 13px', fontSize: 12, color: 'var(--light-text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-            }}>
-              {social?.signature ? social.signature : 'Tidak ada signature / bio.'}
-              {social?.signature ? (
-                <button
-                  type="button"
-                  aria-label="Salin signature"
-                  onClick={() => copySignature(social.signature || '')}
-                  className="icon-btn"
-                  style={{
-                    position: 'absolute', top: 8, right: 8, width: 22, height: 22,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: 'transparent', border: 'none', borderRadius: 6, color: copied ? 'var(--success)' : 'var(--muted-text)',
-                  }}
-                >
-                  {copied ? <Check size={13} /> : <Copy size={13} />}
-                </button>
-              ) : null}
             </div>
           </div>
 
