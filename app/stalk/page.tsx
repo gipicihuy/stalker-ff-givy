@@ -18,13 +18,18 @@ type BasicInfo = {
   createAt?: string;
   lastLoginAt?: string;
   primeInfo?: PrimeInfo;
+  avatarUrl?: string | null;
+  titleIconUrl?: string | null;
+  equippedCharacterIconUrl?: string | null;
+  equippedSkinIconUrls?: (string | null)[];
+  equippedWeaponSkinIconUrls?: (string | null)[];
 };
-type ClanInfo = { clanName?: string; clanLevel?: number; memberNum?: number; capacity?: number };
+type GuildInfo = { guildName?: string; guildLevel?: number; memberNum?: number; capacity?: number };
 type SocialInfo = { signature?: string };
 type CreditInfo = { creditScore?: number };
 type FfResponse = {
   basicInfo: BasicInfo;
-  clanBasicInfo?: ClanInfo;
+  guildBasicInfo?: GuildInfo;
   socialInfo?: SocialInfo;
   creditScoreInfo?: CreditInfo;
 };
@@ -214,12 +219,19 @@ export default function Page() {
 
   const basic = result?.basicInfo;
   const social = result?.socialInfo;
-  const clan = result?.clanBasicInfo;
+  const guild = result?.guildBasicInfo;
   const credit = result?.creditScoreInfo;
   const customTag = basic ? CUSTOM_TAGS[basic.accountId] : null;
   const accountAgeDays = basic ? calculateAccountAgeDays(basic.createAt) : null;
   const estimatedTopup = basic ? estimateTopupPrice(basic) : 0;
-  const avatarSrc = basic?.headPic ? `https://ff.garena.com/avatar/${basic.headPic}.png` : '/image/avatar1.jpg';
+  const avatarSrc =
+    basic?.avatarUrl ||
+    (basic?.headPic ? `https://ff.garena.com/avatar/${basic.headPic}.png` : '/image/avatar1.jpg');
+  const outfitIcons = [
+    ...(basic?.equippedCharacterIconUrl ? [basic.equippedCharacterIconUrl] : []),
+    ...((basic?.equippedSkinIconUrls || []).filter(Boolean) as string[]),
+    ...((basic?.equippedWeaponSkinIconUrls || []).filter(Boolean) as string[]),
+  ];
 
   return (
     <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 16px 64px' }}>
@@ -360,18 +372,18 @@ export default function Page() {
             </div>
           </div>
 
-          {clan?.clanName ? (
+          {guild?.guildName ? (
             <div style={{
               marginTop: 18, background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)',
               borderRadius: 14, padding: '14px 16px', display: 'flex', justifyContent: 'space-between',
               alignItems: 'center', flexWrap: 'wrap', gap: 8,
             }}>
               <div>
-                <p style={{ fontSize: 11, color: 'var(--muted-text)', textTransform: 'uppercase', marginBottom: 4 }}>Clan</p>
-                <p style={{ fontWeight: 700, color: 'var(--white)' }}>{clan.clanName}</p>
+                <p style={{ fontSize: 11, color: 'var(--muted-text)', textTransform: 'uppercase', marginBottom: 4 }}>Guild</p>
+                <p style={{ fontWeight: 700, color: 'var(--white)' }}>{guild.guildName}</p>
               </div>
               <div style={{ fontSize: 13, color: 'var(--light-text)' }}>
-                Level {clan.clanLevel ?? '—'} · {clan.memberNum ?? '—'}/{clan.capacity ?? '—'} member
+                Level {guild.guildLevel ?? '—'} · {guild.memberNum ?? '—'}/{guild.capacity ?? '—'} member
               </div>
             </div>
           ) : null}
@@ -423,6 +435,31 @@ export default function Page() {
             </div>
           </div>
 
+          {outfitIcons.length ? (
+            <div style={{ marginTop: 20 }}>
+              <SectionLabel>Outfit Terpasang</SectionLabel>
+              <div style={{
+                display: 'flex', flexWrap: 'wrap', gap: 10, background: 'var(--panel-bg-alt)',
+                border: '1px solid var(--panel-border)', borderRadius: 14, padding: 14,
+              }}>
+                {outfitIcons.map((icon, idx) => (
+                  <div key={`${icon}-${idx}`} style={{
+                    width: 52, height: 52, borderRadius: 10, background: 'var(--panel-bg)',
+                    border: '1px solid var(--panel-border)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    overflow: 'hidden', flexShrink: 0,
+                  }}>
+                    <img
+                      src={icon}
+                      alt=""
+                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                      onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           <div style={{ marginTop: 20 }}>
             <SectionLabel>Statistik Akun</SectionLabel>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
@@ -459,7 +496,7 @@ export default function Page() {
             href="https://wa.me/+62895423300395?text=halo+givy+ganteng"
             target="_blank"
             rel="noopener noreferrer"
-            style={{ color: 'var(--gold)' }}
+            style={{ color: 'var(--gold)', textDecoration: 'none' }}
           >
             @givy
           </a>
