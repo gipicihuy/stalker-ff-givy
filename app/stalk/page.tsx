@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
-import { Search, X, Tag, CalendarDays, Copy, Check } from 'lucide-react';
+import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw } from 'lucide-react';
 
 type PrimeInfo = { primeLevel?: number };
 type BasicInfo = {
@@ -52,11 +52,22 @@ function getRegionName(code?: string) {
   return REGION_NAMES[code] || code;
 }
 
+function pad2(n: number) {
+  return n < 10 ? `0${n}` : `${n}`;
+}
+
 function formatFullDate(timestamp?: string) {
   if (!timestamp) return '—';
   const date = new Date(Number(timestamp) * 1000);
   if (Number.isNaN(date.getTime())) return '—';
   return `${DAYS_ID[date.getDay()]}, ${date.getDate()} ${MONTHS_ID[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function formatFullDateTime(timestamp?: string) {
+  if (!timestamp) return '—';
+  const date = new Date(Number(timestamp) * 1000);
+  if (Number.isNaN(date.getTime())) return '—';
+  return `${date.getDate()} ${MONTHS_ID[date.getMonth()]} ${date.getFullYear()}, ${pad2(date.getHours())}.${pad2(date.getMinutes())}`;
 }
 
 function formatDateTime(timestamp?: string) {
@@ -74,17 +85,31 @@ function calculateAccountAgeDays(timestamp?: string) {
   return diff >= 0 ? diff : null;
 }
 
+function calculateAgeBreakdown(timestamp?: string) {
+  if (!timestamp) return null;
+  const created = new Date(Number(timestamp) * 1000);
+  const now = new Date();
+  if (Number.isNaN(created.getTime())) return null;
+  let years = now.getFullYear() - created.getFullYear();
+  let months = now.getMonth() - created.getMonth();
+  let days = now.getDate() - created.getDate();
+  if (days < 0) {
+    months -= 1;
+    const prevMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+    days += prevMonth.getDate();
+  }
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+  if (years < 0) return null;
+  return { years, months, days };
+}
+
 function formatNumber(n?: number) {
   const num = Number(n);
   if (Number.isNaN(num)) return '0';
   return num.toLocaleString('id-ID');
-}
-
-function timeAgoFromDays(days: number | null) {
-  if (days === null || days === undefined) return '';
-  if (days === 0) return 'Hari ini';
-  if (days === 1) return '1 hari yang lalu';
-  return `${formatNumber(days)} hari yang lalu`;
 }
 
 function getPrimePrice(primeLevel: number, createAt?: string) {
@@ -131,7 +156,7 @@ function AngleDividerDouble() {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p style={{ fontWeight: 500, fontSize: 12, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
+    <p style={{ fontWeight: 600, fontSize: 11.5, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 12 }}>
       {children}
     </p>
   );
@@ -156,8 +181,22 @@ function StatCard({ icon, label, value, sub, accent }: { icon?: string; label: s
           onError={(e) => { e.currentTarget.style.display = 'none'; }} />
       ) : null}
       <p style={{ fontSize: 12, color: 'var(--muted-text)', marginBottom: 6 }}>{label}</p>
-      <p style={{ fontSize: 20, fontWeight: 700, color: accent || 'var(--white)' }}>{value}</p>
+      <p style={{ fontSize: 20, fontWeight: 700, color: accent || 'var(--white)', fontFamily: 'var(--font-display)' }}>{value}</p>
       {sub ? <p style={{ fontSize: 12, color: 'var(--light-text)', marginTop: 4 }}>{sub}</p> : null}
+    </div>
+  );
+}
+
+function InfoRow({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="info-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 4px' }}>
+      <span style={{
+        width: 32, height: 32, borderRadius: 10, background: 'var(--panel-bg)', border: '1px solid var(--panel-border)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold)', flexShrink: 0,
+      }}>
+        {icon}
+      </span>
+      <span style={{ fontSize: 13.5, color: 'var(--light-text)', lineHeight: 1.4 }}>{children}</span>
     </div>
   );
 }
@@ -223,10 +262,12 @@ export default function Page() {
   const credit = result?.creditScoreInfo;
   const customTag = basic ? CUSTOM_TAGS[basic.accountId] : null;
   const accountAgeDays = basic ? calculateAccountAgeDays(basic.createAt) : null;
+  const ageBreakdown = basic ? calculateAgeBreakdown(basic.createAt) : null;
   const estimatedTopup = basic ? estimateTopupPrice(basic) : 0;
   const avatarSrc =
     basic?.avatarUrl ||
     (basic?.headPic ? `https://ff.garena.com/avatar/${basic.headPic}.png` : '/image/avatar1.jpg');
+
   return (
     <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 16px 64px' }}>
       <header style={{ width: '100%', maxWidth: 720, marginBottom: 8 }}>
@@ -235,12 +276,12 @@ export default function Page() {
             width: 32, height: 32, borderRadius: 10,
             background: 'linear-gradient(135deg, var(--gold), #ff9d00)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: 700, color: '#14161b', fontSize: 13,
+            fontWeight: 700, color: '#14161b', fontSize: 13, fontFamily: 'var(--font-display)',
           }}>
             FF
           </div>
           <div>
-            <h1 style={{ fontSize: 16, fontWeight: 700, color: 'var(--white)', letterSpacing: '0.02em' }}>GIVY - STALK EPEP</h1>
+            <h1 style={{ fontSize: 16, fontWeight: 700, color: 'var(--white)', letterSpacing: '0.02em', fontFamily: 'var(--font-display)' }}>GIVY - STALK EPEP</h1>
             <p style={{ fontSize: 11, color: 'var(--muted-text)' }}>Cek info akun Free Fire lewat UID</p>
           </div>
         </div>
@@ -307,108 +348,143 @@ export default function Page() {
       </section>
 
       {basic ? (
-        <section style={{
+        <section className="profile-card" style={{
           width: '100%', maxWidth: 720, marginTop: 32, background: 'var(--panel-bg)',
-          border: '1px solid var(--panel-border)', borderRadius: 18, padding: 20, animation: 'fadeUp 0.35s ease',
+          border: '1px solid var(--panel-border)', borderRadius: 24, padding: 24, animation: 'fadeUp 0.35s ease',
         }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', paddingBottom: 18, borderBottom: '1px solid var(--panel-border)' }}>
-            <div style={{ width: 60, height: 60, borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--gold)', flexShrink: 0, background: 'var(--panel-bg-alt)' }}>
-              <img
-                src={avatarSrc}
-                alt="Avatar"
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                onError={(e) => { e.currentTarget.src = '/image/avatar1.jpg'; }}
-              />
-            </div>
-            <div style={{ flex: 1, minWidth: 180 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-                <div style={{ fontSize: 19, fontWeight: 700, color: 'var(--white)', wordBreak: 'break-word' }}>{basic.nickname}</div>
-                {basic.primeInfo?.primeLevel ? (
-                  <img
-                    src={`/image/prime${basic.primeInfo.primeLevel}.png`}
-                    alt={`Prime ${basic.primeInfo.primeLevel}`}
-                    title={`Prime Level ${basic.primeInfo.primeLevel}`}
-                    style={{ width: 32, height: 32, objectFit: 'contain', flexShrink: 0 }}
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                  />
-                ) : null}
-              </div>
-              <div style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--muted-text)', marginTop: 2 }}>UID: {basic.accountId}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6, flexWrap: 'wrap' }}>
-                {basic.liked !== undefined ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <img src="/image/like.png" alt="" style={{ width: 14, height: 14, objectFit: 'contain' }}
-                      onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--light-text)' }}>{formatNumber(basic.liked)}</span>
-                  </div>
-                ) : null}
-                {basic.region ? (
-                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--light-text)' }}>
-                    Region : {basic.region}
-                  </span>
-                ) : null}
-              </div>
-              {customTag ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
-                  {customTag.badge ? (
-                    <img src={customTag.badge} alt="" style={{ width: 20, height: 20, objectFit: 'contain' }}
-                      onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                  ) : null}
-                  <span style={{
-                    fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 999,
-                    background: 'var(--gold-soft)', color: customTag.color || 'var(--gold)',
-                    border: '1px solid rgba(250,191,0,0.3)',
-                  }}>
-                    {customTag.label}
-                  </span>
-                </div>
-              ) : null}
-            </div>
-          </div>
-
-          {guild?.guildName ? (
-            <div style={{
-              marginTop: 18, background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)',
-              borderRadius: 14, padding: '14px 16px', display: 'flex', justifyContent: 'space-between',
-              alignItems: 'center', flexWrap: 'wrap', gap: 8,
-            }}>
-              <div>
-                <p style={{ fontSize: 11, color: 'var(--muted-text)', textTransform: 'uppercase', marginBottom: 4 }}>Guild</p>
-                <p style={{ fontWeight: 700, color: 'var(--white)' }}>{guild.guildName}</p>
-              </div>
-              <div style={{ fontSize: 13, color: 'var(--light-text)' }}>
-                Level {guild.guildLevel ?? '—'} · {guild.memberNum ?? '—'}/{guild.capacity ?? '—'} member
-              </div>
-            </div>
-          ) : null}
+          <button
+            type="button"
+            aria-label="Refresh data"
+            onClick={cekID}
+            disabled={loading}
+            className="icon-btn"
+            style={{
+              position: 'absolute', top: 18, right: 18, width: 34, height: 34, borderRadius: '50%',
+              background: 'rgba(0,0,0,0.35)', border: '1px solid var(--panel-border)', color: 'var(--light-text)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2,
+            }}
+          >
+            <RefreshCw size={15} style={{ transform: loading ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s ease' }} />
+          </button>
 
           <div style={{
-            marginTop: 18, background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)',
-            borderRadius: 14, padding: '18px 18px 14px', display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 18,
+            width: 88, height: 88, borderRadius: 20, overflow: 'hidden', border: '2px solid rgba(255,255,255,0.85)',
+            background: 'var(--panel-bg-alt)', boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
           }}>
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Tag size={14} /> Estimasi Topup Kamu
-              </p>
-              <p style={{ fontSize: 22, fontWeight: 700, color: 'var(--white)' }}>{formatRupiah(estimatedTopup)}</p>
-            </div>
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <CalendarDays size={14} /> Dibuat Pada
-              </p>
-              <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--white)' }}>{formatFullDate(basic.createAt)}</p>
-              {accountAgeDays !== null ? (
-                <p style={{ fontSize: 12, color: 'var(--muted-text)', marginTop: 4 }}>{timeAgoFromDays(accountAgeDays)}</p>
-              ) : null}
-            </div>
+            <img
+              src={avatarSrc}
+              alt="Avatar"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={(e) => { e.currentTarget.src = '/image/avatar1.jpg'; }}
+            />
           </div>
 
           <div style={{ marginTop: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <h2 style={{ fontSize: 25, fontWeight: 700, color: 'var(--white)', wordBreak: 'break-word', fontFamily: 'var(--font-display)' }}>
+                {basic.nickname}
+              </h2>
+              {basic.level ? (
+                <span style={{
+                  fontSize: 12.5, fontWeight: 700, color: 'var(--gold)', background: 'var(--gold-soft)',
+                  border: '1px solid rgba(250,191,0,0.35)', borderRadius: 999, padding: '3px 12px', fontFamily: 'var(--font-display)',
+                }}>
+                  Lv.{basic.level}
+                </span>
+              ) : null}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginTop: 10, flexWrap: 'wrap', fontSize: 13.5, color: 'var(--muted-text)' }}>
+              <span>ID: {basic.accountId}</span>
+              {basic.liked !== undefined ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--light-text)' }}>
+                  <Heart size={14} color="#ff6b6b" fill="#ff6b6b" /> Likes: {formatNumber(basic.liked)}
+                </span>
+              ) : null}
+              {basic.region ? <span>Region: {basic.region}</span> : null}
+            </div>
+
+            {accountAgeDays !== null && ageBreakdown ? (
+              <span style={{
+                display: 'inline-block', marginTop: 14, fontSize: 12.5, fontWeight: 600, color: 'var(--gold)',
+                border: '1px solid rgba(250,191,0,0.4)', borderRadius: 999, padding: '5px 16px',
+              }}>
+                {ageBreakdown.years} Tahun
+              </span>
+            ) : null}
+
+            {customTag ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+                {customTag.badge ? (
+                  <img src={customTag.badge} alt="" style={{ width: 20, height: 20, objectFit: 'contain' }}
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                ) : null}
+                <span style={{
+                  fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 999,
+                  background: 'var(--gold-soft)', color: customTag.color || 'var(--gold)',
+                  border: '1px solid rgba(250,191,0,0.3)',
+                }}>
+                  {customTag.label}
+                </span>
+              </div>
+            ) : null}
+          </div>
+
+          <div style={{
+            marginTop: 22, background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)',
+            borderRadius: 16, padding: '4px 14px',
+          }}>
+            <InfoRow icon={<CalendarDays size={16} />}>
+              Akun dibuat pada {formatFullDateTime(basic.createAt)}
+            </InfoRow>
+            {ageBreakdown ? (
+              <InfoRow icon={<CalendarDays size={16} />}>
+                berusia {ageBreakdown.years} tahun, {ageBreakdown.months} bulan dan {ageBreakdown.days} hari
+              </InfoRow>
+            ) : null}
+            <InfoRow icon={<Clock size={16} />}>
+              Login terakhir {formatFullDateTime(basic.lastLoginAt)}
+            </InfoRow>
+          </div>
+
+          <div style={{ height: 1, background: 'var(--panel-border)', margin: '24px 0' }} />
+
+          <div>
+            <SectionLabel>Estimasi &amp; Statistik</SectionLabel>
+            <div style={{
+              background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)',
+              borderRadius: 16, padding: '18px 18px 14px', display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 18, marginBottom: 16,
+            }}>
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Tag size={14} /> Estimasi Topup Kamu
+                </p>
+                <p style={{ fontSize: 22, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)' }}>{formatRupiah(estimatedTopup)}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <CalendarDays size={14} /> Dibuat Pada
+                </p>
+                <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--white)' }}>{formatFullDate(basic.createAt)}</p>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+              <StatCard icon="/image/bpmati.png" label="Booyah Pass" value="BooyahPass" accent="var(--gold)" sub={`Badge: ${basic.badgeCnt ?? '—'}`} />
+              <StatCard icon="/image/level.png" label="Level Player" value={basic.level ?? '—'} />
+              <StatCard icon="/image/exp.png" label="Exp Level" value={formatNumber(basic.exp)} />
+              <StatCard icon="/image/skor.png" label="Credit Score" value={credit?.creditScore ?? '—'} accent="var(--success)" />
+            </div>
+          </div>
+
+          <div style={{ height: 1, background: 'var(--panel-border)', margin: '24px 0' }} />
+
+          <div>
             <SectionLabel>Bio</SectionLabel>
             <div style={{
-              position: 'relative', background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12,
-              padding: '12px 40px 12px 14px', fontSize: 13, color: 'var(--light-text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+              position: 'relative', background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 14,
+              padding: '14px 42px 14px 16px', fontSize: 13, color: 'var(--light-text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
             }}>
               {social?.signature ? social.signature : 'Tidak ada signature / bio.'}
               {social?.signature ? (
@@ -418,7 +494,7 @@ export default function Page() {
                   onClick={() => copySignature(social.signature || '')}
                   className="icon-btn"
                   style={{
-                    position: 'absolute', top: 8, right: 8, width: 26, height: 26,
+                    position: 'absolute', top: 10, right: 10, width: 26, height: 26,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     background: 'transparent', border: 'none', borderRadius: 7, color: copied ? 'var(--success)' : 'var(--muted-text)',
                   }}
@@ -429,21 +505,31 @@ export default function Page() {
             </div>
           </div>
 
-          <div style={{ marginTop: 20 }}>
-            <SectionLabel>Statistik Akun</SectionLabel>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-              <StatCard icon="/image/bpmati.png" label="Booyah Pass" value="BooyahPass" accent="var(--gold)" sub={`Badge: ${basic.badgeCnt ?? '—'}`} />
-              <StatCard icon="/image/level.png" label="Level Player" value={basic.level ?? '—'} />
-              <StatCard icon="/image/exp.png" label="Exp Level" value={formatNumber(basic.exp)} />
-              <StatCard icon="/image/skor.png" label="Credit Score" value={credit?.creditScore ?? '—'} accent="var(--success)" />
-            </div>
-          </div>
+          <div style={{ height: 1, background: 'var(--panel-border)', margin: '24px 0' }} />
 
-          <div style={{ marginTop: 20 }}>
-            <div style={{ background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12, padding: 16 }}>
-              <p style={{ fontSize: 11, color: 'var(--muted-text)', textTransform: 'uppercase', marginBottom: 6 }}>Terakhir login</p>
-              <p style={{ fontWeight: 700, color: 'var(--white)', fontSize: 14 }}>{formatDateTime(basic.lastLoginAt)}</p>
-            </div>
+          <div>
+            <SectionLabel>Guild</SectionLabel>
+            {guild?.guildName ? (
+              <>
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--blue-soft)',
+                  border: '1px solid rgba(90,169,230,0.4)', color: 'var(--blue)', borderRadius: 999,
+                  padding: '7px 16px', fontSize: 14, fontWeight: 700,
+                }}>
+                  <Users size={15} /> {guild.guildName}
+                </div>
+                <div style={{
+                  marginTop: 14, background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)',
+                  borderRadius: 14, padding: '14px 16px', display: 'flex', gap: 20, flexWrap: 'wrap',
+                  fontSize: 13.5, color: 'var(--light-text)',
+                }}>
+                  <span>Level: <strong style={{ color: 'var(--white)' }}>{guild.guildLevel ?? '—'}</strong></span>
+                  <span>Anggota: <strong style={{ color: 'var(--white)' }}>{guild.memberNum ?? '—'}/{guild.capacity ?? '—'}</strong></span>
+                </div>
+              </>
+            ) : (
+              <p style={{ fontSize: 13.5, color: 'var(--muted-text)' }}>Tidak tergabung dalam guild.</p>
+            )}
           </div>
         </section>
       ) : (!loading && !error) ? (
