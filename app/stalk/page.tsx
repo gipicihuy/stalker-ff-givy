@@ -135,6 +135,83 @@ function formatRupiah(n: number) {
   return `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
 }
 
+type SignatureSegment = { text: string; bold: boolean; italic: boolean; color: string | null };
+type SignatureLine = { align: 'left' | 'center' | 'right'; segments: SignatureSegment[] };
+
+function parseSignatureLine(line: string): SignatureLine {
+  let bold = false;
+  let italic = false;
+  let align: 'left' | 'center' | 'right' = 'left';
+  let color: string | null = null;
+  const segments: SignatureSegment[] = [];
+  let buffer = '';
+  let i = 0;
+
+  const flush = () => {
+    if (buffer) {
+      segments.push({ text: buffer, bold, italic, color });
+      buffer = '';
+    }
+  };
+
+  while (i < line.length) {
+    if (line[i] === '[') {
+      const end = line.indexOf(']', i);
+      if (end !== -1) {
+        const tag = line.slice(i + 1, end);
+        const lower = tag.toLowerCase();
+        if (lower === 'b') { flush(); bold = true; i = end + 1; continue; }
+        if (lower === '/b') { flush(); bold = false; i = end + 1; continue; }
+        if (lower === 'i') { flush(); italic = true; i = end + 1; continue; }
+        if (lower === '/i') { flush(); italic = false; i = end + 1; continue; }
+        if (lower === 'c') { align = 'center'; i = end + 1; continue; }
+        if (lower === 'l') { align = 'left'; i = end + 1; continue; }
+        if (lower === 'r') { align = 'right'; i = end + 1; continue; }
+        if (/^#?[0-9a-fA-F]{6}$/.test(tag)) {
+          flush();
+          color = tag.startsWith('#') ? tag : `#${tag}`;
+          i = end + 1;
+          continue;
+        }
+        i = end + 1;
+        continue;
+      }
+    }
+    buffer += line[i];
+    i += 1;
+  }
+  flush();
+  return { align, segments };
+}
+
+function parseSignature(text: string): SignatureLine[] {
+  return text.split('\n').map(parseSignatureLine);
+}
+
+function SignatureText({ text }: { text: string }) {
+  const lines = parseSignature(text);
+  return (
+    <div style={{ fontFamily: 'var(--font-display)', fontSize: 13, lineHeight: 1.6 }}>
+      {lines.map((line, li) => (
+        <div key={li} style={{ textAlign: line.align, minHeight: line.segments.length ? undefined : '1em', wordBreak: 'break-word' }}>
+          {line.segments.map((seg, si) => (
+            <span
+              key={si}
+              style={{
+                fontWeight: seg.bold ? 700 : 400,
+                fontStyle: seg.italic ? 'italic' : 'normal',
+                color: seg.color || 'var(--light-text)',
+              }}
+            >
+              {seg.text}
+            </span>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function AngleDivider() {
   return (
     <svg width="100%" height="5" viewBox="0 0 560 5" preserveAspectRatio="none" aria-hidden="true" style={{ display: 'block', margin: '28px 0' }}>
@@ -472,11 +549,13 @@ export default function Page() {
                   position: 'relative', background: 'var(--panel-bg)', border: '1px solid rgba(90,169,230,0.25)',
                   borderRadius: 10, padding: '8px 26px 8px 10px',
                 }}>
-                  <p style={{
-                    fontSize: 12, color: 'var(--light-text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                  }}>
-                    {social?.signature ? social.signature : 'Tidak ada signature / bio.'}
-                  </p>
+                  {social?.signature ? (
+                    <SignatureText text={social.signature} />
+                  ) : (
+                    <p style={{ fontSize: 12, color: 'var(--light-text)', fontFamily: 'var(--font-display)' }}>
+                      Tidak ada signature / bio.
+                    </p>
+                  )}
                   {social?.signature ? (
                     <button
                       type="button"
