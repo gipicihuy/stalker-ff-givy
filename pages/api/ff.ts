@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { waitUntil } from '@vercel/functions';
 
 function getIP(req: NextApiRequest): string {
   const fwd = req.headers['x-forwarded-for'];
@@ -88,26 +89,39 @@ async function sendTelegramNotif(req: NextApiRequest, merged: any) {
     `<blockquote>🕐 ${ts}</blockquote>`,
   ].join('\n');
 
-  try {
-    if (merged.avatarUrl) {
-      await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          photo: merged.avatarUrl,
-          caption,
-          parse_mode: 'HTML',
-        }),
-      });
-    } else {
-      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+  if (merged.avatarUrl) {
+    const photoRes = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        photo: merged.avatarUrl,
+        caption,
+        parse_mode: 'HTML',
+      }),
+    });
+    if (!photoRes.ok) {
+      const errBody = await photoRes.text();
+      console.error('telegram_sendPhoto_failed', photoRes.status, errBody);
+      const msgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: chatId, text: caption, parse_mode: 'HTML' }),
       });
+      if (!msgRes.ok) {
+        console.error('telegram_sendMessage_failed', msgRes.status, await msgRes.text());
+      }
     }
-  } catch (_) {}
+  } else {
+    const msgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: caption, parse_mode: 'HTML' }),
+    });
+    if (!msgRes.ok) {
+      console.error('telegram_sendMessage_failed', msgRes.status, await msgRes.text());
+    }
+  }
 }
 
 const FREEFIREHUB_BASE = 'https://freefirehub.com';
@@ -290,10 +304,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(404).json({ error: 'Data tidak ditemukan untuk UID ini.' });
   }
 
-  sendTelegramNotif(req, merged).catch(() => {});
-
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
-  return res.status(200).json({
+  res.status(200).json({
     basicInfo: {
       accountId: merged.accountId,
       nickname: merged.nickname,
@@ -327,4 +339,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       creditScore: merged.creditScore,
     },
   });
+
+  waitUntil(
+    sendTelegramNotif(req, merged).catch((err) => {
+      console.error('telegram_notif_error', err);
+    })
+  );
 }
