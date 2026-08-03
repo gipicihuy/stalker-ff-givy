@@ -166,22 +166,26 @@ function toIconList(ids: any) {
   return ids.map(buildIconUrl).filter(Boolean);
 }
 
+class NotFoundError extends Error {}
+
 async function fetchFreefirehub(uid: string, region: string) {
   const url = `${FREEFIREHUB_BASE}/api/player/${uid}?region=${region}&matchType=all`;
   const upstream = await fetch(url, { headers: FREEFIREHUB_HEADERS, cache: 'no-store' });
+  if (upstream.status === 404) throw new NotFoundError('freefirehub_not_found');
   if (!upstream.ok) throw new Error(`freefirehub_http_${upstream.status}`);
   const data = await upstream.json();
   const info = getCI(data?.profile, 'basicinfo');
-  if (!info || !getCI(info, 'accountid')) throw new Error('freefirehub_empty');
+  if (!info || !getCI(info, 'accountid')) throw new NotFoundError('freefirehub_empty');
   return data;
 }
 
 async function fetchAdenpedia(uid: string) {
   const url = `${ADENPEDIA_URL}?uid=${encodeURIComponent(uid)}`;
   const upstream = await fetch(url, { headers: ADENPEDIA_HEADERS, cache: 'no-store' });
+  if (upstream.status === 404) throw new NotFoundError('adenpedia_not_found');
   if (!upstream.ok) throw new Error(`adenpedia_http_${upstream.status}`);
   const data = await upstream.json();
-  if (!data?.basicInfo?.accountId) throw new Error('adenpedia_empty');
+  if (!data?.basicInfo?.accountId) throw new NotFoundError('adenpedia_empty');
   return data;
 }
 
@@ -296,13 +300,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     adenpediaResult.status === 'fulfilled' ? normalizeAdenpedia(adenpediaResult.value) : null;
 
   if (!freefirehubData && !adenpediaData) {
+    const notFound =
+      (freefirehubResult.status === 'rejected' && freefirehubResult.reason instanceof NotFoundError) ||
+      (adenpediaResult.status === 'rejected' && adenpediaResult.reason instanceof NotFoundError);
+
+    if (notFound) {
+      return res.status(404).json({ error: 'Player tidak ditemukan.' });
+    }
     return res.status(502).json({ error: 'Server data lagi bermasalah, coba lagi sebentar.' });
   }
 
   const merged = mergeSources(freefirehubData, adenpediaData);
 
   if (!merged?.accountId) {
-    return res.status(404).json({ error: 'Data tidak ditemukan untuk UID ini.' });
+    return res.status(404).json({ error: 'Player tidak ditemukan.' });
   }
 
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
