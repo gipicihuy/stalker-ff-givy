@@ -215,6 +215,14 @@ async function fetchAdenpedia(uid: string) {
   return data;
 }
 
+async function fetchBanCheck(uid: string) {
+  const url = `${FREEFIREHUB_BASE}/api/player/${uid}/ban-check`;
+  const upstream = await fetch(url, { headers: FREEFIREHUB_HEADERS, cache: 'no-store' });
+  if (!upstream.ok) throw new Error(`bancheck_http_${upstream.status}`);
+  const data = await upstream.json();
+  return data;
+}
+
 function normalizeFreefirehub(data: any) {
   const profile = data?.profile || {};
   const info = getCI(profile, 'basicinfo') || {};
@@ -314,9 +322,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'UID tidak valid. Masukkan UID Free Fire yang benar (angka saja).' });
   }
 
-  const [freefirehubResult, adenpediaResult] = await Promise.allSettled([
+  const [freefirehubResult, adenpediaResult, banCheckResult] = await Promise.allSettled([
     fetchFreefirehub(uidStr, regionStr),
     fetchAdenpedia(uidStr),
+    fetchBanCheck(uidStr),
   ]);
 
   if (freefirehubResult.status === 'rejected') {
@@ -325,11 +334,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (adenpediaResult.status === 'rejected') {
     console.error('adenpedia_error', adenpediaResult.reason);
   }
+  if (banCheckResult.status === 'rejected') {
+    console.error('bancheck_error', banCheckResult.reason);
+  }
 
   const freefirehubData =
     freefirehubResult.status === 'fulfilled' ? normalizeFreefirehub(freefirehubResult.value) : null;
   const adenpediaData =
     adenpediaResult.status === 'fulfilled' ? normalizeAdenpedia(adenpediaResult.value) : null;
+  const banCheckData = banCheckResult.status === 'fulfilled' ? banCheckResult.value : null;
 
   if (!freefirehubData && !adenpediaData) {
     const notFound =
@@ -382,6 +395,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     creditScoreInfo: {
       creditScore: merged.creditScore,
     },
+    banInfo: banCheckData
+      ? {
+          isBanned: Boolean(banCheckData.isBanned),
+          lastLoginAt: banCheckData.lastLogin ?? null,
+        }
+      : null,
   });
 
   waitUntil(
