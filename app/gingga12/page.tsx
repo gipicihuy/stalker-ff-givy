@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
 import {
   Crown,
   ShieldCheck,
@@ -10,10 +12,8 @@ import {
   Copy,
   Check,
   ExternalLink,
-  Image as ImageIcon,
+  ListOrdered,
 } from 'lucide-react';
-
-/* ---------------------------------- data --------------------------------- */
 
 const LEADERSHIP = [
   { role: 'Founder Boy 1', name: 'FH4N' },
@@ -59,14 +59,7 @@ const LINKS = [
     href: 'https://whatsapp.com/channel/0029Vb7xNBn0QeahCoaAw211',
     icon: Radio,
   },
-  {
-    label: 'Logo GINGGA12',
-    href: 'https://drive.google.com/drive/folders/1-Gy3UhxDOtFrPko30Uno1TBPTC0yyCKa',
-    icon: ImageIcon,
-  },
 ];
-
-/* --------------------------------- helpers -------------------------------- */
 
 function LinkRow({ label, href, icon: Icon }: { label: string; href: string; icon: any }) {
   const [copied, setCopied] = useState(false);
@@ -78,7 +71,7 @@ function LinkRow({ label, href, icon: Icon }: { label: string; href: string; ico
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      /* clipboard unavailable, ignore */
+      setCopied(false);
     }
   };
 
@@ -98,15 +91,21 @@ function LinkRow({ label, href, icon: Icon }: { label: string; href: string; ico
   );
 }
 
-/* ---------------------------------- page ---------------------------------- */
-
 export default function Gingga12Page() {
   return (
     <div className="wrap">
-      {/* HERO / EMBLEM */}
       <section className="hero profile-card">
-        <div className="badge">G12</div>
-        <div className="hero-eyebrow">Free Fire · Sirkel</div>
+        <div className="emblem">
+          <Image
+            src="/gingga12/data/gingga12.jpg"
+            alt="GINGGA12"
+            width={88}
+            height={88}
+            className="emblem-img"
+            priority
+          />
+        </div>
+        <div className="hero-eyebrow">Free Fire · CC</div>
         <h1 className="hero-tag">GINGGA12</h1>
         <div className="hero-since">
           <span className="dot" />
@@ -115,7 +114,6 @@ export default function Gingga12Page() {
         <p className="hero-motto">“Utamakan literasi ya.”</p>
       </section>
 
-      {/* LEADERSHIP */}
       <section className="panel">
         <h2 className="panel-title">
           <Crown size={16} strokeWidth={2} />
@@ -131,7 +129,6 @@ export default function Gingga12Page() {
         </div>
       </section>
 
-      {/* P INTI */}
       <section className="panel">
         <h2 className="panel-title">
           <ShieldCheck size={16} strokeWidth={2} />
@@ -148,7 +145,6 @@ export default function Gingga12Page() {
         <p className="fine-print">P.Inti wajib main M3.</p>
       </section>
 
-      {/* RULES */}
       <section className="panel">
         <h2 className="panel-title">
           <ShieldCheck size={16} strokeWidth={2} />
@@ -161,7 +157,6 @@ export default function Gingga12Page() {
         </ul>
       </section>
 
-      {/* SYARAT INTI */}
       <section className="panel callout">
         <h2 className="panel-title">Syarat jadi P.Inti</h2>
         <p>
@@ -169,7 +164,20 @@ export default function Gingga12Page() {
         </p>
       </section>
 
-      {/* LINKS */}
+      <section className="panel">
+        <h2 className="panel-title">
+          <ListOrdered size={16} strokeWidth={2} />
+          List Babu
+        </h2>
+        <p className="fine-print" style={{ marginBottom: 14 }}>
+          Rekap CC yang udah kita libas. Klik buat liat daftar lengkapnya.
+        </p>
+        <Link href="/gingga12/list-babu" className="cta-btn">
+          Liat List Babu
+          <ExternalLink size={14} strokeWidth={2} />
+        </Link>
+      </section>
+
       <section className="panel">
         <h2 className="panel-title">
           <Radio size={16} strokeWidth={2} />
@@ -205,21 +213,21 @@ export default function Gingga12Page() {
           text-align: center;
         }
 
-        .badge {
-          width: 56px;
-          height: 56px;
-          border-radius: 14px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-family: var(--font-display);
-          font-weight: 700;
-          font-size: 17px;
-          color: #14161b;
-          background: linear-gradient(155deg, var(--gold), var(--gold-hover));
-          box-shadow: 0 8px 20px rgba(250, 191, 0, 0.25);
+        .emblem {
+          width: 88px;
+          height: 88px;
+          border-radius: 20px;
+          overflow: hidden;
           margin-bottom: 14px;
-          letter-spacing: 0.5px;
+          border: 1px solid rgba(250, 191, 0, 0.3);
+          box-shadow: 0 8px 20px rgba(250, 191, 0, 0.2);
+        }
+
+        .emblem-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
         }
 
         .hero-eyebrow {
@@ -381,6 +389,19 @@ export default function Gingga12Page() {
           font-size: 13.5px;
           color: var(--light-text);
           line-height: 1.5;
+        }
+
+        .cta-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13.5px;
+          font-weight: 700;
+          color: #14161b;
+          background: linear-gradient(155deg, var(--gold), var(--gold-hover));
+          border-radius: 12px;
+          padding: 11px 16px;
+          text-decoration: none;
         }
 
         .links {
