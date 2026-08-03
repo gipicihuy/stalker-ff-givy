@@ -138,7 +138,7 @@ export default function Gingga12Page() {
           <span className="dot" />
           SINCE 26.05.2026
         </div>
-        <p className="hero-motto">“Utamakan literasi ya.”</p>
+        <p className="hero-motto">"Utamakan literasi ya."</p>
       </section>
 
       <section className="panel">
@@ -232,11 +232,12 @@ export default function Gingga12Page() {
           display: flex;
           flex-direction: column;
           gap: 16px;
+          font-family: var(--font-display, 'Inter', system-ui, sans-serif);
         }
 
         .hero {
-          background: var(--panel-bg);
-          border: 1px solid var(--panel-border);
+          background: var(--panel-bg, #16181d);
+          border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08));
           border-radius: 18px;
           padding: 28px 22px 24px;
           display: flex;
@@ -266,16 +267,16 @@ export default function Gingga12Page() {
           font-size: 11px;
           letter-spacing: 3px;
           text-transform: uppercase;
-          color: var(--muted-text);
+          color: var(--muted-text, #9ca3af);
           margin-bottom: 6px;
         }
 
         .hero-tag {
-          font-family: var(--font-display);
+          font-family: var(--font-display, 'Inter', system-ui, sans-serif);
           font-weight: 700;
           font-size: 34px;
           letter-spacing: 1px;
-          color: var(--white);
+          color: var(--white, #ffffff);
           margin: 0 0 10px;
         }
 
@@ -285,8 +286,8 @@ export default function Gingga12Page() {
           gap: 7px;
           font-size: 12px;
           letter-spacing: 1.5px;
-          color: var(--gold);
-          background: var(--gold-soft);
+          color: var(--gold, #fabf00);
+          background: var(--gold-soft, rgba(250, 191, 0, 0.12));
           border: 1px solid rgba(250, 191, 0, 0.25);
           padding: 5px 12px;
           border-radius: 999px;
@@ -297,19 +298,19 @@ export default function Gingga12Page() {
           width: 6px;
           height: 6px;
           border-radius: 50%;
-          background: var(--gold);
+          background: var(--gold, #fabf00);
         }
 
         .hero-motto {
           margin-top: 16px;
           font-size: 13.5px;
           font-style: italic;
-          color: var(--light-text);
+          color: var(--light-text, #d4d4d8);
         }
 
         .panel {
-          background: var(--panel-bg);
-          border: 1px solid var(--panel-border);
+          background: var(--panel-bg, #16181d);
+          border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08));
           border-radius: 16px;
           padding: 18px 18px 20px;
         }
@@ -322,7 +323,7 @@ export default function Gingga12Page() {
           font-weight: 700;
           letter-spacing: 0.5px;
           text-transform: uppercase;
-          color: var(--gold);
+          color: var(--gold, #fabf00);
           margin: 0 0 14px;
         }
 
@@ -339,15 +340,19 @@ export default function Gingga12Page() {
           gap: 12px;
         }
 
+        .roster-row + .roster-row {
+          border-top: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08));
+        }
+
         .roster-role {
           font-size: 13px;
-          color: var(--muted-text);
+          color: var(--muted-text, #9ca3af);
         }
 
         .roster-name {
           font-size: 14px;
           font-weight: 600;
-          color: var(--white);
+          color: var(--white, #ffffff);
           text-align: right;
         }
 
@@ -364,9 +369,9 @@ export default function Gingga12Page() {
           gap: 6px;
           font-size: 13px;
           font-weight: 600;
-          color: var(--light-text);
-          background: var(--panel-bg-alt);
-          border: 1px solid var(--panel-border);
+          color: var(--light-text, #d4d4d8);
+          background: var(--panel-bg-alt, #1c1f26);
+          border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08));
           border-radius: 999px;
           padding: 6px 12px;
         }
@@ -375,19 +380,21 @@ export default function Gingga12Page() {
           font-style: normal;
           font-size: 10px;
           font-weight: 700;
-          color: var(--blue);
-          background: var(--blue-soft);
+          color: var(--blue, #60a5fa);
+          background: var(--blue-soft, rgba(96, 165, 250, 0.12));
           padding: 2px 6px;
           border-radius: 999px;
         }
 
         .fine-print {
           font-size: 12.5px;
-          color: var(--muted-text);
+          color: var(--muted-text, #9ca3af);
         }
 
         .rules {
           list-style: none;
+          margin: 0;
+          padding: 0;
           display: flex;
           flex-direction: column;
           gap: 9px;
@@ -397,7 +404,7 @@ export default function Gingga12Page() {
           position: relative;
           padding-left: 16px;
           font-size: 13.5px;
-          color: var(--light-text);
+          color: var(--light-text, #d4d4d8);
           line-height: 1.4;
         }
 
@@ -408,26 +415,27 @@ export default function Gingga12Page() {
           top: 6px;
           width: 5px;
           height: 5px;
-          background: var(--gold);
+          background: var(--gold, #fabf00);
           border-radius: 1px;
         }
 
         .callout {
           border-color: rgba(250, 191, 0, 0.25);
-          background: linear-gradient(180deg, rgba(250, 191, 0, 0.06), var(--panel-bg));
+          background: linear-gradient(180deg, rgba(250, 191, 0, 0.06), var(--panel-bg, #16181d));
         }
 
         .callout p {
           font-size: 13.5px;
-          color: var(--light-text);
+          color: var(--light-text, #d4d4d8);
           line-height: 1.5;
+          margin: 0;
         }
 
         .cta-btn {
           display: flex;
           align-items: center;
           gap: 14px;
-          background: linear-gradient(155deg, var(--gold), var(--gold-hover));
+          background: linear-gradient(155deg, var(--gold, #fabf00), var(--gold-hover, #ffcf33));
           border-radius: 14px;
           padding: 14px 16px;
           text-decoration: none;
@@ -495,17 +503,17 @@ export default function Gingga12Page() {
           display: flex;
           align-items: stretch;
           gap: 8px;
-          --row-accent: var(--gold);
-          --row-accent-soft: var(--gold-soft);
+          --row-accent: var(--gold, #fabf00);
+          --row-accent-soft: var(--gold-soft, rgba(250, 191, 0, 0.12));
         }
 
         .link-row.accent-blue {
-          --row-accent: var(--blue);
-          --row-accent-soft: var(--blue-soft);
+          --row-accent: var(--blue, #60a5fa);
+          --row-accent-soft: var(--blue-soft, rgba(96, 165, 250, 0.12));
         }
 
         .link-row.accent-green {
-          --row-accent: var(--success);
+          --row-accent: var(--success, #4ade80);
           --row-accent-soft: rgba(74, 222, 128, 0.12);
         }
 
@@ -515,8 +523,8 @@ export default function Gingga12Page() {
           align-items: center;
           gap: 12px;
           min-width: 0;
-          background: var(--panel-bg-alt);
-          border: 1px solid var(--panel-border);
+          background: var(--panel-bg-alt, #1c1f26);
+          border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08));
           border-radius: 13px;
           padding: 12px 14px;
           text-decoration: none;
@@ -552,36 +560,37 @@ export default function Gingga12Page() {
         .link-label {
           font-size: 13.5px;
           font-weight: 700;
-          color: var(--white);
+          color: var(--white, #ffffff);
         }
 
         .link-desc {
           font-size: 11.5px;
-          color: var(--muted-text);
+          color: var(--muted-text, #9ca3af);
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
         }
 
         .link-ext {
-          color: var(--muted-text);
+          color: var(--muted-text, #9ca3af);
           flex-shrink: 0;
         }
 
         .copy-btn {
           width: 44px;
           border-radius: 13px;
-          border: 1px solid var(--panel-border);
-          background: var(--panel-bg-alt);
-          color: var(--muted-text);
+          border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08));
+          background: var(--panel-bg-alt, #1c1f26);
+          color: var(--muted-text, #9ca3af);
           display: flex;
           align-items: center;
           justify-content: center;
+          cursor: pointer;
           transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
         }
 
         .copy-btn.is-copied {
-          color: var(--success);
+          color: var(--success, #4ade80);
           border-color: rgba(74, 222, 128, 0.4);
           background: rgba(74, 222, 128, 0.1);
         }
@@ -589,7 +598,7 @@ export default function Gingga12Page() {
         .foot {
           text-align: center;
           font-size: 11.5px;
-          color: var(--muted-text);
+          color: var(--muted-text, #9ca3af);
           letter-spacing: 0.5px;
           margin-top: 8px;
         }
