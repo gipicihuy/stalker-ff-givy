@@ -13,6 +13,7 @@ import {
   Check,
   ExternalLink,
   ListOrdered,
+  ChevronRight,
 } from 'lucide-react';
 
 const LEADERSHIP = [
@@ -46,26 +47,45 @@ const RULES = [
 const LINKS = [
   {
     label: 'GB War',
+    desc: 'Grup utama koordinasi war',
     href: 'https://chat.whatsapp.com/FlyOVUmrkse1CZCnpxGzlb',
     icon: Swords,
+    accent: 'gold',
   },
   {
     label: 'GB Optes',
+    desc: 'Grup diskusi & optes squad',
     href: 'https://chat.whatsapp.com/LIaiRU3GXRt3xIL5KZu1QT',
     icon: Users,
+    accent: 'blue',
   },
   {
     label: 'Info Channel',
+    desc: 'Pengumuman & update resmi',
     href: 'https://whatsapp.com/channel/0029Vb7xNBn0QeahCoaAw211',
     icon: Radio,
+    accent: 'green',
   },
 ];
 
-function LinkRow({ label, href, icon: Icon }: { label: string; href: string; icon: any }) {
+function LinkRow({
+  label,
+  desc,
+  href,
+  icon: Icon,
+  accent,
+}: {
+  label: string;
+  desc: string;
+  href: string;
+  icon: any;
+  accent: string;
+}) {
   const [copied, setCopied] = useState(false);
 
   const copy = async (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     try {
       await navigator.clipboard.writeText(href);
       setCopied(true);
@@ -76,16 +96,23 @@ function LinkRow({ label, href, icon: Icon }: { label: string; href: string; ico
   };
 
   return (
-    <div className="link-row">
+    <div className={`link-row accent-${accent}`}>
       <a className="link-main" href={href} target="_blank" rel="noopener noreferrer">
         <span className="link-icon">
-          <Icon size={16} strokeWidth={2} />
+          <Icon size={17} strokeWidth={2} />
         </span>
-        <span className="link-label">{label}</span>
-        <ExternalLink size={13} strokeWidth={2} className="link-ext" />
+        <span className="link-text">
+          <span className="link-label">{label}</span>
+          <span className="link-desc">{desc}</span>
+        </span>
+        <ExternalLink size={14} strokeWidth={2} className="link-ext" />
       </a>
-      <button className="copy-btn icon-btn" onClick={copy} aria-label={`Salin link ${label}`}>
-        {copied ? <Check size={14} strokeWidth={2.5} /> : <Copy size={14} strokeWidth={2} />}
+      <button
+        className={`copy-btn icon-btn ${copied ? 'is-copied' : ''}`}
+        onClick={copy}
+        aria-label={`Salin link ${label}`}
+      >
+        {copied ? <Check size={15} strokeWidth={2.5} /> : <Copy size={15} strokeWidth={2} />}
       </button>
     </div>
   );
@@ -169,12 +196,17 @@ export default function Gingga12Page() {
           <ListOrdered size={16} strokeWidth={2} />
           List Babu
         </h2>
-        <p className="fine-print" style={{ marginBottom: 14 }}>
-          Rekap CC yang udah kita libas. Klik buat liat daftar lengkapnya.
-        </p>
         <Link href="/gingga12/list-babu" className="cta-btn">
-          Liat List Babu
-          <ExternalLink size={14} strokeWidth={2} />
+          <span className="cta-icon">
+            <ListOrdered size={19} strokeWidth={2} />
+          </span>
+          <span className="cta-text">
+            <span className="cta-title">Liat List Babu</span>
+            <span className="cta-sub">Rekap CC yang udah kita libas</span>
+          </span>
+          <span className="cta-arrow">
+            <ChevronRight size={18} strokeWidth={2.2} />
+          </span>
         </Link>
       </section>
 
@@ -392,59 +424,143 @@ export default function Gingga12Page() {
         }
 
         .cta-btn {
-          display: inline-flex;
+          display: flex;
           align-items: center;
-          gap: 8px;
-          font-size: 13.5px;
+          gap: 14px;
+          background: linear-gradient(155deg, var(--gold), var(--gold-hover));
+          border-radius: 14px;
+          padding: 14px 16px;
+          text-decoration: none;
+          box-shadow: 0 10px 24px -8px rgba(250, 191, 0, 0.45);
+          transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .cta-btn:active {
+          transform: scale(0.98);
+          box-shadow: 0 4px 14px -6px rgba(250, 191, 0, 0.4);
+        }
+
+        .cta-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 40px;
+          border-radius: 11px;
+          background: rgba(20, 22, 27, 0.14);
+          color: #14161b;
+          flex-shrink: 0;
+        }
+
+        .cta-text {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 0;
+        }
+
+        .cta-title {
+          font-size: 14.5px;
           font-weight: 700;
           color: #14161b;
-          background: linear-gradient(155deg, var(--gold), var(--gold-hover));
-          border-radius: 12px;
-          padding: 11px 16px;
-          text-decoration: none;
+        }
+
+        .cta-sub {
+          font-size: 11.5px;
+          font-weight: 600;
+          color: rgba(20, 22, 27, 0.62);
+        }
+
+        .cta-arrow {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: rgba(20, 22, 27, 0.55);
+          flex-shrink: 0;
+          transition: transform 0.15s ease;
+        }
+
+        .cta-btn:active .cta-arrow {
+          transform: translateX(2px);
         }
 
         .links {
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 10px;
         }
 
         .link-row {
           display: flex;
           align-items: stretch;
           gap: 8px;
+          --row-accent: var(--gold);
+          --row-accent-soft: var(--gold-soft);
+        }
+
+        .link-row.accent-blue {
+          --row-accent: var(--blue);
+          --row-accent-soft: var(--blue-soft);
+        }
+
+        .link-row.accent-green {
+          --row-accent: var(--success);
+          --row-accent-soft: rgba(74, 222, 128, 0.12);
         }
 
         .link-main {
           flex: 1;
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 12px;
+          min-width: 0;
           background: var(--panel-bg-alt);
           border: 1px solid var(--panel-border);
-          border-radius: 12px;
-          padding: 11px 14px;
-          font-size: 13.5px;
-          font-weight: 600;
-          color: var(--white);
+          border-radius: 13px;
+          padding: 12px 14px;
           text-decoration: none;
+          transition: border-color 0.15s ease, transform 0.15s ease, background 0.15s ease;
+        }
+
+        .link-main:active {
+          transform: scale(0.98);
+          background: var(--row-accent-soft);
+          border-color: var(--row-accent);
         }
 
         .link-icon {
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 26px;
-          height: 26px;
-          border-radius: 8px;
-          background: var(--gold-soft);
-          color: var(--gold);
+          width: 34px;
+          height: 34px;
+          border-radius: 10px;
+          background: var(--row-accent-soft);
+          color: var(--row-accent);
           flex-shrink: 0;
         }
 
-        .link-label {
+        .link-text {
           flex: 1;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .link-label {
+          font-size: 13.5px;
+          font-weight: 700;
+          color: var(--white);
+        }
+
+        .link-desc {
+          font-size: 11.5px;
+          color: var(--muted-text);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         .link-ext {
@@ -453,14 +569,21 @@ export default function Gingga12Page() {
         }
 
         .copy-btn {
-          width: 42px;
-          border-radius: 12px;
+          width: 44px;
+          border-radius: 13px;
           border: 1px solid var(--panel-border);
           background: var(--panel-bg-alt);
           color: var(--muted-text);
           display: flex;
           align-items: center;
           justify-content: center;
+          transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+        }
+
+        .copy-btn.is-copied {
+          color: var(--success);
+          border-color: rgba(74, 222, 128, 0.4);
+          background: rgba(74, 222, 128, 0.1);
         }
 
         .foot {
