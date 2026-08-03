@@ -30,7 +30,9 @@ export default function ListBabuPage() {
     <div className="wrap">
       <section className="head">
         <Link href="/gingga12" className="back-btn">
-          <ArrowLeft size={16} strokeWidth={2} />
+          <span className="back-icon">
+            <ArrowLeft size={14} strokeWidth={2.5} />
+          </span>
           Kembali
         </Link>
         <div className="emblem">
@@ -99,12 +101,35 @@ export default function ListBabuPage() {
           align-self: flex-start;
           display: inline-flex;
           align-items: center;
-          gap: 6px;
+          gap: 8px;
           font-size: 12.5px;
-          font-weight: 600;
-          color: var(--muted-text);
+          font-weight: 700;
+          color: var(--light-text);
+          background: var(--panel-bg-alt);
+          border: 1px solid var(--panel-border);
+          border-radius: 999px;
+          padding: 6px 14px 6px 6px;
           text-decoration: none;
           margin-bottom: 10px;
+          transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+        }
+
+        .back-btn:active {
+          transform: scale(0.96);
+          background: var(--gold-soft);
+          border-color: rgba(250, 191, 0, 0.35);
+        }
+
+        .back-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: var(--gold-soft);
+          color: var(--gold);
+          flex-shrink: 0;
         }
 
         .emblem {
