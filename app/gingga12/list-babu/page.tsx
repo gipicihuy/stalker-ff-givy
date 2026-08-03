@@ -87,6 +87,7 @@ export default function ListBabuPage() {
           display: flex;
           flex-direction: column;
           gap: 16px;
+          font-family: var(--font-display, 'Inter', system-ui, sans-serif);
         }
 
         .head {
@@ -104,9 +105,9 @@ export default function ListBabuPage() {
           gap: 8px;
           font-size: 12.5px;
           font-weight: 700;
-          color: var(--light-text);
-          background: var(--panel-bg-alt);
-          border: 1px solid var(--panel-border);
+          color: var(--light-text, #d4d4d8);
+          background: var(--panel-bg-alt, #1c1f26);
+          border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08));
           border-radius: 999px;
           padding: 6px 14px 6px 6px;
           text-decoration: none;
@@ -116,7 +117,7 @@ export default function ListBabuPage() {
 
         .back-btn:active {
           transform: scale(0.96);
-          background: var(--gold-soft);
+          background: var(--gold-soft, rgba(250, 191, 0, 0.12));
           border-color: rgba(250, 191, 0, 0.35);
         }
 
@@ -127,8 +128,8 @@ export default function ListBabuPage() {
           width: 24px;
           height: 24px;
           border-radius: 50%;
-          background: var(--gold-soft);
-          color: var(--gold);
+          background: var(--gold-soft, rgba(250, 191, 0, 0.12));
+          color: var(--gold, #fabf00);
           flex-shrink: 0;
         }
 
@@ -149,22 +150,23 @@ export default function ListBabuPage() {
         }
 
         .title {
-          font-family: var(--font-display);
+          font-family: var(--font-display, 'Inter', system-ui, sans-serif);
           font-weight: 700;
           font-size: 26px;
-          color: var(--white);
+          color: var(--white, #ffffff);
           margin: 0;
         }
 
         .subtitle {
           font-size: 13px;
-          color: var(--muted-text);
+          color: var(--muted-text, #9ca3af);
           max-width: 340px;
+          margin: 0;
         }
 
         .panel {
-          background: var(--panel-bg);
-          border: 1px solid var(--panel-border);
+          background: var(--panel-bg, #16181d);
+          border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08));
           border-radius: 16px;
           padding: 10px 14px;
         }
@@ -175,12 +177,22 @@ export default function ListBabuPage() {
           gap: 8px;
           justify-content: center;
           font-size: 13px;
-          color: var(--muted-text);
+          color: var(--muted-text, #9ca3af);
           padding: 24px 0;
+          margin: 0;
         }
 
         .spin {
           animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
         }
 
         .list {
@@ -196,7 +208,7 @@ export default function ListBabuPage() {
         }
 
         .item + .item {
-          border-top: 1px solid var(--panel-border);
+          border-top: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08));
         }
 
         .item-icon {
@@ -206,8 +218,8 @@ export default function ListBabuPage() {
           width: 28px;
           height: 28px;
           border-radius: 8px;
-          background: var(--error-bg);
-          color: var(--error-text);
+          background: var(--error-bg, rgba(248, 113, 113, 0.12));
+          color: var(--error-text, #f87171);
           flex-shrink: 0;
           margin-top: 1px;
         }
@@ -221,25 +233,25 @@ export default function ListBabuPage() {
         .item-cc {
           font-size: 14px;
           font-weight: 700;
-          color: var(--white);
+          color: var(--white, #ffffff);
           letter-spacing: 0.3px;
         }
 
         .item-meta {
           font-size: 12px;
-          color: var(--muted-text);
+          color: var(--muted-text, #9ca3af);
         }
 
         .item-note {
           font-size: 12px;
-          color: var(--gold);
+          color: var(--gold, #fabf00);
           font-style: italic;
         }
 
         .foot {
           text-align: center;
           font-size: 11.5px;
-          color: var(--muted-text);
+          color: var(--muted-text, #9ca3af);
           letter-spacing: 0.5px;
           margin-top: 8px;
         }
