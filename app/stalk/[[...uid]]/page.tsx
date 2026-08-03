@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare } from 'lucide-react';
 
 type PrimeInfo = { primeLevel?: number };
@@ -305,6 +305,7 @@ function InfoRow({ icon, children }: { icon: React.ReactNode; children: React.Re
 
 export default function Page() {
   const params = useParams<{ uid?: string | string[] }>();
+  const router = useRouter();
   const initialUid = Array.isArray(params?.uid) ? params.uid[0] : undefined;
   const [uid, setUid] = useState(initialUid || '');
   const [loading, setLoading] = useState(false);
@@ -312,6 +313,7 @@ export default function Page() {
   const [result, setResult] = useState<FfResponse | null>(null);
   const [copied, setCopied] = useState(false);
   const lastCheckRef = useRef(0);
+  const didInitRef = useRef(false);
 
   const copySignature = useCallback((text: string) => {
     if (!text) return;
@@ -340,6 +342,10 @@ export default function Page() {
     setError(null);
     setResult(null);
 
+    if (trimmed !== initialUid) {
+      router.push(`/stalk/${trimmed}`, { scroll: false });
+    }
+
     try {
       const res = await fetch(`/api/ff?uid=${encodeURIComponent(trimmed)}`);
       const data = await res.json();
@@ -354,18 +360,20 @@ export default function Page() {
     } finally {
       setLoading(false);
     }
-  }, [uid]);
+  }, [uid, initialUid, router]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') cekID();
   };
 
   useEffect(() => {
+    if (didInitRef.current) return;
+    didInitRef.current = true;
     if (initialUid && /^\d{6,15}$/.test(initialUid)) {
       cekID();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialUid]);
+  }, []);
 
   const basic = result?.basicInfo;
   const social = result?.socialInfo;
@@ -425,7 +433,12 @@ export default function Page() {
               <button
                 type="button"
                 aria-label="Bersihkan"
-                onClick={() => { setUid(''); setError(null); setResult(null); }}
+                onClick={() => {
+                  setUid('');
+                  setError(null);
+                  setResult(null);
+                  if (initialUid) router.push('/stalk', { scroll: false });
+                }}
                 className="icon-btn"
                 style={{
                   width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center',
