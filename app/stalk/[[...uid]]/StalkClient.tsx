@@ -542,34 +542,36 @@ export default function StalkClient() {
               {basic.region ? <span>Region: {basic.region}</span> : null}
             </div>
 
-            {accountAgeDays !== null && ageBreakdown ? (
-              <span style={{
-                display: 'inline-block', marginTop: 9, fontSize: 11, fontWeight: 600, color: 'var(--gold)',
-                border: '1px solid rgba(250,191,0,0.4)', borderRadius: 999, padding: '3px 12px',
-              }}>
-                {ageBreakdown.years} Years Old
-              </span>
-            ) : null}
+            {(accountAgeDays !== null && ageBreakdown) || ban ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 9, flexWrap: 'wrap' }}>
+                {accountAgeDays !== null && ageBreakdown ? (
+                  <span style={{
+                    display: 'inline-block', fontSize: 11, fontWeight: 600, color: 'var(--gold)',
+                    border: '1px solid rgba(250,191,0,0.4)', borderRadius: 999, padding: '3px 12px',
+                  }}>
+                    {ageBreakdown.years} Years Old
+                  </span>
+                ) : null}
 
-            {ban ? (
-              <div style={{ marginTop: 9 }}>
-                {ban.isBanned ? (
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700,
-                    color: '#ff5c5c', background: 'rgba(255,92,92,0.12)', border: '1px solid rgba(255,92,92,0.4)',
-                    borderRadius: 999, padding: '3px 12px',
-                  }}>
-                    <ShieldAlert size={13} /> Banned
-                  </span>
-                ) : (
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700,
-                    color: 'var(--success)', background: 'rgba(80,200,120,0.12)', border: '1px solid rgba(80,200,120,0.4)',
-                    borderRadius: 999, padding: '3px 12px',
-                  }}>
-                    <ShieldCheck size={13} /> Active
-                  </span>
-                )}
+                {ban ? (
+                  ban.isBanned ? (
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700,
+                      color: '#ff5c5c', background: 'rgba(255,92,92,0.12)', border: '1px solid rgba(255,92,92,0.4)',
+                      borderRadius: 999, padding: '3px 12px',
+                    }}>
+                      <ShieldAlert size={13} /> Banned
+                    </span>
+                  ) : (
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700,
+                      color: 'var(--success)', background: 'rgba(80,200,120,0.12)', border: '1px solid rgba(80,200,120,0.4)',
+                      borderRadius: 999, padding: '3px 12px',
+                    }}>
+                      <ShieldCheck size={13} /> Active
+                    </span>
+                  )
+                ) : null}
               </div>
             ) : null}
 
@@ -605,11 +607,6 @@ export default function StalkClient() {
             <InfoRow icon={<Clock size={13} />}>
               Login terakhir {formatFullDateTime(basic.lastLoginAt)}
             </InfoRow>
-            {ban?.isBanned && ban.lastLoginAt ? (
-              <InfoRow icon={<ShieldAlert size={13} />}>
-                Login terakhir sebelum di-banned: {formatFullDateTime(ban.lastLoginAt)}
-              </InfoRow>
-            ) : null}
           </div>
 
           <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
