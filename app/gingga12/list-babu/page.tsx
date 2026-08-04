@@ -29,7 +29,10 @@ export default function ListBabuPage() {
   return (
     <div className="wrap">
       <section className="head">
-        <Link href="/gingga12" className="back-link">
+        <Link
+          href="/gingga12"
+          style={{ alignSelf: 'flex-start', display: 'inline-flex', textDecoration: 'none', marginBottom: '10px' }}
+        >
           <span className="back-btn">
             <span className="back-icon">
               <ArrowLeft size={14} strokeWidth={2.5} />
@@ -97,13 +100,6 @@ export default function ListBabuPage() {
           align-items: center;
           text-align: center;
           gap: 6px;
-        }
-
-        .back-link {
-          align-self: flex-start;
-          display: inline-flex;
-          text-decoration: none;
-          margin-bottom: 10px;
         }
 
         .back-btn {
