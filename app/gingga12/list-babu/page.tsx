@@ -29,11 +29,13 @@ export default function ListBabuPage() {
   return (
     <div className="wrap">
       <section className="head">
-        <Link href="/gingga12" className="back-btn">
-          <span className="back-icon">
-            <ArrowLeft size={14} strokeWidth={2.5} />
+        <Link href="/gingga12" className="back-link">
+          <span className="back-btn">
+            <span className="back-icon">
+              <ArrowLeft size={14} strokeWidth={2.5} />
+            </span>
+            Kembali
           </span>
-          Kembali
         </Link>
         <div className="emblem">
           <Image
@@ -87,7 +89,6 @@ export default function ListBabuPage() {
           display: flex;
           flex-direction: column;
           gap: 16px;
-          font-family: var(--font-display, 'Inter', system-ui, sans-serif);
         }
 
         .head {
@@ -98,26 +99,30 @@ export default function ListBabuPage() {
           gap: 6px;
         }
 
-        .back-btn {
+        .back-link {
           align-self: flex-start;
+          display: inline-flex;
+          text-decoration: none;
+          margin-bottom: 10px;
+        }
+
+        .back-btn {
           display: inline-flex;
           align-items: center;
           gap: 8px;
           font-size: 12.5px;
           font-weight: 700;
-          color: var(--light-text, #d4d4d8);
-          background: var(--panel-bg-alt, #1c1f26);
-          border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08));
+          color: var(--light-text);
+          background: var(--panel-bg-alt);
+          border: 1px solid var(--panel-border);
           border-radius: 999px;
           padding: 6px 14px 6px 6px;
-          text-decoration: none;
-          margin-bottom: 10px;
           transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
         }
 
         .back-btn:active {
           transform: scale(0.96);
-          background: var(--gold-soft, rgba(250, 191, 0, 0.12));
+          background: var(--gold-soft);
           border-color: rgba(250, 191, 0, 0.35);
         }
 
@@ -128,8 +133,8 @@ export default function ListBabuPage() {
           width: 24px;
           height: 24px;
           border-radius: 50%;
-          background: var(--gold-soft, rgba(250, 191, 0, 0.12));
-          color: var(--gold, #fabf00);
+          background: var(--gold-soft);
+          color: var(--gold);
           flex-shrink: 0;
         }
 
@@ -150,23 +155,22 @@ export default function ListBabuPage() {
         }
 
         .title {
-          font-family: var(--font-display, 'Inter', system-ui, sans-serif);
+          font-family: var(--font-display);
           font-weight: 700;
           font-size: 26px;
-          color: var(--white, #ffffff);
+          color: var(--white);
           margin: 0;
         }
 
         .subtitle {
           font-size: 13px;
-          color: var(--muted-text, #9ca3af);
+          color: var(--muted-text);
           max-width: 340px;
-          margin: 0;
         }
 
         .panel {
-          background: var(--panel-bg, #16181d);
-          border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08));
+          background: var(--panel-bg);
+          border: 1px solid var(--panel-border);
           border-radius: 16px;
           padding: 10px 14px;
         }
@@ -177,22 +181,12 @@ export default function ListBabuPage() {
           gap: 8px;
           justify-content: center;
           font-size: 13px;
-          color: var(--muted-text, #9ca3af);
+          color: var(--muted-text);
           padding: 24px 0;
-          margin: 0;
         }
 
         .spin {
           animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
         }
 
         .list {
@@ -208,7 +202,7 @@ export default function ListBabuPage() {
         }
 
         .item + .item {
-          border-top: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08));
+          border-top: 1px solid var(--panel-border);
         }
 
         .item-icon {
@@ -218,8 +212,8 @@ export default function ListBabuPage() {
           width: 28px;
           height: 28px;
           border-radius: 8px;
-          background: var(--error-bg, rgba(248, 113, 113, 0.12));
-          color: var(--error-text, #f87171);
+          background: var(--error-bg);
+          color: var(--error-text);
           flex-shrink: 0;
           margin-top: 1px;
         }
@@ -233,25 +227,25 @@ export default function ListBabuPage() {
         .item-cc {
           font-size: 14px;
           font-weight: 700;
-          color: var(--white, #ffffff);
+          color: var(--white);
           letter-spacing: 0.3px;
         }
 
         .item-meta {
           font-size: 12px;
-          color: var(--muted-text, #9ca3af);
+          color: var(--muted-text);
         }
 
         .item-note {
           font-size: 12px;
-          color: var(--gold, #fabf00);
+          color: var(--gold);
           font-style: italic;
         }
 
         .foot {
           text-align: center;
           font-size: 11.5px;
-          color: var(--muted-text, #9ca3af);
+          color: var(--muted-text);
           letter-spacing: 0.5px;
           margin-top: 8px;
         }
