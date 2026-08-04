@@ -293,7 +293,10 @@ export default function Gingga12Page() {
           <ListOrdered size={16} strokeWidth={2} />
           List Babu
         </h2>
-        <Link href="/gingga12/list-babu" className="cta-link">
+        <Link
+          href="/gingga12/list-babu"
+          style={{ display: 'block', textDecoration: 'none' }}
+        >
           <span className="cta-btn">
             <span className="cta-icon">
               <ListOrdered size={19} strokeWidth={2} />
@@ -522,25 +525,22 @@ export default function Gingga12Page() {
           line-height: 1.5;
         }
 
-        .cta-link {
-          display: block;
-          text-decoration: none;
-        }
-
         .cta-btn {
           display: flex;
           align-items: center;
           gap: 14px;
-          background: linear-gradient(155deg, var(--gold), var(--gold-hover));
+          background: var(--panel-bg-alt);
+          border: 1px solid rgba(250, 191, 0, 0.28);
           border-radius: 14px;
           padding: 14px 16px;
-          box-shadow: 0 10px 24px -8px rgba(250, 191, 0, 0.45);
-          transition: transform 0.15s ease, box-shadow 0.15s ease;
+          box-shadow: 0 8px 20px -10px rgba(250, 191, 0, 0.25);
+          transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
         }
 
         .cta-btn:active {
           transform: scale(0.98);
-          box-shadow: 0 4px 14px -6px rgba(250, 191, 0, 0.4);
+          background: var(--gold-soft);
+          border-color: rgba(250, 191, 0, 0.45);
         }
 
         .cta-icon {
@@ -550,8 +550,8 @@ export default function Gingga12Page() {
           width: 40px;
           height: 40px;
           border-radius: 11px;
-          background: rgba(20, 22, 27, 0.14);
-          color: #14161b;
+          background: var(--gold-soft);
+          color: var(--gold);
           flex-shrink: 0;
         }
 
@@ -566,20 +566,20 @@ export default function Gingga12Page() {
         .cta-title {
           font-size: 14.5px;
           font-weight: 700;
-          color: #14161b;
+          color: var(--white);
         }
 
         .cta-sub {
           font-size: 11.5px;
           font-weight: 600;
-          color: rgba(20, 22, 27, 0.62);
+          color: var(--muted-text);
         }
 
         .cta-arrow {
           display: flex;
           align-items: center;
           justify-content: center;
-          color: rgba(20, 22, 27, 0.55);
+          color: var(--gold);
           flex-shrink: 0;
           transition: transform 0.15s ease;
         }
