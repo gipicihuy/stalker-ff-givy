@@ -29,12 +29,49 @@ type GuildInfo = { guildName?: string; guildLevel?: number; memberNum?: number; 
 type SocialInfo = { signature?: string };
 type CreditInfo = { creditScore?: number };
 type BanInfo = { isBanned?: boolean; lastLoginAt?: string | null; banPeriod?: number | null; status?: string | null };
+type ModeStats = {
+  gamesPlayed?: number;
+  wins?: number;
+  kills?: number;
+  deaths?: number;
+  damage?: number;
+  headshotKills?: number;
+  highestKills?: number;
+  survivalTime?: number;
+  distanceTravelled?: number;
+  knockdowns?: number;
+  revives?: number;
+  pickups?: number;
+  topNTimes?: number;
+} | null;
+type BrStats = { solo?: ModeStats; duo?: ModeStats; squad?: ModeStats } | null;
+type CsStats = {
+  gamesPlayed?: number;
+  wins?: number;
+  kills?: number;
+  deaths?: number;
+  assists?: number;
+  damage?: number;
+  headshotKills?: number;
+  mvpCount?: number;
+  knockdowns?: number;
+  revivals?: number;
+  doubleKills?: number;
+  tripleKills?: number;
+  fourKills?: number;
+  streakWins?: number;
+  ratingPoints?: number;
+  onegamemostkills?: number;
+  onegamemostdamage?: number;
+} | null;
+type StatsInfo = { br?: BrStats; cs?: CsStats };
 type FfResponse = {
   basicInfo: BasicInfo;
   guildBasicInfo?: GuildInfo;
   socialInfo?: SocialInfo;
   creditScoreInfo?: CreditInfo;
   banInfo?: BanInfo | null;
+  statsInfo?: StatsInfo | null;
 };
 
 const MONTHS_ID = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -291,6 +328,65 @@ function StatCard({ icon, label, value, sub, accent }: { icon?: string; label?: 
   );
 }
 
+function calcKD(kills?: number, deaths?: number) {
+  const k = Number(kills || 0);
+  const d = Number(deaths || 0);
+  if (!d) return k.toFixed(2);
+  return (k / d).toFixed(2);
+}
+
+function calcWinRate(wins?: number, gamesPlayed?: number) {
+  const g = Number(gamesPlayed || 0);
+  if (!g) return '0.0';
+  return ((Number(wins || 0) / g) * 100).toFixed(1);
+}
+
+function StatMini({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <span>
+      {label}: <strong style={{ color: 'var(--white)' }}>{value}</strong>
+    </span>
+  );
+}
+
+function ModeStatsCard({ title, data }: { title: string; data: ModeStats }) {
+  if (!data) return null;
+  return (
+    <div style={{ background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12, padding: '12px 13px' }}>
+      <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--gold)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{title}</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))', gap: 8, fontSize: 12, color: 'var(--light-text)' }}>
+        <StatMini label="Main" value={formatNumber(data.gamesPlayed)} />
+        <StatMini label="Menang" value={`${formatNumber(data.wins)} (${calcWinRate(data.wins, data.gamesPlayed)}%)`} />
+        <StatMini label="Kills" value={formatNumber(data.kills)} />
+        <StatMini label="K/D" value={calcKD(data.kills, data.deaths)} />
+        <StatMini label="Headshot" value={formatNumber(data.headshotKills)} />
+        <StatMini label="Damage" value={formatNumber(data.damage)} />
+        <StatMini label="Kills Tertinggi" value={formatNumber(data.highestKills)} />
+        <StatMini label="Top Placement" value={formatNumber(data.topNTimes)} />
+      </div>
+    </div>
+  );
+}
+
+function CsStatsCard({ data }: { data: CsStats }) {
+  if (!data) return null;
+  return (
+    <div style={{ background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12, padding: '12px 13px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))', gap: 8, fontSize: 12, color: 'var(--light-text)' }}>
+        <StatMini label="Main" value={formatNumber(data.gamesPlayed)} />
+        <StatMini label="Menang" value={`${formatNumber(data.wins)} (${calcWinRate(data.wins, data.gamesPlayed)}%)`} />
+        <StatMini label="Kills" value={formatNumber(data.kills)} />
+        <StatMini label="K/D" value={calcKD(data.kills, data.deaths)} />
+        <StatMini label="Assists" value={formatNumber(data.assists)} />
+        <StatMini label="Headshot" value={formatNumber(data.headshotKills)} />
+        <StatMini label="MVP" value={formatNumber(data.mvpCount)} />
+        <StatMini label="Damage" value={formatNumber(data.damage)} />
+        <StatMini label="Rating" value={data.ratingPoints !== undefined && data.ratingPoints !== null ? Number(data.ratingPoints).toFixed(1) : '—'} />
+      </div>
+    </div>
+  );
+}
+
 function InfoRow({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="info-row" style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 2px' }}>
@@ -382,6 +478,7 @@ export default function StalkClient() {
   const guild = result?.guildBasicInfo;
   const credit = result?.creditScoreInfo;
   const ban = result?.banInfo;
+  const stats = result?.statsInfo;
   const customTag = basic ? CUSTOM_TAGS[basic.accountId] : null;
   const accountAgeDays = basic ? calculateAccountAgeDays(basic.createAt) : null;
   const ageBreakdown = basic ? calculateAgeBreakdown(basic.createAt) : null;
@@ -560,7 +657,7 @@ export default function StalkClient() {
                       color: '#ff5c5c', background: 'rgba(255,92,92,0.12)', border: '1px solid rgba(255,92,92,0.4)',
                       borderRadius: 999, padding: '3px 12px',
                     }}>
-                      <ShieldAlert size={13} /> Banned{ban.banPeriod ? ` (${ban.banPeriod} Bulan)` : ''}
+                      <ShieldAlert size={13} /> Banned
                     </span>
                   ) : (
                     <span style={{
@@ -697,13 +794,37 @@ export default function StalkClient() {
               <p style={{ fontSize: 12, color: 'var(--muted-text)' }}>Tidak tergabung dalam guild.</p>
             )}
           </div>
+
+          {stats?.br && (stats.br.solo || stats.br.duo || stats.br.squad) ? (
+            <>
+              <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+              <div>
+                <SectionLabel>Statistik BR Rank</SectionLabel>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <ModeStatsCard title="Solo" data={stats.br.solo} />
+                  <ModeStatsCard title="Duo" data={stats.br.duo} />
+                  <ModeStatsCard title="Squad" data={stats.br.squad} />
+                </div>
+              </div>
+            </>
+          ) : null}
+
+          {stats?.cs ? (
+            <>
+              <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+              <div>
+                <SectionLabel>Statistik CS Rank</SectionLabel>
+                <CsStatsCard data={stats.cs} />
+              </div>
+            </>
+          ) : null}
         </section>
       ) : (!loading && !error) ? (
         <section style={{ width: '100%', maxWidth: 720, marginTop: 48, textAlign: 'center', color: 'var(--muted-text)' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, opacity: 0.5 }}>
             <Search size={36} />
           </div>
-          <p>Masukkan UID Free Fire</p>
+          <p>Masukkan UID Free Fire di atas buat lihat detail akun.</p>
         </section>
       ) : null}
 
