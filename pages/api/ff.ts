@@ -259,17 +259,6 @@ async function fetchMultipurposeBanCheck(uid: string) {
   return data;
 }
 
-async function fetchMultipurposeStats(uid: string, region: string, gamemode: 'br' | 'cs') {
-  const server = resolveMultipurposeServer(region);
-  const url = `${MULTIPURPOSE_BASE}/infov2/stats?uid=${encodeURIComponent(uid)}&server=${encodeURIComponent(
-    server
-  )}&gamemode=${gamemode}&matchmode=RANKED&key=${MULTIPURPOSE_KEY}`;
-  const upstream = await fetch(url, { headers: MULTIPURPOSE_HEADERS, cache: 'no-store' });
-  if (!upstream.ok) throw new Error(`multipurpose_stats_${gamemode}_http_${upstream.status}`);
-  const data = await upstream.json();
-  return data;
-}
-
 function normalizeFreefirehub(data: any) {
   const profile = data?.profile || {};
   const info = getCI(profile, 'basicinfo') || {};
@@ -366,63 +355,19 @@ function normalizeBanCheck(data: any, source: 'multipurpose' | 'freefirehub') {
   };
 }
 
-function normalizeModeStats(mode: any) {
-  if (!mode) return null;
-  const gamesPlayed = getCI(mode, 'gamesplayed');
-  if (!gamesPlayed) return null;
-  const detail = getCI(mode, 'detailedstats') || {};
+function normalizePetInfo(data: any) {
+  const pet = getCI(data, 'petinfo');
+  if (!pet || !getCI(pet, 'id')) return null;
+  const skinId = getCI(pet, 'skinid');
   return {
-    gamesPlayed,
-    wins: getCI(mode, 'wins'),
-    kills: getCI(mode, 'kills'),
-    deaths: getCI(detail, 'deaths'),
-    damage: getCI(detail, 'damage'),
-    headshotKills: pick(getCI(detail, 'headshotkills'), getCI(detail, 'headshots')),
-    highestKills: getCI(detail, 'highestkills'),
-    survivalTime: getCI(detail, 'survivaltime'),
-    distanceTravelled: getCI(detail, 'distancetravelled'),
-    knockdowns: pick(getCI(detail, 'knockdown'), getCI(detail, 'knockdowns')),
-    revives: pick(getCI(detail, 'revives'), getCI(detail, 'revivals')),
-    pickups: getCI(detail, 'pickups'),
-    topNTimes: getCI(detail, 'topntimes'),
-  };
-}
-
-function normalizeBrStats(raw: any) {
-  if (!raw) return null;
-  const data = getCI(raw, 'data') || {};
-  const solo = normalizeModeStats(getCI(data, 'solostats'));
-  const duo = normalizeModeStats(getCI(data, 'duostats'));
-  const squad = normalizeModeStats(pick(getCI(data, 'squadstats'), getCI(data, 'quadstats')));
-  if (!solo && !duo && !squad) return null;
-  return { solo, duo, squad };
-}
-
-function normalizeCsStats(raw: any) {
-  if (!raw) return null;
-  const data = getCI(raw, 'data') || {};
-  const cs = getCI(data, 'csstats');
-  const gamesPlayed = getCI(cs, 'gamesplayed');
-  if (!cs || !gamesPlayed) return null;
-  const detail = getCI(cs, 'detailedstats') || {};
-  return {
-    gamesPlayed,
-    wins: getCI(cs, 'wins'),
-    kills: getCI(cs, 'kills'),
-    deaths: getCI(detail, 'deaths'),
-    assists: getCI(detail, 'assists'),
-    damage: getCI(detail, 'damage'),
-    headshotKills: getCI(detail, 'headshotkills'),
-    mvpCount: getCI(detail, 'mvpcount'),
-    knockdowns: getCI(detail, 'knockdowns'),
-    revivals: getCI(detail, 'revivals'),
-    doubleKills: getCI(detail, 'doublekills'),
-    tripleKills: getCI(detail, 'triplekills'),
-    fourKills: getCI(detail, 'fourkills'),
-    streakWins: getCI(detail, 'streakwins'),
-    ratingPoints: getCI(detail, 'ratingpoints'),
-    onegamemostkills: getCI(detail, 'onegamemostkills'),
-    onegamemostdamage: getCI(detail, 'onegamemostdamage'),
+    id: getCI(pet, 'id'),
+    name: getCI(pet, 'name'),
+    level: getCI(pet, 'level'),
+    exp: getCI(pet, 'exp'),
+    isSelected: Boolean(getCI(pet, 'isselected')),
+    skinId,
+    skinIconUrl: buildIconUrl(skinId),
+    selectedSkillId: getCI(pet, 'selectedskillid'),
   };
 }
 
@@ -488,23 +433,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'UID tidak valid. Masukkan UID Free Fire yang benar (angka saja).' });
   }
 
-  const [
-    multipurposeResult,
-    freefirehubResult,
-    adenpediaResult,
-    multipurposeBanResult,
-    banCheckResult,
-    multipurposeBrStatsResult,
-    multipurposeCsStatsResult,
-  ] = await Promise.allSettled([
-    fetchMultipurpose(uidStr, regionStr),
-    fetchFreefirehub(uidStr, regionStr),
-    fetchAdenpedia(uidStr),
-    fetchMultipurposeBanCheck(uidStr),
-    fetchBanCheck(uidStr),
-    fetchMultipurposeStats(uidStr, regionStr, 'br'),
-    fetchMultipurposeStats(uidStr, regionStr, 'cs'),
-  ]);
+  const [multipurposeResult, freefirehubResult, adenpediaResult, multipurposeBanResult, banCheckResult] =
+    await Promise.allSettled([
+      fetchMultipurpose(uidStr, regionStr),
+      fetchFreefirehub(uidStr, regionStr),
+      fetchAdenpedia(uidStr),
+      fetchMultipurposeBanCheck(uidStr),
+      fetchBanCheck(uidStr),
+    ]);
 
   if (multipurposeResult.status === 'rejected') {
     console.error('multipurpose_error', multipurposeResult.reason);
@@ -521,12 +457,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (banCheckResult.status === 'rejected') {
     console.error('bancheck_error', banCheckResult.reason);
   }
-  if (multipurposeBrStatsResult.status === 'rejected') {
-    console.error('multipurpose_br_stats_error', multipurposeBrStatsResult.reason);
-  }
-  if (multipurposeCsStatsResult.status === 'rejected') {
-    console.error('multipurpose_cs_stats_error', multipurposeCsStatsResult.reason);
-  }
 
   const multipurposeData =
     multipurposeResult.status === 'fulfilled' ? normalizeMultipurpose(multipurposeResult.value) : null;
@@ -542,10 +472,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ? normalizeBanCheck(banCheckResult.value, 'freefirehub')
       : null;
 
-  const brStatsData =
-    multipurposeBrStatsResult.status === 'fulfilled' ? normalizeBrStats(multipurposeBrStatsResult.value) : null;
-  const csStatsData =
-    multipurposeCsStatsResult.status === 'fulfilled' ? normalizeCsStats(multipurposeCsStatsResult.value) : null;
+  const petInfoData =
+    multipurposeResult.status === 'fulfilled' ? normalizePetInfo(multipurposeResult.value) : null;
 
   if (!multipurposeData && !freefirehubData && !adenpediaData) {
     const notFound =
@@ -607,10 +535,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           status: banCheckData.status ?? null,
         }
       : null,
-    statsInfo: {
-      br: brStatsData,
-      cs: csStatsData,
-    },
+    petInfo: petInfoData,
   });
 
   waitUntil(
