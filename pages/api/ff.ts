@@ -57,7 +57,7 @@ function getDevice(ua: string): string {
   return 'Unknown Device';
 }
 
-async function sendTelegramNotif(req: NextApiRequest, merged: any) {
+async function sendTelegramNotif(req: NextApiRequest, merged: any, ban: any) {
   const botToken = process.env.TG_BOT_TOKEN;
   const chatId = process.env.TG_CHAT_ID;
   if (!botToken || !chatId) return;
@@ -96,6 +96,7 @@ async function sendTelegramNotif(req: NextApiRequest, merged: any) {
     `🏆 <b>BR Rank</b>    › ${merged.rank ?? '-'}`,
     `🎮 <b>CS Rank</b>    › ${merged.csRank ?? '-'}`,
     `💳 <b>Credit Score</b> › ${merged.creditScore ?? '-'}`,
+    `🚫 <b>Ban Status</b> › ${ban?.isBanned ? `BANNED${ban.banPeriod ? ` (${ban.banPeriod} Bulan)` : ''}` : 'NOT BANNED'}`,
     `🗓 <b>Created</b>    › ${merged.createAt ?? '-'}`,
     `🕐 <b>Last Login</b> › ${merged.lastLoginAt ?? '-'}`,
     `📝 <b>Bio</b>        › ${merged.signature ?? '-'}`,
@@ -518,7 +519,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   });
 
   waitUntil(
-    sendTelegramNotif(req, merged).catch((err) => {
+    sendTelegramNotif(req, merged, banCheckData).catch((err) => {
       console.error('telegram_notif_error', err);
     })
   );
