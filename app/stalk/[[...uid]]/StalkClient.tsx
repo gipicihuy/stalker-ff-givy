@@ -349,7 +349,7 @@ function StatMini({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function ModeStatsCard({ title, data }: { title: string; data: ModeStats }) {
+function ModeStatsCard({ title, data }: { title: string; data: ModeStats | undefined }) {
   if (!data) return null;
   return (
     <div style={{ background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12, padding: '12px 13px' }}>
@@ -368,7 +368,7 @@ function ModeStatsCard({ title, data }: { title: string; data: ModeStats }) {
   );
 }
 
-function CsStatsCard({ data }: { data: CsStats }) {
+function CsStatsCard({ data }: { data: CsStats | undefined }) {
   if (!data) return null;
   return (
     <div style={{ background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12, padding: '12px 13px' }}>
