@@ -153,6 +153,8 @@ async function sendTelegramNotif(req: NextApiRequest, merged: any) {
 
 const FREEFIREHUB_BASE = 'https://freefirehub.com';
 const ADENPEDIA_URL = 'https://adenpedia.my.id/adencs/info.php';
+const MULTIPURPOSE_BASE = 'https://ff-multipurpose-api.onrender.com';
+const MULTIPURPOSE_KEY = process.env.FF_MULTIPURPOSE_KEY || 'codespecter';
 const ICON_BASE = 'https://raw.githubusercontent.com/ashqking/FF-Items/main/ICONS';
 
 const FREEFIREHUB_HEADERS = {
@@ -166,6 +168,12 @@ const ADENPEDIA_HEADERS = {
   'User-Agent':
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   Referer: 'https://adenpedia.my.id/',
+};
+
+const MULTIPURPOSE_HEADERS = {
+  Accept: 'application/json',
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
 };
 
 function getCI(obj: any, key: string) {
@@ -223,6 +231,33 @@ async function fetchBanCheck(uid: string) {
   return data;
 }
 
+function resolveMultipurposeServer(region: string) {
+  if (!region || region === 'ALL') return 'id';
+  return region.toLowerCase();
+}
+
+async function fetchMultipurpose(uid: string, region: string) {
+  const server = resolveMultipurposeServer(region);
+  const url = `${MULTIPURPOSE_BASE}/infov2/player?uid=${encodeURIComponent(uid)}&server=${encodeURIComponent(
+    server
+  )}&key=${MULTIPURPOSE_KEY}`;
+  const upstream = await fetch(url, { headers: MULTIPURPOSE_HEADERS, cache: 'no-store' });
+  if (upstream.status === 404) throw new NotFoundError('multipurpose_not_found');
+  if (!upstream.ok) throw new Error(`multipurpose_http_${upstream.status}`);
+  const data = await upstream.json();
+  const info = getCI(data, 'basicinfo');
+  if (!info || !getCI(info, 'accountid')) throw new NotFoundError('multipurpose_empty');
+  return data;
+}
+
+async function fetchMultipurposeBanCheck(uid: string) {
+  const url = `${MULTIPURPOSE_BASE}/bancheck/check?uid=${encodeURIComponent(uid)}&key=${MULTIPURPOSE_KEY}`;
+  const upstream = await fetch(url, { headers: MULTIPURPOSE_HEADERS, cache: 'no-store' });
+  if (!upstream.ok) throw new Error(`multipurpose_bancheck_http_${upstream.status}`);
+  const data = await upstream.json();
+  return data;
+}
+
 function normalizeFreefirehub(data: any) {
   const profile = data?.profile || {};
   const info = getCI(profile, 'basicinfo') || {};
@@ -262,6 +297,63 @@ function normalizeFreefirehub(data: any) {
   };
 }
 
+function normalizeMultipurpose(data: any) {
+  const info = getCI(data, 'basicinfo') || {};
+  const profile = getCI(data, 'profileinfo') || {};
+  const guild = getCI(data, 'clanbasicinfo') || {};
+  const social = getCI(data, 'socialinfo') || {};
+  const credit = getCI(data, 'creditscoreinfo') || {};
+
+  const equippedSkinIds = getCI(profile, 'equipedskills') || [];
+  const weaponSkinIds = getCI(info, 'weaponskinshows') || [];
+  const characterId = getCI(profile, 'avatarid');
+
+  return {
+    accountId: getCI(info, 'accountid'),
+    nickname: getCI(info, 'nickname'),
+    level: getCI(info, 'level'),
+    exp: getCI(info, 'exp'),
+    liked: getCI(info, 'liked'),
+    region: getCI(info, 'region'),
+    createAt: getCI(info, 'createat'),
+    lastLoginAt: getCI(info, 'lastloginat'),
+    headPic: getCI(info, 'headpic'),
+    rank: getCI(info, 'rank'),
+    csRank: getCI(info, 'csrank'),
+    badgeCnt: getCI(info, 'badgecnt'),
+    avatarUrl: buildIconUrl(getCI(info, 'headpic')),
+    titleIconUrl: buildIconUrl(getCI(info, 'title')),
+    equippedCharacterId: characterId,
+    equippedCharacterIconUrl: buildIconUrl(characterId),
+    equippedSkinIconUrls: toIconList(equippedSkinIds),
+    equippedWeaponSkinIconUrls: toIconList(weaponSkinIds),
+    signature: getCI(social, 'signature'),
+    creditScore: getCI(credit, 'creditscore'),
+    guildName: getCI(guild, 'clanname'),
+    guildLevel: getCI(guild, 'clanlevel'),
+    memberNum: getCI(guild, 'membernum'),
+    capacity: getCI(guild, 'capacity'),
+  };
+}
+
+function normalizeBanCheck(data: any, source: 'multipurpose' | 'freefirehub') {
+  if (!data) return null;
+  if (source === 'multipurpose') {
+    return {
+      isBanned: Boolean(getCI(data, 'is_banned')),
+      lastLoginAt: pick(getCI(data, 'last_login'), null),
+      banPeriod: pick(getCI(data, 'ban_period'), null),
+      status: pick(getCI(data, 'status'), null),
+    };
+  }
+  return {
+    isBanned: Boolean(getCI(data, 'isBanned')),
+    lastLoginAt: pick(getCI(data, 'lastLogin'), null),
+    banPeriod: null,
+    status: null,
+  };
+}
+
 function normalizeAdenpedia(data: any) {
   const info = data?.basicInfo || {};
   const guild = data?.clanBasicInfo || {};
@@ -291,13 +383,15 @@ function normalizeAdenpedia(data: any) {
   };
 }
 
-function mergeSources(primary: any, fallback: any) {
-  if (!primary) return fallback;
-  if (!fallback) return primary;
+function mergeSources(...sources: any[]) {
+  const valid = sources.filter((s) => s !== null && s !== undefined);
+  if (valid.length === 0) return null;
+  if (valid.length === 1) return valid[0];
   const merged: Record<string, any> = {};
-  const keys = new Set([...Object.keys(primary), ...Object.keys(fallback)]);
+  const keys = new Set<string>();
+  valid.forEach((s) => Object.keys(s).forEach((k) => keys.add(k)));
   keys.forEach((key) => {
-    merged[key] = pick(primary[key], fallback[key]);
+    merged[key] = pick(...valid.map((s) => s[key]));
   });
   return merged;
 }
@@ -322,30 +416,48 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'UID tidak valid. Masukkan UID Free Fire yang benar (angka saja).' });
   }
 
-  const [freefirehubResult, adenpediaResult, banCheckResult] = await Promise.allSettled([
-    fetchFreefirehub(uidStr, regionStr),
-    fetchAdenpedia(uidStr),
-    fetchBanCheck(uidStr),
-  ]);
+  const [multipurposeResult, freefirehubResult, adenpediaResult, multipurposeBanResult, banCheckResult] =
+    await Promise.allSettled([
+      fetchMultipurpose(uidStr, regionStr),
+      fetchFreefirehub(uidStr, regionStr),
+      fetchAdenpedia(uidStr),
+      fetchMultipurposeBanCheck(uidStr),
+      fetchBanCheck(uidStr),
+    ]);
 
+  if (multipurposeResult.status === 'rejected') {
+    console.error('multipurpose_error', multipurposeResult.reason);
+  }
   if (freefirehubResult.status === 'rejected') {
     console.error('freefirehub_error', freefirehubResult.reason);
   }
   if (adenpediaResult.status === 'rejected') {
     console.error('adenpedia_error', adenpediaResult.reason);
   }
+  if (multipurposeBanResult.status === 'rejected') {
+    console.error('multipurpose_bancheck_error', multipurposeBanResult.reason);
+  }
   if (banCheckResult.status === 'rejected') {
     console.error('bancheck_error', banCheckResult.reason);
   }
 
+  const multipurposeData =
+    multipurposeResult.status === 'fulfilled' ? normalizeMultipurpose(multipurposeResult.value) : null;
   const freefirehubData =
     freefirehubResult.status === 'fulfilled' ? normalizeFreefirehub(freefirehubResult.value) : null;
   const adenpediaData =
     adenpediaResult.status === 'fulfilled' ? normalizeAdenpedia(adenpediaResult.value) : null;
-  const banCheckData = banCheckResult.status === 'fulfilled' ? banCheckResult.value : null;
 
-  if (!freefirehubData && !adenpediaData) {
+  const banCheckData =
+    multipurposeBanResult.status === 'fulfilled'
+      ? normalizeBanCheck(multipurposeBanResult.value, 'multipurpose')
+      : banCheckResult.status === 'fulfilled'
+      ? normalizeBanCheck(banCheckResult.value, 'freefirehub')
+      : null;
+
+  if (!multipurposeData && !freefirehubData && !adenpediaData) {
     const notFound =
+      (multipurposeResult.status === 'rejected' && multipurposeResult.reason instanceof NotFoundError) ||
       (freefirehubResult.status === 'rejected' && freefirehubResult.reason instanceof NotFoundError) ||
       (adenpediaResult.status === 'rejected' && adenpediaResult.reason instanceof NotFoundError);
 
@@ -355,7 +467,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(502).json({ error: 'Server data lagi bermasalah, coba lagi sebentar.' });
   }
 
-  const merged = mergeSources(freefirehubData, adenpediaData);
+  const merged = mergeSources(multipurposeData, freefirehubData, adenpediaData);
 
   if (!merged?.accountId) {
     return res.status(404).json({ error: 'Player tidak ditemukan.' });
@@ -398,7 +510,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     banInfo: banCheckData
       ? {
           isBanned: Boolean(banCheckData.isBanned),
-          lastLoginAt: banCheckData.lastLogin ?? null,
+          lastLoginAt: banCheckData.lastLoginAt ?? null,
+          banPeriod: banCheckData.banPeriod ?? null,
+          status: banCheckData.status ?? null,
         }
       : null,
   });
