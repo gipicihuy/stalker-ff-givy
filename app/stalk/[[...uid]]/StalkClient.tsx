@@ -28,7 +28,7 @@ type BasicInfo = {
 type GuildInfo = { guildName?: string; guildLevel?: number; memberNum?: number; capacity?: number };
 type SocialInfo = { signature?: string };
 type CreditInfo = { creditScore?: number };
-type BanInfo = { isBanned?: boolean; lastLoginAt?: string | null };
+type BanInfo = { isBanned?: boolean; lastLoginAt?: string | null; banPeriod?: number | null; status?: string | null };
 type FfResponse = {
   basicInfo: BasicInfo;
   guildBasicInfo?: GuildInfo;
@@ -560,7 +560,7 @@ export default function StalkClient() {
                       color: '#ff5c5c', background: 'rgba(255,92,92,0.12)', border: '1px solid rgba(255,92,92,0.4)',
                       borderRadius: 999, padding: '3px 12px',
                     }}>
-                      <ShieldAlert size={13} /> Banned
+                      <ShieldAlert size={13} /> Banned{ban.banPeriod ? ` (${ban.banPeriod} Bulan)` : ''}
                     </span>
                   ) : (
                     <span style={{
@@ -568,7 +568,7 @@ export default function StalkClient() {
                       color: 'var(--success)', background: 'rgba(80,200,120,0.12)', border: '1px solid rgba(80,200,120,0.4)',
                       borderRadius: 999, padding: '3px 12px',
                     }}>
-                      <ShieldCheck size={13} /> Active
+                      <ShieldCheck size={13} /> Not Banned
                     </span>
                   )
                 ) : null}
@@ -703,7 +703,7 @@ export default function StalkClient() {
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, opacity: 0.5 }}>
             <Search size={36} />
           </div>
-          <p>Masukkan UID Free Fire di atas buat lihat detail akun.</p>
+          <p>Masukkan UID Free Fire</p>
         </section>
       ) : null}
 
