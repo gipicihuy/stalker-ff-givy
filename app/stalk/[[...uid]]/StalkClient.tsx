@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, Gamepad2, Trophy, Swords, Crosshair, Target, Flame, Medal, Flag, HeartPulse, Award, Gauge } from 'lucide-react';
+import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint } from 'lucide-react';
 
 type PrimeInfo = { primeLevel?: number };
 type BasicInfo = {
@@ -29,49 +29,23 @@ type GuildInfo = { guildName?: string; guildLevel?: number; memberNum?: number; 
 type SocialInfo = { signature?: string };
 type CreditInfo = { creditScore?: number };
 type BanInfo = { isBanned?: boolean; lastLoginAt?: string | null; banPeriod?: number | null; status?: string | null };
-type ModeStats = {
-  gamesPlayed?: number;
-  wins?: number;
-  kills?: number;
-  deaths?: number;
-  damage?: number;
-  headshotKills?: number;
-  highestKills?: number;
-  survivalTime?: number;
-  distanceTravelled?: number;
-  knockdowns?: number;
-  revives?: number;
-  pickups?: number;
-  topNTimes?: number;
+type PetInfo = {
+  id?: number;
+  name?: string;
+  level?: number;
+  exp?: number;
+  isSelected?: boolean;
+  skinId?: number;
+  skinIconUrl?: string;
+  selectedSkillId?: number;
 } | null;
-type BrStats = { solo?: ModeStats; duo?: ModeStats; squad?: ModeStats } | null;
-type CsStats = {
-  gamesPlayed?: number;
-  wins?: number;
-  kills?: number;
-  deaths?: number;
-  assists?: number;
-  damage?: number;
-  headshotKills?: number;
-  mvpCount?: number;
-  knockdowns?: number;
-  revivals?: number;
-  doubleKills?: number;
-  tripleKills?: number;
-  fourKills?: number;
-  streakWins?: number;
-  ratingPoints?: number;
-  onegamemostkills?: number;
-  onegamemostdamage?: number;
-} | null;
-type StatsInfo = { br?: BrStats; cs?: CsStats };
 type FfResponse = {
   basicInfo: BasicInfo;
   guildBasicInfo?: GuildInfo;
   socialInfo?: SocialInfo;
   creditScoreInfo?: CreditInfo;
   banInfo?: BanInfo | null;
-  statsInfo?: StatsInfo | null;
+  petInfo?: PetInfo;
 };
 
 const MONTHS_ID = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -328,76 +302,40 @@ function StatCard({ icon, label, value, sub, accent }: { icon?: string; label?: 
   );
 }
 
-function calcKD(kills?: number, deaths?: number) {
-  const k = Number(kills || 0);
-  const d = Number(deaths || 0);
-  if (!d) return k.toFixed(2);
-  return (k / d).toFixed(2);
-}
-
-function calcWinRate(wins?: number, gamesPlayed?: number) {
-  const g = Number(gamesPlayed || 0);
-  if (!g) return '0.0';
-  return ((Number(wins || 0) / g) * 100).toFixed(1);
-}
-
-function MiniStat({ icon, label, value, sub, accent }: { icon: React.ReactNode; label: string; value: React.ReactNode; sub?: string; accent?: string }) {
-  return (
-    <div style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 10, padding: '9px 6px', textAlign: 'center' }}>
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 5, color: accent || 'var(--muted-text)' }}>{icon}</div>
-      <p style={{ fontSize: 9, fontWeight: 600, color: 'var(--muted-text)', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 3 }}>{label}</p>
-      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)', lineHeight: 1.1 }}>{value}</p>
-      {sub ? <p style={{ fontSize: 9.5, color: 'var(--light-text)', marginTop: 2 }}>{sub}</p> : null}
-    </div>
-  );
-}
-
-function ModeStatsCard({ title, data }: { title: string; data: ModeStats | undefined }) {
+function PetInfoCard({ data }: { data: PetInfo }) {
   if (!data) return null;
   return (
-    <div style={{ background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 14, padding: '13px 12px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
+    <div style={{
+      background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 14,
+      padding: '13px 12px', display: 'flex', gap: 12, alignItems: 'center',
+    }}>
+      {data.skinIconUrl ? (
+        <img src={data.skinIconUrl} alt={data.name || 'Pet'} style={{ width: 54, height: 54, objectFit: 'contain', flexShrink: 0 }}
+          onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+      ) : (
         <span style={{
-          width: 22, height: 22, borderRadius: 7, background: 'var(--gold-soft)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold)',
+          width: 40, height: 40, borderRadius: 10, background: 'var(--gold-soft)', color: 'var(--gold)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
         }}>
-          <Gamepad2 size={12} />
+          <PawPrint size={20} />
         </span>
-        <p style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{title}</p>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 7 }}>
-        <MiniStat icon={<Gamepad2 size={14} />} label="Main" value={formatNumber(data.gamesPlayed)} />
-        <MiniStat icon={<Trophy size={14} />} label="Menang" value={formatNumber(data.wins)} sub={`${calcWinRate(data.wins, data.gamesPlayed)}%`} accent="var(--success)" />
-        <MiniStat icon={<Swords size={14} />} label="Kills" value={formatNumber(data.kills)} accent="var(--gold)" />
-        <MiniStat icon={<Crosshair size={14} />} label="K/D" value={calcKD(data.kills, data.deaths)} accent="var(--blue)" />
-        <MiniStat icon={<Target size={14} />} label="Headshot" value={formatNumber(data.headshotKills)} accent="#ff5c5c" />
-        <MiniStat icon={<Flame size={14} />} label="Damage" value={formatNumber(data.damage)} accent="#ff9d00" />
-        <MiniStat icon={<Medal size={14} />} label="Kills Tertinggi" value={formatNumber(data.highestKills)} />
-        <MiniStat icon={<Flag size={14} />} label="Top Placement" value={formatNumber(data.topNTimes)} />
-      </div>
-    </div>
-  );
-}
-
-function CsStatsCard({ data }: { data: CsStats | undefined }) {
-  if (!data) return null;
-  return (
-    <div style={{ background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 14, padding: '13px 12px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 7 }}>
-        <MiniStat icon={<Gamepad2 size={14} />} label="Main" value={formatNumber(data.gamesPlayed)} />
-        <MiniStat icon={<Trophy size={14} />} label="Menang" value={formatNumber(data.wins)} sub={`${calcWinRate(data.wins, data.gamesPlayed)}%`} accent="var(--success)" />
-        <MiniStat icon={<Swords size={14} />} label="Kills" value={formatNumber(data.kills)} accent="var(--gold)" />
-        <MiniStat icon={<Crosshair size={14} />} label="K/D" value={calcKD(data.kills, data.deaths)} accent="var(--blue)" />
-        <MiniStat icon={<HeartPulse size={14} />} label="Assists" value={formatNumber(data.assists)} />
-        <MiniStat icon={<Target size={14} />} label="Headshot" value={formatNumber(data.headshotKills)} accent="#ff5c5c" />
-        <MiniStat icon={<Award size={14} />} label="MVP" value={formatNumber(data.mvpCount)} accent="var(--gold)" />
-        <MiniStat icon={<Flame size={14} />} label="Damage" value={formatNumber(data.damage)} accent="#ff9d00" />
-        <MiniStat
-          icon={<Gauge size={14} />}
-          label="Rating"
-          value={data.ratingPoints !== undefined && data.ratingPoints !== null ? Number(data.ratingPoints).toFixed(1) : '—'}
-          accent="var(--blue)"
-        />
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
+          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)' }}>{data.name || '—'}</p>
+          {data.isSelected ? (
+            <span style={{
+              fontSize: 9.5, fontWeight: 700, color: 'var(--success)', background: 'rgba(80,200,120,0.12)',
+              border: '1px solid rgba(80,200,120,0.4)', borderRadius: 999, padding: '2px 8px',
+            }}>
+              Aktif
+            </span>
+          ) : null}
+        </div>
+        <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--light-text)', flexWrap: 'wrap' }}>
+          <span>Level: <strong style={{ color: 'var(--white)' }}>{formatNumber(data.level)}</strong></span>
+          <span>Exp: <strong style={{ color: 'var(--white)' }}>{formatNumber(data.exp)}</strong></span>
+        </div>
       </div>
     </div>
   );
@@ -494,7 +432,7 @@ export default function StalkClient() {
   const guild = result?.guildBasicInfo;
   const credit = result?.creditScoreInfo;
   const ban = result?.banInfo;
-  const stats = result?.statsInfo;
+  const pet = result?.petInfo;
   const customTag = basic ? CUSTOM_TAGS[basic.accountId] : null;
   const accountAgeDays = basic ? calculateAccountAgeDays(basic.createAt) : null;
   const ageBreakdown = basic ? calculateAgeBreakdown(basic.createAt) : null;
@@ -811,26 +749,12 @@ export default function StalkClient() {
             )}
           </div>
 
-          {stats?.br && (stats.br.solo || stats.br.duo || stats.br.squad) ? (
+          {pet ? (
             <>
               <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
               <div>
-                <SectionLabel>Statistik BR Rank</SectionLabel>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <ModeStatsCard title="Solo" data={stats.br.solo} />
-                  <ModeStatsCard title="Duo" data={stats.br.duo} />
-                  <ModeStatsCard title="Squad" data={stats.br.squad} />
-                </div>
-              </div>
-            </>
-          ) : null}
-
-          {stats?.cs ? (
-            <>
-              <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
-              <div>
-                <SectionLabel>Statistik CS Rank</SectionLabel>
-                <CsStatsCard data={stats.cs} />
+                <SectionLabel>Pet Info</SectionLabel>
+                <PetInfoCard data={pet} />
               </div>
             </>
           ) : null}
