@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint } from 'lucide-react';
+import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint, Star } from 'lucide-react';
 
 type PrimeInfo = { primeLevel?: number };
 type BasicInfo = {
@@ -39,6 +39,20 @@ type PetInfo = {
   skinIconUrl?: string;
   selectedSkillId?: number;
 } | null;
+type WishlistItem = {
+  id?: number;
+  name?: string;
+  icon?: string;
+  iconUrl?: string | null;
+  rarity?: string | null;
+  addedAt?: string | null;
+  linkable?: boolean;
+};
+type WishlistInfo = {
+  count?: number;
+  lastCheckedAt?: string | null;
+  items?: WishlistItem[];
+} | null;
 type FfResponse = {
   basicInfo: BasicInfo;
   guildBasicInfo?: GuildInfo;
@@ -46,6 +60,7 @@ type FfResponse = {
   creditScoreInfo?: CreditInfo;
   banInfo?: BanInfo | null;
   petInfo?: PetInfo;
+  wishlistInfo?: WishlistInfo;
 };
 
 const MONTHS_ID = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -341,6 +356,65 @@ function PetInfoCard({ data }: { data: PetInfo }) {
   );
 }
 
+const RARITY_COLORS: Record<string, { text: string; bg: string; border: string }> = {
+  ORANGE_PLUS: { text: '#ff9d00', bg: 'rgba(255,157,0,0.12)', border: 'rgba(255,157,0,0.4)' },
+  ORANGE: { text: '#ff9d00', bg: 'rgba(255,157,0,0.12)', border: 'rgba(255,157,0,0.4)' },
+  PURPLE: { text: '#b57bee', bg: 'rgba(181,123,238,0.12)', border: 'rgba(181,123,238,0.4)' },
+  BLUE: { text: '#5aa9e6', bg: 'rgba(90,169,230,0.12)', border: 'rgba(90,169,230,0.4)' },
+  WHITE: { text: '#e6e6e6', bg: 'rgba(230,230,230,0.1)', border: 'rgba(230,230,230,0.35)' },
+};
+
+function getRarityStyle(rarity?: string | null) {
+  if (!rarity) return RARITY_COLORS.WHITE;
+  return RARITY_COLORS[rarity] || RARITY_COLORS.WHITE;
+}
+
+function formatWishlistDate(iso?: string | null) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return `${d.getDate()} ${MONTHS_ID[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function WishlistCard({ item }: { item: WishlistItem }) {
+  const rarityStyle = getRarityStyle(item.rarity);
+  const dateLabel = formatWishlistDate(item.addedAt);
+  return (
+    <div style={{
+      background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 14,
+      padding: '13px 12px', display: 'flex', gap: 12, alignItems: 'center',
+    }}>
+      {item.iconUrl ? (
+        <img src={item.iconUrl} alt={item.name || 'Item'} style={{ width: 54, height: 54, objectFit: 'contain', flexShrink: 0 }}
+          onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+      ) : (
+        <span style={{
+          width: 40, height: 40, borderRadius: 10, background: 'var(--gold-soft)', color: 'var(--gold)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}>
+          <Star size={20} />
+        </span>
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
+          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)' }}>{item.name || '—'}</p>
+          {item.rarity ? (
+            <span style={{
+              fontSize: 9.5, fontWeight: 700, color: rarityStyle.text, background: rarityStyle.bg,
+              border: `1px solid ${rarityStyle.border}`, borderRadius: 999, padding: '2px 8px',
+            }}>
+              {item.rarity.replace('_', ' ')}
+            </span>
+          ) : null}
+        </div>
+        {dateLabel ? (
+          <p style={{ fontSize: 12, color: 'var(--light-text)' }}>Ditambahkan: <strong style={{ color: 'var(--white)' }}>{dateLabel}</strong></p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function InfoRow({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="info-row" style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 2px' }}>
@@ -433,6 +507,7 @@ export default function StalkClient() {
   const credit = result?.creditScoreInfo;
   const ban = result?.banInfo;
   const pet = result?.petInfo;
+  const wishlist = result?.wishlistInfo;
   const customTag = basic ? CUSTOM_TAGS[basic.accountId] : null;
   const accountAgeDays = basic ? calculateAccountAgeDays(basic.createAt) : null;
   const ageBreakdown = basic ? calculateAgeBreakdown(basic.createAt) : null;
@@ -755,6 +830,20 @@ export default function StalkClient() {
               <div>
                 <SectionLabel>Pet Info</SectionLabel>
                 <PetInfoCard data={pet} />
+              </div>
+            </>
+          ) : null}
+
+          {wishlist?.items && wishlist.items.length > 0 ? (
+            <>
+              <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+              <div>
+                <SectionLabel>Wishlist ({wishlist.count ?? wishlist.items.length})</SectionLabel>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {wishlist.items.map((item, idx) => (
+                    <WishlistCard key={item.id ?? idx} item={item} />
+                  ))}
+                </div>
               </div>
             </>
           ) : null}
