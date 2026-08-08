@@ -162,6 +162,7 @@ const WISHLIST_ICON_BASE = 'https://storage.mobileverso.com.br';
 
 const WISHLIST_HEADERS = {
   Accept: 'application/json',
+  Referer: 'https://mobileverso.com.br/',
   'User-Agent':
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
 };
@@ -250,6 +251,11 @@ async function fetchWishlist(uid: string) {
   const upstream = await fetch(url, { headers: WISHLIST_HEADERS, cache: 'no-store' });
   if (upstream.status === 404) throw new NotFoundError('wishlist_not_found');
   if (!upstream.ok) throw new Error(`wishlist_http_${upstream.status}`);
+  const contentType = upstream.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const bodyPreview = (await upstream.text()).slice(0, 200);
+    throw new Error(`wishlist_non_json_response: ${bodyPreview}`);
+  }
   const data = await upstream.json();
   if (!data || data.ok === false) throw new Error('wishlist_not_ok');
   return data;
