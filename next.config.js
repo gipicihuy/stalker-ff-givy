@@ -6,6 +6,13 @@ const nextConfig = {
       { protocol: 'https', hostname: 'ff.garena.com' },
     ],
   },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push('wreq-js');
+    }
+    return config;
+  },
 };
 
 module.exports = nextConfig;
