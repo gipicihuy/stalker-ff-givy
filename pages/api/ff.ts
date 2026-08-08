@@ -157,6 +157,14 @@ const ADENPEDIA_URL = 'https://adenpedia.my.id/adencs/info.php';
 const MULTIPURPOSE_BASE = 'https://ff-multipurpose-api.onrender.com';
 const MULTIPURPOSE_KEY = process.env.FF_MULTIPURPOSE_KEY || 'codespecter';
 const ICON_BASE = 'https://raw.githubusercontent.com/ashqking/FF-Items/main/ICONS';
+const WISHLIST_BASE = 'https://mobileverso.com.br/api/freefire/jogador/wishlist';
+const WISHLIST_ICON_BASE = 'https://storage.mobileverso.com.br';
+
+const WISHLIST_HEADERS = {
+  Accept: 'application/json',
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+};
 
 const FREEFIREHUB_HEADERS = {
   'user-agent':
@@ -201,6 +209,11 @@ function toIconList(ids: any) {
   return ids.map(buildIconUrl).filter(Boolean);
 }
 
+function buildWishlistIconUrl(icon: any) {
+  if (!icon) return null;
+  return `${WISHLIST_ICON_BASE}/${icon}.png`;
+}
+
 class NotFoundError extends Error {}
 
 async function fetchFreefirehub(uid: string, region: string) {
@@ -230,6 +243,35 @@ async function fetchBanCheck(uid: string) {
   if (!upstream.ok) throw new Error(`bancheck_http_${upstream.status}`);
   const data = await upstream.json();
   return data;
+}
+
+async function fetchWishlist(uid: string) {
+  const url = `${WISHLIST_BASE}?uid=${encodeURIComponent(uid)}`;
+  const upstream = await fetch(url, { headers: WISHLIST_HEADERS, cache: 'no-store' });
+  if (upstream.status === 404) throw new NotFoundError('wishlist_not_found');
+  if (!upstream.ok) throw new Error(`wishlist_http_${upstream.status}`);
+  const data = await upstream.json();
+  if (!data || data.ok === false) throw new Error('wishlist_not_ok');
+  return data;
+}
+
+function normalizeWishlist(data: any) {
+  const rawItems = Array.isArray(data?.items) ? data.items : [];
+  const items = rawItems.map((item: any) => ({
+    id: item?.id ?? null,
+    name: item?.name ?? null,
+    icon: item?.icon ?? null,
+    iconUrl: buildWishlistIconUrl(item?.icon),
+    rarity: item?.rarity ?? null,
+    addedAt: item?.addedAt ?? null,
+    linkable: Boolean(item?.linkable),
+  }));
+
+  return {
+    count: typeof data?.count === 'number' ? data.count : items.length,
+    lastCheckedAt: data?.lastCheckedAt ?? null,
+    items,
+  };
 }
 
 function resolveMultipurposeServer(region: string) {
@@ -433,13 +475,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'UID tidak valid. Masukkan UID Free Fire yang benar (angka saja).' });
   }
 
-  const [multipurposeResult, freefirehubResult, adenpediaResult, multipurposeBanResult, banCheckResult] =
+  const [multipurposeResult, freefirehubResult, adenpediaResult, multipurposeBanResult, banCheckResult, wishlistResult] =
     await Promise.allSettled([
       fetchMultipurpose(uidStr, regionStr),
       fetchFreefirehub(uidStr, regionStr),
       fetchAdenpedia(uidStr),
       fetchMultipurposeBanCheck(uidStr),
       fetchBanCheck(uidStr),
+      fetchWishlist(uidStr),
     ]);
 
   if (multipurposeResult.status === 'rejected') {
@@ -456,6 +499,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (banCheckResult.status === 'rejected') {
     console.error('bancheck_error', banCheckResult.reason);
+  }
+  if (wishlistResult.status === 'rejected') {
+    console.error('wishlist_error', wishlistResult.reason);
   }
 
   const multipurposeData =
@@ -474,6 +520,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const petInfoData =
     multipurposeResult.status === 'fulfilled' ? normalizePetInfo(multipurposeResult.value) : null;
+
+  const wishlistData =
+    wishlistResult.status === 'fulfilled' ? normalizeWishlist(wishlistResult.value) : null;
 
   if (!multipurposeData && !freefirehubData && !adenpediaData) {
     const notFound =
@@ -536,6 +585,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       : null,
     petInfo: petInfoData,
+    wishlistInfo: wishlistData,
   });
 
   waitUntil(
