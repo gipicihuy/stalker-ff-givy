@@ -6,6 +6,16 @@ const nextConfig = {
       { protocol: 'https', hostname: 'ff.garena.com' },
     ],
   },
+  async headers() {
+    return [
+      {
+        source: '/gingga12/data/listbabu.json',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store, must-revalidate' },
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;
