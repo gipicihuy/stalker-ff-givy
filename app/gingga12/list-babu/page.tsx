@@ -17,7 +17,7 @@ export default function ListBabuPage() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    fetch('/gingga12/data/listbabu.json')
+    fetch('/gingga12/data/listbabu.json', { cache: 'no-store' })
       .then((res) => {
         if (!res.ok) throw new Error('failed');
         return res.json();
