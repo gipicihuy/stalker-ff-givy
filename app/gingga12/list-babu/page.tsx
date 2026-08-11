@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowLeft, Skull, Loader2 } from 'lucide-react';
+import { ArrowLeft, Plus, Skull, Loader2 } from 'lucide-react';
 
 type BabuEntry = {
   cc: string;
@@ -29,17 +29,19 @@ export default function ListBabuPage() {
   return (
     <div className="wrap">
       <section className="head">
-        <Link
-          href="/gingga12"
-          style={{ alignSelf: 'flex-start', display: 'inline-flex', textDecoration: 'none', marginBottom: '10px' }}
-        >
-          <span className="back-btn">
-            <span className="back-icon">
-              <ArrowLeft size={14} strokeWidth={2.5} />
+        <div className="top-row">
+          <Link href="/gingga12" style={{ textDecoration: 'none' }}>
+            <span className="back-btn">
+              <span className="back-icon">
+                <ArrowLeft size={14} strokeWidth={2.5} />
+              </span>
+              Kembali
             </span>
-            Kembali
-          </span>
-        </Link>
+          </Link>
+          <Link href="/gingga12/list-babu/add" className="kelola-icon-btn" aria-label="Kelola babu">
+            <Plus size={18} strokeWidth={2.5} />
+          </Link>
+        </div>
         <div className="emblem">
           <Image
             src="/gingga12/data/gingga12.jpg"
@@ -51,9 +53,6 @@ export default function ListBabuPage() {
         </div>
         <h1 className="title">List Babu</h1>
         <p className="subtitle">Rekap CC yang udah kita libas, sesuai tanggal & jam war.</p>
-        <Link href="/gingga12/list-babu/add" className="add-btn">
-          + Kelola
-        </Link>
       </section>
 
       <section className="panel">
@@ -103,6 +102,14 @@ export default function ListBabuPage() {
           align-items: center;
           text-align: center;
           gap: 6px;
+        }
+
+        .top-row {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 10px;
         }
 
         .back-btn {
@@ -178,6 +185,26 @@ export default function ListBabuPage() {
           border-radius: 999px;
           padding: 7px 16px;
           text-decoration: none;
+        }
+
+        .kelola-icon-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: var(--gold-soft);
+          color: var(--gold);
+          border: 1px solid rgba(250, 191, 0, 0.35);
+          flex-shrink: 0;
+          transition: transform 0.15s ease, background 0.15s ease;
+        }
+
+        .kelola-icon-btn:active {
+          transform: scale(0.92);
+          background: var(--gold);
+          color: #1a1200;
         }
 
         .panel {
