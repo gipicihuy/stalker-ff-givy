@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowLeft, Skull, Loader2, Lock, Unlock, Trash2 } from 'lucide-react';
+import { ArrowLeft, Skull, Loader2, Lock, Unlock, Trash2, Check, X } from 'lucide-react';
 
 type BabuEntry = {
   cc: string;
@@ -40,6 +40,7 @@ export default function AddBabuPage() {
   const [formMsg, setFormMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   const [deletingIndex, setDeletingIndex] = useState<number | null>(null);
+  const [confirmIndex, setConfirmIndex] = useState<number | null>(null);
 
   useEffect(() => {
     fetch('/gingga12/data/listbabu.json', { cache: 'no-store' })
@@ -123,6 +124,7 @@ export default function AddBabuPage() {
   }
 
   async function handleDelete(index: number) {
+    setConfirmIndex(null);
     setDeletingIndex(index);
     setFormMsg(null);
 
@@ -275,19 +277,41 @@ export default function AddBabuPage() {
                   {entry.note && <span className="item-note">{entry.note}</span>}
                 </div>
                 {unlocked && (
-                  <button
-                    type="button"
-                    className="delete-btn"
-                    disabled={deletingIndex === i}
-                    onClick={() => handleDelete(i)}
-                    aria-label={`Hapus ${entry.cc}`}
-                  >
-                    {deletingIndex === i ? (
-                      <Loader2 size={13} strokeWidth={2} className="spin" />
-                    ) : (
+                  confirmIndex === i ? (
+                    <div className="confirm-group">
+                      <button
+                        type="button"
+                        className="confirm-btn yes"
+                        disabled={deletingIndex === i}
+                        onClick={() => handleDelete(i)}
+                        aria-label={`Yakin hapus ${entry.cc}`}
+                      >
+                        {deletingIndex === i ? (
+                          <Loader2 size={13} strokeWidth={2} className="spin" />
+                        ) : (
+                          <Check size={13} strokeWidth={2.5} />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        className="confirm-btn no"
+                        disabled={deletingIndex === i}
+                        onClick={() => setConfirmIndex(null)}
+                        aria-label="Batal hapus"
+                      >
+                        <X size={13} strokeWidth={2.5} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="delete-btn"
+                      onClick={() => setConfirmIndex(i)}
+                      aria-label={`Hapus ${entry.cc}`}
+                    >
                       <Trash2 size={13} strokeWidth={2} />
-                    )}
-                  </button>
+                    </button>
+                  )
                 )}
               </div>
             ))}
@@ -629,6 +653,41 @@ export default function AddBabuPage() {
         }
 
         .delete-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .confirm-group {
+          display: flex;
+          gap: 6px;
+          flex-shrink: 0;
+          margin-top: 1px;
+        }
+
+        .confirm-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          border-radius: 8px;
+          border: 1px solid var(--panel-border);
+          cursor: pointer;
+          flex-shrink: 0;
+        }
+
+        .confirm-btn.yes {
+          background: var(--error-bg);
+          color: var(--error-text);
+          border-color: rgba(239, 68, 68, 0.35);
+        }
+
+        .confirm-btn.no {
+          background: var(--panel-bg-alt);
+          color: var(--muted-text);
+        }
+
+        .confirm-btn:disabled {
           opacity: 0.5;
           cursor: not-allowed;
         }
