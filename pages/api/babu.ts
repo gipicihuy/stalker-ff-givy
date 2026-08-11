@@ -88,16 +88,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ ok: false, error: 'invalid_code' });
   }
 
+  // Verifikasi kode doang (dipake pas mau "buka" mode kelola, gak nyentuh GitHub)
+  if (req.method === 'POST' && req.body?.verifyOnly === true) {
+    return res.status(200).json({ ok: true });
+  }
+
   try {
     if (req.method === 'POST') {
-      const { cc, note } = req.body || {};
+      const { cc, note, date: customDate, time: customTime } = req.body || {};
       const ccTrimmed = typeof cc === 'string' ? cc.trim() : '';
       if (!ccTrimmed) return res.status(400).json({ ok: false, error: 'cc_required' });
       if (ccTrimmed.length > 80) return res.status(400).json({ ok: false, error: 'cc_too_long' });
       const noteTrimmed = typeof note === 'string' ? note.trim().slice(0, 200) : '';
 
       const { list, sha, apiBase } = await getCurrentList();
-      const { date, time } = formatToday();
+      const auto = formatToday();
+      const date = typeof customDate === 'string' && customDate.trim() ? customDate.trim() : auto.date;
+      const time = typeof customTime === 'string' && customTime.trim() ? customTime.trim() : auto.time;
       const newEntry: BabuEntry = { cc: ccTrimmed, date, time };
       if (noteTrimmed) newEntry.note = noteTrimmed;
 
