@@ -240,10 +240,10 @@
     "time": "18:48"
   },
   {
-  "cc": "VENMITH",
-  "date": "3 Agustus 2026",
-  "time": "20:57"
-},
+    "cc": "VENMITH",
+    "date": "3 Agustus 2026",
+    "time": "20:57"
+  },
   {
     "cc": "CHEVEUX AB",
     "date": "4 Agustus 2026",
@@ -259,49 +259,44 @@
     "date": "7 Agustus 2026",
     "time": "20:07"
   },
-    {
+  {
     "cc": "MORTYEL AREA",
     "date": "8 Agustus 2026",
     "time": "19:03"
   },
-    {
+  {
     "cc": "SHAMTEN",
     "date": "8 Agustus 2026",
     "time": "20:39"
-    },
-    {
+  },
+  {
     "cc": "NEVERROR",
     "date": "9 Agustus 2026",
     "time": "08:11"
-    },
-    {
+  },
+  {
     "cc": "CELCTIC AREA",
     "date": "9 Agustus 2026",
     "time": "08:59"
-    },
-   {
+  },
+  {
     "cc": "SUPER MARIO",
     "date": "9 Agustus 2026",
     "time": "17:23"
-    },
+  },
   {
     "cc": "NIGHTMARE",
     "date": "9 Agustus 2026",
     "time": "20:28"
-    },
+  },
   {
-  "cc": "IYAKAH AB",
-  "date": "10 Agustus 2026",
-  "time": "19:53"
-},
-{
-  "cc": "FORTIMENTY AREA",
-  "date": "10 Agustus 2026",
-  "time": "16:10"
-},
-{
-  "cc": "GOSTREK FAMILY 💥",
-  "date": "10 Agustus 2026",
-  "time": "21:05"
-}
+    "cc": "IYAKAH AB",
+    "date": "10 Agustus 2026",
+    "time": "19:53"
+  },
+  {
+    "cc": "FORTIMENTY AREA",
+    "date": "10 Agustus 2026",
+    "time": "16:10"
+  }
 ]
