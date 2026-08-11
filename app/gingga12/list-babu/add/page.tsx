@@ -12,15 +12,30 @@ type BabuEntry = {
   note?: string;
 };
 
+const BULAN_ID = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+];
+
+function isoDateToIndo(iso: string) {
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y || !m || !d) return '';
+  return `${d} ${BULAN_ID[m - 1]} ${y}`;
+}
+
 export default function AddBabuPage() {
   const [data, setData] = useState<BabuEntry[] | null>(null);
   const [error, setError] = useState(false);
 
   const [unlocked, setUnlocked] = useState(false);
   const [code, setCode] = useState('');
+  const [checkingCode, setCheckingCode] = useState(false);
+  const [codeErr, setCodeErr] = useState('');
 
   const [cc, setCc] = useState('');
   const [note, setNote] = useState('');
+  const [customDate, setCustomDate] = useState('');
+  const [customTime, setCustomTime] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formMsg, setFormMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
@@ -36,10 +51,32 @@ export default function AddBabuPage() {
       .catch(() => setError(true));
   }, []);
 
-  function handleUnlock(e: React.FormEvent) {
+  async function handleUnlock(e: React.FormEvent) {
     e.preventDefault();
     if (!code.trim()) return;
-    setUnlocked(true);
+
+    setCheckingCode(true);
+    setCodeErr('');
+
+    try {
+      const res = await fetch('/api/babu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, verifyOnly: true }),
+      });
+      const result = await res.json();
+
+      if (!res.ok || !result.ok) {
+        setCodeErr('Kode salah.');
+        return;
+      }
+
+      setUnlocked(true);
+    } catch {
+      setCodeErr('Gagal ngecek kode, coba lagi.');
+    } finally {
+      setCheckingCode(false);
+    }
   }
 
   async function handleAdd(e: React.FormEvent) {
@@ -53,7 +90,13 @@ export default function AddBabuPage() {
       const res = await fetch('/api/babu', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cc, note, code }),
+        body: JSON.stringify({
+          cc,
+          note,
+          code,
+          date: customDate ? isoDateToIndo(customDate) : '',
+          time: customTime,
+        }),
       });
       const result = await res.json();
 
@@ -69,6 +112,8 @@ export default function AddBabuPage() {
 
       setCc('');
       setNote('');
+      setCustomDate('');
+      setCustomTime('');
       setFormMsg({ type: 'ok', text: 'Ditambahin! Situs keupdate dalam 1-2 menit.' });
     } catch {
       setFormMsg({ type: 'err', text: 'Gagal nambahin, coba lagi.' });
@@ -144,7 +189,9 @@ export default function AddBabuPage() {
               value={code}
               onChange={(e) => setCode(e.target.value)}
             />
-            <button type="submit" className="unlock-btn">Buka</button>
+            <button type="submit" className="unlock-btn" disabled={checkingCode}>
+              {checkingCode ? <Loader2 size={13} strokeWidth={2} className="spin" /> : 'Buka'}
+            </button>
           </form>
         ) : (
           <>
@@ -172,6 +219,25 @@ export default function AddBabuPage() {
                 onChange={(e) => setNote(e.target.value)}
                 maxLength={200}
               />
+              <div className="datetime-row">
+                <div className="datetime-field">
+                  <label>Tanggal (opsional)</label>
+                  <input
+                    type="date"
+                    value={customDate}
+                    onChange={(e) => setCustomDate(e.target.value)}
+                  />
+                </div>
+                <div className="datetime-field">
+                  <label>Jam (opsional)</label>
+                  <input
+                    type="time"
+                    value={customTime}
+                    onChange={(e) => setCustomTime(e.target.value)}
+                  />
+                </div>
+              </div>
+              <p className="hint-text">Kosongin tanggal/jam kalau mau pakai waktu sekarang.</p>
               <button type="submit" className="add-submit-btn" disabled={submitting}>
                 {submitting ? <Loader2 size={14} strokeWidth={2} className="spin" /> : '+ Tambah'}
               </button>
@@ -179,6 +245,7 @@ export default function AddBabuPage() {
           </>
         )}
 
+        {codeErr && !unlocked && <p className="form-msg err">{codeErr}</p>}
         {formMsg && (
           <p className={`form-msg ${formMsg.type === 'ok' ? 'ok' : 'err'}`}>{formMsg.text}</p>
         )}
@@ -401,6 +468,46 @@ export default function AddBabuPage() {
 
         .add-form input:focus {
           border-color: rgba(250, 191, 0, 0.5);
+        }
+
+        .datetime-row {
+          display: flex;
+          gap: 8px;
+        }
+
+        .datetime-field {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          min-width: 0;
+        }
+
+        .datetime-field label {
+          font-size: 11px;
+          color: var(--muted-text);
+        }
+
+        .datetime-field input {
+          width: 100%;
+          background: var(--panel-bg-alt);
+          border: 1px solid var(--panel-border);
+          border-radius: 10px;
+          padding: 8px 10px;
+          font-size: 13px;
+          color: var(--white);
+          outline: none;
+          color-scheme: dark;
+        }
+
+        .datetime-field input:focus {
+          border-color: rgba(250, 191, 0, 0.5);
+        }
+
+        .hint-text {
+          font-size: 11px;
+          color: var(--muted-text);
+          margin: 0;
         }
 
         .add-submit-btn {
