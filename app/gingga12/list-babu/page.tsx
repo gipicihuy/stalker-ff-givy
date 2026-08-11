@@ -51,6 +51,9 @@ export default function ListBabuPage() {
         </div>
         <h1 className="title">List Babu</h1>
         <p className="subtitle">Rekap CC yang udah kita libas, sesuai tanggal & jam war.</p>
+        <Link href="/gingga12/list-babu/add" className="add-btn">
+          + Kelola
+        </Link>
       </section>
 
       <section className="panel">
@@ -162,6 +165,19 @@ export default function ListBabuPage() {
           font-size: 13px;
           color: var(--muted-text);
           max-width: 340px;
+        }
+
+        .add-btn {
+          margin-top: 6px;
+          display: inline-flex;
+          align-items: center;
+          font-size: 12.5px;
+          font-weight: 700;
+          color: #1a1200;
+          background: var(--gold);
+          border-radius: 999px;
+          padding: 7px 16px;
+          text-decoration: none;
         }
 
         .panel {
