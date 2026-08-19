@@ -376,6 +376,11 @@ function normalizeAdenpedia(data: any) {
   const guild = data?.clanBasicInfo || {};
   const social = data?.socialInfo || {};
   const credit = data?.creditScoreInfo || {};
+  const profile = data?.profileInfo || {};
+
+  const equippedSkinIds = profile.equipedSkills || profile.equippedSkills || [];
+  const weaponSkinIds = info.weaponSkinShows || [];
+  const characterId = profile.avatarId;
 
   return {
     accountId: info.accountId,
@@ -391,6 +396,12 @@ function normalizeAdenpedia(data: any) {
     csRank: info.csRank,
     badgeCnt: info.badgeCnt,
     primeInfo: info.primeInfo,
+    avatarUrl: buildIconUrl(info.headPic),
+    titleIconUrl: buildIconUrl(info.title),
+    equippedCharacterId: characterId,
+    equippedCharacterIconUrl: buildIconUrl(characterId),
+    equippedSkinIconUrls: toIconList(equippedSkinIds),
+    equippedWeaponSkinIconUrls: toIconList(weaponSkinIds),
     signature: social.signature,
     creditScore: credit.creditScore,
     guildName: guild.clanName,
