@@ -153,6 +153,7 @@ async function sendTelegramNotif(req: NextApiRequest, merged: any, ban: any) {
 }
 
 const FREEFIREHUB_BASE = 'https://freefirehub.com';
+const ADENPEDIA_URL = 'https://adenpedia.my.id/radenbaru/info.php';
 const MULTIPURPOSE_BASE = 'https://ff-multipurpose-api.onrender.com';
 const MULTIPURPOSE_KEY = process.env.FF_MULTIPURPOSE_KEY || 'codespecter';
 const ICON_BASE = 'https://raw.githubusercontent.com/ashqking/FF-Items/main/ICONS';
@@ -161,6 +162,12 @@ const FREEFIREHUB_HEADERS = {
   'user-agent':
     'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Mobile Safari/537.36',
   referer: `${FREEFIREHUB_BASE}/player-tracker`,
+};
+
+const ADENPEDIA_HEADERS = {
+  Accept: 'application/json',
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
 };
 
 const MULTIPURPOSE_HEADERS = {
@@ -203,6 +210,17 @@ async function fetchFreefirehub(uid: string, region: string) {
   const data = await upstream.json();
   const info = getCI(data?.profile, 'basicinfo');
   if (!info || !getCI(info, 'accountid')) throw new NotFoundError('freefirehub_empty');
+  return data;
+}
+
+async function fetchAdenpedia(uid: string) {
+  const url = `${ADENPEDIA_URL}?uid=${encodeURIComponent(uid)}`;
+  const upstream = await fetch(url, { headers: ADENPEDIA_HEADERS, cache: 'no-store' });
+  if (upstream.status === 404) throw new NotFoundError('adenpedia_not_found');
+  if (!upstream.ok) throw new Error(`adenpedia_http_${upstream.status}`);
+  const data = await upstream.json();
+  if (data?.error) throw new Error(data.error);
+  if (!data?.basicInfo?.accountId) throw new NotFoundError('adenpedia_empty');
   return data;
 }
 
@@ -353,6 +371,35 @@ function normalizePetInfo(data: any) {
   };
 }
 
+function normalizeAdenpedia(data: any) {
+  const info = data?.basicInfo || {};
+  const guild = data?.clanBasicInfo || {};
+  const social = data?.socialInfo || {};
+  const credit = data?.creditScoreInfo || {};
+
+  return {
+    accountId: info.accountId,
+    nickname: info.nickname,
+    level: info.level,
+    exp: info.exp,
+    liked: info.liked,
+    region: info.region,
+    createAt: info.createAt,
+    lastLoginAt: info.lastLoginAt,
+    headPic: info.headPic,
+    rank: info.rank,
+    csRank: info.csRank,
+    badgeCnt: info.badgeCnt,
+    primeInfo: info.primeInfo,
+    signature: social.signature,
+    creditScore: credit.creditScore,
+    guildName: guild.clanName,
+    guildLevel: guild.clanLevel,
+    memberNum: guild.memberNum,
+    capacity: guild.capacity,
+  };
+}
+
 function mergeSources(...sources: any[]) {
   const valid = sources.filter((s) => s !== null && s !== undefined);
   if (valid.length === 0) return null;
@@ -386,10 +433,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'UID tidak valid. Masukkan UID Free Fire yang benar (angka saja).' });
   }
 
-  const [multipurposeResult, freefirehubResult, multipurposeBanResult, banCheckResult] =
+  const [multipurposeResult, freefirehubResult, adenpediaResult, multipurposeBanResult, banCheckResult] =
     await Promise.allSettled([
       fetchMultipurpose(uidStr, regionStr),
       fetchFreefirehub(uidStr, regionStr),
+      fetchAdenpedia(uidStr),
       fetchMultipurposeBanCheck(uidStr),
       fetchBanCheck(uidStr),
     ]);
@@ -399,6 +447,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (freefirehubResult.status === 'rejected') {
     console.error('freefirehub_error', freefirehubResult.reason);
+  }
+  if (adenpediaResult.status === 'rejected') {
+    console.error('adenpedia_error', adenpediaResult.reason);
   }
   if (multipurposeBanResult.status === 'rejected') {
     console.error('multipurpose_bancheck_error', multipurposeBanResult.reason);
@@ -411,6 +462,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     multipurposeResult.status === 'fulfilled' ? normalizeMultipurpose(multipurposeResult.value) : null;
   const freefirehubData =
     freefirehubResult.status === 'fulfilled' ? normalizeFreefirehub(freefirehubResult.value) : null;
+  const adenpediaData =
+    adenpediaResult.status === 'fulfilled' ? normalizeAdenpedia(adenpediaResult.value) : null;
 
   const banCheckData =
     multipurposeBanResult.status === 'fulfilled'
@@ -422,10 +475,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const petInfoData =
     multipurposeResult.status === 'fulfilled' ? normalizePetInfo(multipurposeResult.value) : null;
 
-  if (!multipurposeData && !freefirehubData) {
+  if (!multipurposeData && !freefirehubData && !adenpediaData) {
     const notFound =
       (multipurposeResult.status === 'rejected' && multipurposeResult.reason instanceof NotFoundError) ||
-      (freefirehubResult.status === 'rejected' && freefirehubResult.reason instanceof NotFoundError);
+      (freefirehubResult.status === 'rejected' && freefirehubResult.reason instanceof NotFoundError) ||
+      (adenpediaResult.status === 'rejected' && adenpediaResult.reason instanceof NotFoundError);
 
     if (notFound) {
       return res.status(404).json({ error: 'Player tidak ditemukan.' });
@@ -433,7 +487,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(502).json({ error: 'Server data lagi bermasalah, coba lagi sebentar.' });
   }
 
-  const merged = mergeSources(multipurposeData, freefirehubData);
+  const merged = mergeSources(multipurposeData, freefirehubData, adenpediaData);
 
   if (!merged?.accountId) {
     return res.status(404).json({ error: 'Player tidak ditemukan.' });
