@@ -2,9 +2,10 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint } from 'lucide-react';
+import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint, Shirt } from 'lucide-react';
 
 type PrimeInfo = { primeLevel?: number };
+type ClothesItem = { itemId: number; slot?: string | null; iconUrl?: string | null };
 type BasicInfo = {
   accountId: string;
   nickname: string;
@@ -24,6 +25,7 @@ type BasicInfo = {
   equippedCharacterIconUrl?: string | null;
   equippedSkinIconUrls?: (string | null)[];
   equippedWeaponSkinIconUrls?: (string | null)[];
+  clothes?: ClothesItem[];
 };
 type GuildInfo = { guildName?: string; guildLevel?: number; memberNum?: number; capacity?: number };
 type SocialInfo = { signature?: string };
@@ -341,6 +343,47 @@ function PetInfoCard({ data }: { data: PetInfo }) {
   );
 }
 
+function ClothesCard({ item }: { item: ClothesItem }) {
+  const [broken, setBroken] = useState(false);
+  return (
+    <div
+      title={`Item ID: ${item.itemId}`}
+      style={{
+        background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12,
+        padding: '10px 6px', textAlign: 'center',
+      }}
+    >
+      <div style={{ height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+        {item.iconUrl && !broken ? (
+          <img
+            src={item.iconUrl}
+            alt={item.slot || `Item ${item.itemId}`}
+            loading="lazy"
+            style={{ width: 48, height: 48, objectFit: 'contain' }}
+            onError={() => setBroken(true)}
+          />
+        ) : (
+          <span style={{ color: 'var(--muted-text)', opacity: 0.6 }}>
+            <Shirt size={22} />
+          </span>
+        )}
+      </div>
+      <p style={{ fontSize: 10.5, color: 'var(--muted-text)', margin: 0 }}>{item.slot || 'Item'}</p>
+      <p style={{ fontSize: 9.5, color: 'var(--light-text)', margin: '2px 0 0', opacity: 0.7 }}>{item.itemId}</p>
+    </div>
+  );
+}
+
+function ClothesGrid({ items }: { items: ClothesItem[] }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(78px, 1fr))', gap: 8 }}>
+      {items.map((item, i) => (
+        <ClothesCard key={`${item.itemId}-${i}`} item={item} />
+      ))}
+    </div>
+  );
+}
+
 function InfoRow({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="info-row" style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 2px' }}>
@@ -433,6 +476,7 @@ export default function StalkClient() {
   const credit = result?.creditScoreInfo;
   const ban = result?.banInfo;
   const pet = result?.petInfo;
+  const clothes = basic?.clothes ?? [];
   const customTag = basic ? CUSTOM_TAGS[basic.accountId] : null;
   const accountAgeDays = basic ? calculateAccountAgeDays(basic.createAt) : null;
   const ageBreakdown = basic ? calculateAgeBreakdown(basic.createAt) : null;
@@ -748,6 +792,16 @@ export default function StalkClient() {
               <p style={{ fontSize: 12, color: 'var(--muted-text)' }}>Tidak tergabung dalam guild.</p>
             )}
           </div>
+
+          {clothes.length > 0 ? (
+            <>
+              <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+              <div>
+                <SectionLabel>Outfit Dipakai</SectionLabel>
+                <ClothesGrid items={clothes} />
+              </div>
+            </>
+          ) : null}
 
           {pet ? (
             <>
