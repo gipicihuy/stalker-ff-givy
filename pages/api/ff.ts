@@ -185,10 +185,7 @@ function getCI(obj: any, key: string) {
 
 function pick(...values: any[]) {
   for (const value of values) {
-    if (value === undefined || value === null || value === '') continue;
-    // Array kosong dianggap "gak ada data" biar sumber lain masih kepake pas merge.
-    if (Array.isArray(value) && value.length === 0) continue;
-    return value;
+    if (value !== undefined && value !== null && value !== '') return value;
   }
   return undefined;
 }
@@ -201,28 +198,6 @@ function buildIconUrl(itemId: any) {
 function toIconList(ids: any) {
   if (!Array.isArray(ids)) return [];
   return ids.map(buildIconUrl).filter(Boolean);
-}
-
-// profileInfo.clothes = item ID tiap slot outfit yang lagi dipake player.
-// Prefix ID nentuin slotnya. Mapping di bawah dicek langsung dari ikonnya;
-// prefix yang belum kekonfirmasi sengaja dibiarin kosong biar gak salah label.
-const CLOTHES_SLOT_BY_PREFIX: Record<string, string> = {
-  '203': 'Bawahan',
-  '204': 'Atasan',
-  '205': 'Sepatu',
-  '208': 'Masker',
-  '211': 'Kepala',
-};
-
-function toClothesList(ids: any) {
-  if (!Array.isArray(ids)) return [];
-  return ids
-    .filter((id) => id !== undefined && id !== null && id !== 0)
-    .map((id) => ({
-      itemId: id,
-      slot: CLOTHES_SLOT_BY_PREFIX[String(id).slice(0, 3)] || null,
-      iconUrl: buildIconUrl(id),
-    }));
 }
 
 class NotFoundError extends Error {}
@@ -294,7 +269,6 @@ function normalizeFreefirehub(data: any) {
 
   const equippedSkinIds = getCI(outfit, 'equipedskills') || [];
   const weaponSkinIds = getCI(info, 'weaponskinshows') || [];
-  const clothesIds = getCI(outfit, 'clothes') || [];
   const characterId = getCI(outfit, 'avatarid');
 
   return {
@@ -315,7 +289,6 @@ function normalizeFreefirehub(data: any) {
     equippedCharacterIconUrl: buildIconUrl(characterId),
     equippedSkinIconUrls: toIconList(equippedSkinIds),
     equippedWeaponSkinIconUrls: toIconList(weaponSkinIds),
-    clothes: toClothesList(clothesIds),
     signature: getCI(social, 'signature'),
     creditScore: getCI(credit, 'creditscore'),
     guildName: pick(getCI(guild, 'clanName'), getCI(guild, 'clanname'), getCI(guild, 'guildName')),
@@ -334,7 +307,6 @@ function normalizeMultipurpose(data: any) {
 
   const equippedSkinIds = getCI(profile, 'equipedskills') || [];
   const weaponSkinIds = getCI(info, 'weaponskinshows') || [];
-  const clothesIds = getCI(profile, 'clothes') || [];
   const characterId = getCI(profile, 'avatarid');
 
   return {
@@ -356,7 +328,6 @@ function normalizeMultipurpose(data: any) {
     equippedCharacterIconUrl: buildIconUrl(characterId),
     equippedSkinIconUrls: toIconList(equippedSkinIds),
     equippedWeaponSkinIconUrls: toIconList(weaponSkinIds),
-    clothes: toClothesList(clothesIds),
     signature: getCI(social, 'signature'),
     creditScore: getCI(credit, 'creditscore'),
     guildName: getCI(guild, 'clanname'),
@@ -409,7 +380,6 @@ function normalizeAdenpedia(data: any) {
 
   const equippedSkinIds = profile.equipedSkills || profile.equippedSkills || [];
   const weaponSkinIds = info.weaponSkinShows || [];
-  const clothesIds = profile.clothes || [];
   const characterId = profile.avatarId;
 
   return {
@@ -432,7 +402,6 @@ function normalizeAdenpedia(data: any) {
     equippedCharacterIconUrl: buildIconUrl(characterId),
     equippedSkinIconUrls: toIconList(equippedSkinIds),
     equippedWeaponSkinIconUrls: toIconList(weaponSkinIds),
-    clothes: toClothesList(clothesIds),
     signature: social.signature,
     creditScore: credit.creditScore,
     guildName: guild.clanName,
@@ -556,7 +525,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       equippedCharacterIconUrl: merged.equippedCharacterIconUrl,
       equippedSkinIconUrls: merged.equippedSkinIconUrls,
       equippedWeaponSkinIconUrls: merged.equippedWeaponSkinIconUrls,
-      clothes: merged.clothes ?? [],
     },
     guildBasicInfo: {
       guildName: merged.guildName,
