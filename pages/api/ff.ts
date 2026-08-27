@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
+import itemDataJson from '../../data/itemData.json';
 
 // Pengganti waitUntil dari '@vercel/functions'. Di Cloudflare Workers,
 // background task (kirim notif Telegram tanpa nge-block response) harus
@@ -391,17 +392,38 @@ const ITEM_PREFIX_LABELS: Record<string, string> = {
   '999': 'Collab',
 };
 
-const MANUAL_ICON_OVERRIDES: Record<string, string> = {
-  '204054009': 'Icon_avatar_male_cos_bottom_bloodmoon26',
-};
-
 function fallbackItemName(id: any): string {
   const key = String(id);
-  const manualIcon = MANUAL_ICON_OVERRIDES[key];
-  const manualName = manualIcon ? humanizeIconName(manualIcon) : null;
-  if (manualName) return manualName;
   const label = ITEM_PREFIX_LABELS[key.slice(0, 3)];
   return label ? `${label} ${key}` : `Item ${key}`;
+}
+
+type LocalItemEntry = {
+  icon?: string;
+  itemID: number;
+  name?: string;
+  description?: string;
+  Rare?: string;
+  type?: string;
+};
+
+const localItemData = itemDataJson as LocalItemEntry[];
+
+const localItemMap: Map<string, OutfitLookupEntry> = new Map(
+  localItemData
+    .filter((item) => item && item.itemID !== undefined && item.itemID !== null)
+    .map((item) => {
+      const name = item.name || humanizeIconName(item.icon || '') || undefined;
+      return [
+        String(item.itemID),
+        { name: name || '', icon: item.icon || null, inCdn: false },
+      ] as [string, OutfitLookupEntry];
+    })
+);
+
+function getLocalEntry(key: string): OutfitLookupEntry | undefined {
+  const entry = localItemMap.get(key);
+  return entry && entry.name ? entry : undefined;
 }
 
 async function fetchOutfitLookup(): Promise<Map<string, OutfitLookupEntry>> {
@@ -491,15 +513,20 @@ async function loadSecondaryNameLookup(): Promise<Map<string, string>> {
 
 async function toOutfitItems(ids: any): Promise<OutfitItem[]> {
   if (!Array.isArray(ids) || ids.length === 0) return [];
-  let lookup: Map<string, OutfitLookupEntry>;
-  try {
-    lookup = await loadOutfitLookup();
-  } catch {
-    lookup = new Map();
-  }
 
   const validIds = ids.filter((id: any) => id !== undefined && id !== null);
-  const hasMissingName = validIds.some((id: any) => !lookup.get(String(id))?.name);
+  const missingFromLocal = validIds.filter((id: any) => !getLocalEntry(String(id)));
+
+  let remoteLookup: Map<string, OutfitLookupEntry> = new Map();
+  if (missingFromLocal.length > 0) {
+    try {
+      remoteLookup = await loadOutfitLookup();
+    } catch {
+      remoteLookup = new Map();
+    }
+  }
+
+  const hasMissingName = missingFromLocal.some((id: any) => !remoteLookup.get(String(id))?.name);
 
   let secondaryLookup: Map<string, string> = new Map();
   if (hasMissingName) {
@@ -512,7 +539,7 @@ async function toOutfitItems(ids: any): Promise<OutfitItem[]> {
 
   return validIds.map((id: any) => {
     const key = String(id);
-    const entry = lookup.get(key);
+    const entry = getLocalEntry(key) || remoteLookup.get(key);
     const name = entry?.name || secondaryLookup.get(key) || fallbackItemName(id);
     return {
       id: Number(id),
