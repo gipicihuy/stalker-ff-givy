@@ -1,0 +1,13 @@
+NEXTJS_ENV=development
+
+# Isi manual buat development lokal (JANGAN commit file .dev.vars asli ini,
+# cuma file .example ini yang boleh masuk git). Salin ke .dev.vars lalu isi
+# nilai aslinya masing-masing.
+FF_MULTIPURPOSE_KEY=
+TG_BOT_TOKEN=
+TG_CHAT_ID=
+BABU_ACCESS_CODE=
+GITHUB_TOKEN=
+GITHUB_OWNER=
+GITHUB_REPO=
+GITHUB_BRANCH=
