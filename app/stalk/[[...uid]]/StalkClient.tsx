@@ -359,41 +359,54 @@ function PetInfoCard({ data }: { data: PetInfo }) {
 }
 
 function OutfitGrid({ items }: { items: OutfitItem[] }) {
+  const [brokenIds, setBrokenIds] = useState<Set<number>>(new Set());
+
   if (!items || items.length === 0) return null;
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(58px, 1fr))', gap: 10 }}>
-      {items.map((item) => (
-        <div
-          key={item.id}
-          title={item.name}
-          style={{
-            background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12,
-            padding: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-          }}
-        >
-          {item.icon ? (
-            <img
-              src={item.icon}
-              alt={item.name}
-              style={{ width: 40, height: 40, objectFit: 'contain' }}
-              onError={(e) => { e.currentTarget.style.display = 'none'; }}
-            />
-          ) : (
-            <span style={{
-              width: 40, height: 40, borderRadius: 8, background: 'var(--gold-soft)', color: 'var(--gold)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10,
+      {items.map((item) => {
+        const isBroken = brokenIds.has(item.id);
+        const showImage = Boolean(item.icon) && !isBroken;
+        return (
+          <div
+            key={item.id}
+            title={item.name}
+            style={{
+              background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12,
+              padding: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+            }}
+          >
+            {showImage ? (
+              <img
+                src={item.icon as string}
+                alt={item.name}
+                style={{ width: 40, height: 40, objectFit: 'contain' }}
+                onError={() => {
+                  setBrokenIds((prev) => {
+                    const next = new Set(prev);
+                    next.add(item.id);
+                    return next;
+                  });
+                }}
+              />
+            ) : (
+              <span style={{
+                width: 40, height: 40, borderRadius: 8, background: 'var(--gold-soft)', color: 'var(--gold)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10,
+              }}>
+                N/A
+              </span>
+            )}
+            <p style={{
+              fontSize: 9.5, color: 'var(--muted-text)', textAlign: 'center', margin: 0, lineHeight: 1.2,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%',
             }}>
-              N/A
-            </span>
-          )}
-          <p style={{
-            fontSize: 9.5, color: 'var(--muted-text)', textAlign: 'center', margin: 0, lineHeight: 1.2,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%',
-          }}>
-            {item.name}
-          </p>
-        </div>
-      ))}
+              {item.name}
+            </p>
+          </div>
+        );
+      })}
     </div>
   );
 }

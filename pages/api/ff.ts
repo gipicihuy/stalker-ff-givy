@@ -305,7 +305,7 @@ async function toOutfitItems(ids: any): Promise<OutfitItem[]> {
       return {
         id: Number(id),
         name: entry?.name || `Item ${id}`,
-        icon: entry?.icon || buildIconUrl(id),
+        icon: entry?.icon || null,
       };
     });
 }
