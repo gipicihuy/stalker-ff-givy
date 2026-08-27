@@ -787,15 +787,7 @@ export default function StalkClient() {
           <AngleDividerDouble />
         </div>
         <p style={{ margin: 0, fontSize: 11, fontWeight: 500, letterSpacing: '0.01em', color: 'var(--light-text)' }}>
-          Free Fire Stalk <span style={{ color: 'var(--gold)', margin: '0 4px', fontWeight: 700 }}>-</span>
-          <a
-            href="https://wa.me/+62895423300395?text=halo+givy+ganteng"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: 'var(--gold)', textDecoration: 'none' }}
-          >
-            @givy
-          </a>
+          Free Fire Stalk
         </p>
       </footer>
     </main>
