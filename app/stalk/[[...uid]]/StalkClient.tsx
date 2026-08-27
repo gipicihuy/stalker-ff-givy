@@ -24,7 +24,10 @@ type BasicInfo = {
   equippedCharacterIconUrl?: string | null;
   equippedSkinIconUrls?: (string | null)[];
   equippedWeaponSkinIconUrls?: (string | null)[];
+  equippedOutfitItems?: OutfitItem[];
+  equippedWeaponOutfitItems?: OutfitItem[];
 };
+type OutfitItem = { id: number; name: string; icon: string | null };
 type GuildInfo = { guildName?: string; guildLevel?: number; memberNum?: number; capacity?: number };
 type SocialInfo = { signature?: string };
 type CreditInfo = { creditScore?: number };
@@ -351,6 +354,46 @@ function PetInfoCard({ data }: { data: PetInfo }) {
           <span>Exp: <strong style={{ color: 'var(--white)' }}>{formatNumber(data.exp)}</strong></span>
         </div>
       </div>
+    </div>
+  );
+}
+
+function OutfitGrid({ items }: { items: OutfitItem[] }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(58px, 1fr))', gap: 10 }}>
+      {items.map((item) => (
+        <div
+          key={item.id}
+          title={item.name}
+          style={{
+            background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12,
+            padding: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+          }}
+        >
+          {item.icon ? (
+            <img
+              src={item.icon}
+              alt={item.name}
+              style={{ width: 40, height: 40, objectFit: 'contain' }}
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+          ) : (
+            <span style={{
+              width: 40, height: 40, borderRadius: 8, background: 'var(--gold-soft)', color: 'var(--gold)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10,
+            }}>
+              N/A
+            </span>
+          )}
+          <p style={{
+            fontSize: 9.5, color: 'var(--muted-text)', textAlign: 'center', margin: 0, lineHeight: 1.2,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%',
+          }}>
+            {item.name}
+          </p>
+        </div>
+      ))}
     </div>
   );
 }
@@ -762,6 +805,26 @@ export default function StalkClient() {
               <p style={{ fontSize: 12, color: 'var(--muted-text)' }}>Tidak tergabung dalam guild.</p>
             )}
           </div>
+
+          {basic?.equippedOutfitItems && basic.equippedOutfitItems.length > 0 ? (
+            <>
+              <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+              <div>
+                <SectionLabel>Outfit</SectionLabel>
+                <OutfitGrid items={basic.equippedOutfitItems} />
+              </div>
+            </>
+          ) : null}
+
+          {basic?.equippedWeaponOutfitItems && basic.equippedWeaponOutfitItems.length > 0 ? (
+            <>
+              <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+              <div>
+                <SectionLabel>Weapon Skin</SectionLabel>
+                <OutfitGrid items={basic.equippedWeaponOutfitItems} />
+              </div>
+            </>
+          ) : null}
 
           {pet ? (
             <>
