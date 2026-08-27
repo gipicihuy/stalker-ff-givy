@@ -1,0 +1,104 @@
+[
+  {
+    "icon": "Icon_face_female01_head",
+    "itemID": 101000001,
+    "name": "Nulla",
+    "description": "Nobody knows how she got onto Bermuda, except that she was here before everyone else. Extremely good at adapting to the environment, she is like a chameleon that survives and thrives.",
+    "Rare": "NONE",
+    "type": "Characters"
+  },
+  {
+    "icon": "Icon_face_female01_head",
+    "itemID": 101000004,
+    "Rare": "WHITE",
+    "type": "Characters"
+  },
+  {
+    "icon": "Icon_face_female_head_sc_nurse",
+    "itemID": 101000005,
+    "name": "Olivia",
+    "description": "Chief nurse of a renowned hospital.",
+    "Rare": "PURPLE",
+    "type": "Characters"
+  },
+  {
+    "icon": "Icon_face_female_head_sc_runner",
+    "itemID": 101000006,
+    "name": "Kelly",
+    "description": "Kelly is an athlete, a sprinter.",
+    "Rare": "PURPLE",
+    "type": "Characters"
+  },
+  {
+    "icon": "Icon_avatar_male_cos_santa",
+    "itemID": 203000344,
+    "name": "Grumpy Old Man",
+    "Rare": "PURPLE",
+    "type": "Top"
+  },
+  {
+    "icon": "Icon_avatar_male_top_cos_elf",
+    "itemID": 203000345,
+    "name": "Winter Elf (Top)",
+    "Rare": "PURPLE",
+    "type": "Top"
+  },
+  {
+    "icon": "Icon_avatar_female_top_cos_aborigine_s",
+    "itemID": 203000346,
+    "name": "Paleolithic (Top)",
+    "Rare": "PURPLE",
+    "type": "Top"
+  },
+  {
+    "icon": "Icon_avatar_male_jacket_MonkeyGod",
+    "itemID": 203000347,
+    "name": "Wukong's Jacket",
+    "Rare": "PURPLE",
+    "type": "Top"
+  },
+  {
+    "icon": "Icon_avatar_cos_moneyheist",
+    "itemID": 203000348,
+    "name": "Top Criminal (Red)",
+    "Rare": "ORANGE",
+    "type": "Top"
+  },
+  {
+    "icon": "Icon_avatar_cos_moneyheist_A",
+    "itemID": 203000349,
+    "name": "Top Criminal (Purple)",
+    "Rare": "ORANGE",
+    "type": "Top"
+  },
+  {
+    "icon": "Icon_avatar_cos_moneyheist_B",
+    "itemID": 203000350,
+    "name": "Top Criminal (Blue)",
+    "Rare": "ORANGE",
+    "type": "Top"
+  },
+  {
+    "icon": "Icon_avatar_cos_moneyheist_C",
+    "itemID": 203000351,
+    "name": "Top Criminal (Green)",
+    "Rare": "ORANGE",
+    "type": "Top"
+  },
+  {
+    "icon": "Icon_exchange_shengfengpai",
+    "itemID": 801000006,
+    "name": "Army Tag",
+    "description": "Tokens can be used for redeeming rewards",
+    "Rare": "WHITE",
+    "type": "Exchange Tokens"
+  },
+  {
+    "icon": "Icon_exchange_qiqiu",
+    "itemID": 801000007,
+    "name": "Balloon",
+    "description": "Tokens can be used for redeeming rewards",
+    "Rare": "WHITE",
+    "type": "Exchange Tokens"
+  }
+]
