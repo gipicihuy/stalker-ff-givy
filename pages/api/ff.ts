@@ -320,6 +320,83 @@ function humanizeIconName(rawIcon: string): string | null {
     .join(' ');
 }
 
+const ITEM_PREFIX_LABELS: Record<string, string> = {
+  '100': 'Virtual Item',
+  '101': 'Avatar',
+  '102': 'Avatar',
+  '103': 'Avatar',
+  '110': 'Bonus Card',
+  '120': 'Sticker',
+  '130': 'Pet',
+  '131': 'Pet',
+  '140': 'Pet',
+  '170': 'Bundle',
+  '180': 'Hyperbook',
+  '203': 'Outfit',
+  '204': 'Outfit',
+  '205': 'Outfit',
+  '208': 'Outfit',
+  '209': 'Collection',
+  '211': 'Weapon Skin',
+  '212': 'Outfit',
+  '214': 'Outfit',
+  '299': 'Outfit',
+  '400': 'Treasure Box',
+  '401': 'Treasure Box',
+  '406': 'Treasure Box',
+  '407': 'Treasure Box',
+  '410': 'Treasure Box',
+  '420': 'Treasure Box',
+  '430': 'Treasure Box',
+  '440': 'Treasure Box',
+  '490': 'Treasure Box',
+  '500': 'Loadout Box',
+  '510': 'Loadout Box',
+  '520': 'Loadout Box',
+  '600': 'Room Card',
+  '700': 'Bundle',
+  '706': 'Bundle',
+  '707': 'Bundle',
+  '710': 'Bundle',
+  '718': 'Bundle',
+  '720': 'Bundle',
+  '730': 'Bundle',
+  '760': 'Bundle',
+  '770': 'Bundle',
+  '900': 'Collection',
+  '901': 'Collection',
+  '902': 'Collection',
+  '903': 'Collection',
+  '904': 'Collection',
+  '905': 'Collection',
+  '906': 'Collection',
+  '907': 'Collection',
+  '908': 'Collection',
+  '909': 'Collection',
+  '910': 'Collection',
+  '911': 'Collection',
+  '912': 'Collection',
+  '913': 'Collection',
+  '914': 'Collection',
+  '918': 'Collection',
+  '919': 'Collection',
+  '920': 'Collection',
+  '921': 'Collection',
+  '922': 'Collection',
+  '923': 'Collection',
+  '925': 'Collection',
+  '926': 'Collection',
+  '928': 'Collection',
+  '929': 'Collection',
+  '999': 'Collab',
+};
+
+function fallbackItemName(id: any): string {
+  const key = String(id);
+  const label = ITEM_PREFIX_LABELS[key.slice(0, 3)];
+  return label ? `${label} ${key}` : `Item ${key}`;
+}
+
 async function fetchOutfitLookup(): Promise<Map<string, OutfitLookupEntry>> {
   const itemRes = await fetch(`${ITEMID2_BASE}/itemData.json`, { cache: 'no-store' });
   const itemList = itemRes.ok ? await itemRes.json() : [];
@@ -376,7 +453,7 @@ async function toOutfitItems(ids: any): Promise<OutfitItem[]> {
       const entry = lookup.get(key);
       return {
         id: Number(id),
-        name: entry?.name || `Item ${id}`,
+        name: entry?.name || fallbackItemName(id),
         icon: buildOutfitIconUrl(id),
       };
     });
