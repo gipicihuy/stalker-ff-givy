@@ -48,6 +48,20 @@ type FfResponse = {
   petInfo?: PetInfo;
 };
 
+// API /api/ff mengembalikan schema milik Free Fire Stalk sendiri (player,
+// guild, social, credit, ban, pet). Adapter ini memetakan ke bentuk internal
+// yang dipakai komponen di bawah, biar logic render nggak perlu diubah.
+function adaptApiResponse(raw: any): FfResponse {
+  return {
+    basicInfo: raw?.player,
+    guildBasicInfo: raw?.guild,
+    socialInfo: raw?.social,
+    creditScoreInfo: raw?.credit,
+    banInfo: raw?.ban ?? null,
+    petInfo: raw?.pet ?? null,
+  };
+}
+
 const MONTHS_ID = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 const REGION_NAMES: Record<string, string> = {
   ID: 'Indonesia', SG: 'Singapura', MY: 'Malaysia', TH: 'Thailand', VN: 'Vietnam',
@@ -406,7 +420,7 @@ export default function StalkClient() {
         setError(data?.error || 'Gagal mengambil data.');
         return;
       }
-      setResult(data);
+      setResult(adaptApiResponse(data));
     } catch {
       setError('Gagal terhubung ke server. Coba lagi.');
     } finally {
@@ -456,7 +470,7 @@ export default function StalkClient() {
             FF
           </div>
           <div>
-            <h1 style={{ fontSize: 16, fontWeight: 700, color: 'var(--white)', letterSpacing: '0.02em', fontFamily: 'var(--font-display)' }}>GIVY - STALK EPEP</h1>
+            <h1 style={{ fontSize: 16, fontWeight: 700, color: 'var(--white)', letterSpacing: '0.02em', fontFamily: 'var(--font-display)' }}>FREE FIRE STALK</h1>
             <p style={{ fontSize: 11, color: 'var(--muted-text)' }}>Cek info akun Free Fire lewat UID</p>
           </div>
         </div>
@@ -773,7 +787,7 @@ export default function StalkClient() {
           <AngleDividerDouble />
         </div>
         <p style={{ margin: 0, fontSize: 11, fontWeight: 500, letterSpacing: '0.01em', color: 'var(--light-text)' }}>
-          Givy Stalk Epep <span style={{ color: 'var(--gold)', margin: '0 4px', fontWeight: 700 }}>-</span>
+          Free Fire Stalk <span style={{ color: 'var(--gold)', margin: '0 4px', fontWeight: 700 }}>-</span>
           <a
             href="https://wa.me/+62895423300395?text=halo+givy+ganteng"
             target="_blank"
