@@ -377,7 +377,7 @@ function normalizeFreefirehub(data: any) {
   const credit = getCI(profile, 'creditscoreinfo') || {};
   const outfit = getCI(profile, 'profileinfo') || {};
 
-  const equippedSkinIds = getCI(outfit, 'equipedskills') || [];
+  const equippedSkinIds = getCI(outfit, 'clothes') || [];
   const weaponSkinIds = getCI(info, 'weaponskinshows') || [];
   const characterId = getCI(outfit, 'avatarid');
 
@@ -417,7 +417,7 @@ function normalizeMultipurpose(data: any) {
   const social = getCI(data, 'socialinfo') || {};
   const credit = getCI(data, 'creditscoreinfo') || {};
 
-  const equippedSkinIds = getCI(profile, 'equipedskills') || [];
+  const equippedSkinIds = getCI(profile, 'clothes') || [];
   const weaponSkinIds = getCI(info, 'weaponskinshows') || [];
   const characterId = getCI(profile, 'avatarid');
 
@@ -492,7 +492,7 @@ function normalizeAdenpedia(data: any) {
   const credit = data?.creditScoreInfo || {};
   const profile = data?.profileInfo || {};
 
-  const equippedSkinIds = profile.equipedSkills || profile.equippedSkills || [];
+  const equippedSkinIds = profile.clothes || [];
   const weaponSkinIds = info.weaponSkinShows || [];
   const characterId = profile.avatarId;
 
