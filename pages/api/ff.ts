@@ -153,7 +153,7 @@ async function sendTelegramNotif(req: NextApiRequest, merged: any, ban: any) {
 }
 
 const FREEFIREHUB_BASE = 'https://freefirehub.com';
-const ADENPEDIA_URL = 'https://adenpedia.my.id/radenbaru/info.php';
+const ADENPEDIA_URL = 'https://adenpedia.my.id/adenf9/info.php';
 const MULTIPURPOSE_BASE = 'https://ff-multipurpose-api.onrender.com';
 const MULTIPURPOSE_KEY = process.env.FF_MULTIPURPOSE_KEY || 'codespecter';
 const ICON_BASE = 'https://raw.githubusercontent.com/ashqking/FF-Items/main/ICONS';
