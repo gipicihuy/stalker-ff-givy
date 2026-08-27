@@ -18,11 +18,11 @@
     "react-dom": "^18"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "^1.15.0",
+    "@opennextjs/cloudflare": "1.15.0",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "typescript": "^5",
-    "wrangler": "^4.126.0"
+    "wrangler": "4.126.0"
   }
 }
