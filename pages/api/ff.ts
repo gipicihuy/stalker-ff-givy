@@ -219,10 +219,82 @@ const ITEMID2_BASE = 'https://raw.githubusercontent.com/0xMe/ItemID2/main/assets
 const OUTFIT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
 type OutfitItem = { id: number; name: string; icon: string | null };
-type OutfitLookupEntry = { name: string };
+type OutfitLookupEntry = { name: string; icon: string | null; inCdn: boolean };
 
 let outfitLookupCache: { data: Map<string, OutfitLookupEntry>; ts: number } | null = null;
 let outfitLookupPromise: Promise<Map<string, OutfitLookupEntry>> | null = null;
+
+// --- Icon "bersih" tanpa background rarity ---
+// ItemID2 sendiri nggak nyimpen gambar; dia render icon transparan dari repo
+// 0xme/ff-resources (rarity box-nya digambar terpisah lewat CSS di sana, jadi
+// PNG aslinya polos/transparan). Kalau item nggak tersedia di situ, ItemID2
+// fallback ke assets/cdn.json (link CDN ShareChat). Kita tiru urutan yang sama;
+// kalau dua-duanya gagal, caller tetap fallback ke ShahGCreator jsdelivr (lama).
+const CLEAN_ICON_BASE = 'https://raw.githubusercontent.com/0xme/ff-resources/refs/heads/main/pngs/300x300';
+
+type CleanIconAssets = { cdnMap: Map<string, string> };
+let cleanIconAssetsCache: { data: CleanIconAssets; ts: number } | null = null;
+let cleanIconAssetsPromise: Promise<CleanIconAssets> | null = null;
+
+async function fetchCleanIconAssets(): Promise<CleanIconAssets> {
+  const cdnMap = new Map<string, string>();
+  try {
+    const res = await fetch(`${ITEMID2_BASE}/cdn.json`, { cache: 'no-store' });
+    if (res.ok) {
+      const list = await res.json();
+      if (Array.isArray(list)) {
+        for (const entry of list) {
+          if (!entry || typeof entry !== 'object') continue;
+          for (const [id, url] of Object.entries(entry)) {
+            if (typeof url === 'string') cdnMap.set(id, url);
+          }
+        }
+      }
+    }
+  } catch {
+    // biarin kosong, caller bakal fallback ke jsdelivr
+  }
+  return { cdnMap };
+}
+
+async function loadCleanIconAssets(): Promise<CleanIconAssets> {
+  if (cleanIconAssetsCache && Date.now() - cleanIconAssetsCache.ts < OUTFIT_CACHE_TTL_MS) {
+    return cleanIconAssetsCache.data;
+  }
+  if (!cleanIconAssetsPromise) {
+    cleanIconAssetsPromise = fetchCleanIconAssets()
+      .then((data) => {
+        cleanIconAssetsCache = { data, ts: Date.now() };
+        cleanIconAssetsPromise = null;
+        return data;
+      })
+      .catch((err) => {
+        cleanIconAssetsPromise = null;
+        throw err;
+      });
+  }
+  return cleanIconAssetsPromise;
+}
+
+// Resolve icon bersih (tanpa background rarity) buat satu itemId.
+// Return null kalau nggak ketemu di ff-resources maupun cdn.json ItemID2 -
+// caller tetap fallback ke buildIconUrl (ShahGCreator jsdelivr) yang lama.
+async function resolveCleanIconUrl(itemId: any): Promise<string | null> {
+  if (!itemId) return null;
+  const key = String(itemId);
+  try {
+    const [lookup, assets] = await Promise.all([loadOutfitLookup(), loadCleanIconAssets()]);
+    const entry = lookup.get(key);
+    if (entry?.inCdn && entry.icon) {
+      return `${CLEAN_ICON_BASE}/${entry.icon}.png`;
+    }
+    const cdnUrl = assets.cdnMap.get(key);
+    if (cdnUrl) return cdnUrl;
+  } catch {
+    // network/parse error -> biarin caller fallback
+  }
+  return null;
+}
 
 // Outfit/weapon skin icon sekarang pakai base icon yang sama (ShahGCreator).
 function buildOutfitIconUrl(itemId: any): string | null {
@@ -261,7 +333,9 @@ async function fetchOutfitLookup(): Promise<Map<string, OutfitLookupEntry>> {
       const descName = rawName && rawName !== 'NONE' ? rawName : null;
       const name = descName || humanizeIconName(item?.icon);
       if (!name) continue;
-      lookup.set(String(id), { name });
+      const iconName = item?.icon && item.icon !== 'NONE' ? String(item.icon) : null;
+      const inCdn = item?.IconInAB === 'ICON_IN_CDN';
+      lookup.set(String(id), { name, icon: iconName, inCdn });
     }
   }
 
@@ -618,10 +692,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(404).json({ error: 'Player tidak ditemukan.' });
   }
 
-  const [equippedOutfitItems, equippedWeaponOutfitItems] = await Promise.all([
+  const [equippedOutfitItems, equippedWeaponOutfitItems, cleanAvatarUrl] = await Promise.all([
     toOutfitItems(merged.equippedSkinIds || []),
     toOutfitItems(merged.weaponSkinIds || []),
+    resolveCleanIconUrl(merged.headPic),
   ]);
+
+  // Avatar bersih (tanpa background rarity) dari ItemID2/ff-resources kalau ada;
+  // kalau nggak ketemu, tetap pakai avatarUrl lama (ShahGCreator jsdelivr).
+  if (cleanAvatarUrl) {
+    merged.avatarUrl = cleanAvatarUrl;
+  }
 
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
   res.status(200).json({
