@@ -213,6 +213,88 @@ function toIconList(ids: any) {
   return ids.map(buildIconUrl).filter(Boolean);
 }
 
+const ITEMID2_BASE = 'https://raw.githubusercontent.com/0xMe/ItemID2/main/assets';
+const OUTFIT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+
+type OutfitItem = { id: number; name: string; icon: string | null };
+type OutfitLookupEntry = { name: string; icon: string | null };
+
+let outfitLookupCache: { data: Map<string, OutfitLookupEntry>; ts: number } | null = null;
+let outfitLookupPromise: Promise<Map<string, OutfitLookupEntry>> | null = null;
+
+async function fetchOutfitLookup(): Promise<Map<string, OutfitLookupEntry>> {
+  const [itemRes, cdnRes] = await Promise.all([
+    fetch(`${ITEMID2_BASE}/itemData.json`, { cache: 'no-store' }),
+    fetch(`${ITEMID2_BASE}/cdn.json`, { cache: 'no-store' }),
+  ]);
+
+  const itemList = itemRes.ok ? await itemRes.json() : [];
+  const cdnList = cdnRes.ok ? await cdnRes.json() : [];
+
+  const cdnMap = new Map<string, string>();
+  if (Array.isArray(cdnList)) {
+    for (const entry of cdnList) {
+      for (const [id, url] of Object.entries(entry)) {
+        if (typeof url === 'string') cdnMap.set(id, url);
+      }
+    }
+  }
+
+  const lookup = new Map<string, OutfitLookupEntry>();
+  if (Array.isArray(itemList)) {
+    for (const item of itemList) {
+      const id = item?.itemID;
+      if (!id) continue;
+      const rawName = item?.description;
+      const name = rawName && rawName !== 'NONE' ? rawName : null;
+      if (!name) continue;
+      lookup.set(String(id), { name, icon: cdnMap.get(String(id)) || null });
+    }
+  }
+
+  return lookup;
+}
+
+async function loadOutfitLookup(): Promise<Map<string, OutfitLookupEntry>> {
+  if (outfitLookupCache && Date.now() - outfitLookupCache.ts < OUTFIT_CACHE_TTL_MS) {
+    return outfitLookupCache.data;
+  }
+  if (!outfitLookupPromise) {
+    outfitLookupPromise = fetchOutfitLookup()
+      .then((data) => {
+        outfitLookupCache = { data, ts: Date.now() };
+        outfitLookupPromise = null;
+        return data;
+      })
+      .catch((err) => {
+        outfitLookupPromise = null;
+        throw err;
+      });
+  }
+  return outfitLookupPromise;
+}
+
+async function toOutfitItems(ids: any): Promise<OutfitItem[]> {
+  if (!Array.isArray(ids) || ids.length === 0) return [];
+  let lookup: Map<string, OutfitLookupEntry>;
+  try {
+    lookup = await loadOutfitLookup();
+  } catch {
+    lookup = new Map();
+  }
+  return ids
+    .filter((id: any) => id !== undefined && id !== null)
+    .map((id: any) => {
+      const key = String(id);
+      const entry = lookup.get(key);
+      return {
+        id: Number(id),
+        name: entry?.name || `Item ${id}`,
+        icon: entry?.icon || buildIconUrl(id),
+      };
+    });
+}
+
 class NotFoundError extends Error {}
 
 async function fetchFreefirehub(uid: string, region: string) {
@@ -300,6 +382,8 @@ function normalizeFreefirehub(data: any) {
     titleIconUrl: buildIconUrl(getCI(info, 'title')),
     equippedCharacterId: characterId,
     equippedCharacterIconUrl: buildIconUrl(characterId),
+    equippedSkinIds,
+    weaponSkinIds,
     equippedSkinIconUrls: toIconList(equippedSkinIds),
     equippedWeaponSkinIconUrls: toIconList(weaponSkinIds),
     signature: getCI(social, 'signature'),
@@ -339,6 +423,8 @@ function normalizeMultipurpose(data: any) {
     titleIconUrl: buildIconUrl(getCI(info, 'title')),
     equippedCharacterId: characterId,
     equippedCharacterIconUrl: buildIconUrl(characterId),
+    equippedSkinIds,
+    weaponSkinIds,
     equippedSkinIconUrls: toIconList(equippedSkinIds),
     equippedWeaponSkinIconUrls: toIconList(weaponSkinIds),
     signature: getCI(social, 'signature'),
@@ -413,6 +499,8 @@ function normalizeAdenpedia(data: any) {
     titleIconUrl: buildIconUrl(info.title),
     equippedCharacterId: characterId,
     equippedCharacterIconUrl: buildIconUrl(characterId),
+    equippedSkinIds,
+    weaponSkinIds,
     equippedSkinIconUrls: toIconList(equippedSkinIds),
     equippedWeaponSkinIconUrls: toIconList(weaponSkinIds),
     signature: social.signature,
@@ -517,9 +605,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(404).json({ error: 'Player tidak ditemukan.' });
   }
 
-  // Response di bawah pakai schema punya Free Fire Stalk sendiri (bukan
-  // struktur mentah salah satu provider upstream). Field-field provider
-  // di-merge lalu dipetakan ulang ke bentuk milik kita di sini.
+  const [equippedOutfitItems, equippedWeaponOutfitItems] = await Promise.all([
+    toOutfitItems(merged.equippedSkinIds || []),
+    toOutfitItems(merged.weaponSkinIds || []),
+  ]);
+
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
   res.status(200).json({
     status: 'ok',
@@ -547,6 +637,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       equippedCharacterIconUrl: merged.equippedCharacterIconUrl,
       equippedSkinIconUrls: merged.equippedSkinIconUrls,
       equippedWeaponSkinIconUrls: merged.equippedWeaponSkinIconUrls,
+      equippedOutfitItems,
+      equippedWeaponOutfitItems,
     },
     guild: {
       guildName: merged.guildName,
