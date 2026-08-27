@@ -391,8 +391,15 @@ const ITEM_PREFIX_LABELS: Record<string, string> = {
   '999': 'Collab',
 };
 
+const MANUAL_ICON_OVERRIDES: Record<string, string> = {
+  '204054009': 'Icon_avatar_male_cos_bottom_bloodmoon26',
+};
+
 function fallbackItemName(id: any): string {
   const key = String(id);
+  const manualIcon = MANUAL_ICON_OVERRIDES[key];
+  const manualName = manualIcon ? humanizeIconName(manualIcon) : null;
+  if (manualName) return manualName;
   const label = ITEM_PREFIX_LABELS[key.slice(0, 3)];
   return label ? `${label} ${key}` : `Item ${key}`;
 }
