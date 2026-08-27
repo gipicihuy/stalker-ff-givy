@@ -169,7 +169,9 @@ const FREEFIREHUB_BASE = 'https://freefirehub.com';
 const ADENPEDIA_URL = 'https://adenpedia.my.id/adenf9/info.php';
 const MULTIPURPOSE_BASE = 'https://ff-multipurpose-api.onrender.com';
 const MULTIPURPOSE_KEY = process.env.FF_MULTIPURPOSE_KEY || 'codespecter';
-const ICON_BASE = 'https://raw.githubusercontent.com/ashqking/FF-Items/main/ICONS';
+// ashqking/FF-Items dilepas: datanya kurang lengkap (banyak icon 404).
+// Semua icon (avatar, title, karakter, weapon skin, outfit) sekarang diambil dari ShahGCreator.
+const ICON_BASE = 'https://cdn.jsdelivr.net/gh/ShahGCreator/icon@main/PNG';
 
 const FREEFIREHUB_HEADERS = {
   'user-agent':
@@ -214,7 +216,6 @@ function toIconList(ids: any) {
 }
 
 const ITEMID2_BASE = 'https://raw.githubusercontent.com/0xMe/ItemID2/main/assets';
-const OUTFIT_ICON_BASE = 'https://cdn.jsdelivr.net/gh/ShahGCreator/icon@main/PNG';
 const OUTFIT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
 type OutfitItem = { id: number; name: string; icon: string | null };
@@ -223,9 +224,28 @@ type OutfitLookupEntry = { name: string };
 let outfitLookupCache: { data: Map<string, OutfitLookupEntry>; ts: number } | null = null;
 let outfitLookupPromise: Promise<Map<string, OutfitLookupEntry>> | null = null;
 
+// Outfit/weapon skin icon sekarang pakai base icon yang sama (ShahGCreator).
 function buildOutfitIconUrl(itemId: any): string | null {
   if (!itemId) return null;
-  return `${OUTFIT_ICON_BASE}/${itemId}.png`;
+  return buildIconUrl(itemId);
+}
+
+// Sebagian item di itemData.json nggak punya "description" (NONE), tapi masih
+// punya field "icon" mentah semacam "Icon_male_piratemk2". Daripada nampilin
+// fallback generik "Item <id>", kita humanize string icon-nya jadi nama yang
+// lebih enak dibaca, contoh: "Icon_male_piratemk2" -> "Male Piratemk2".
+function humanizeIconName(rawIcon: string): string | null {
+  if (!rawIcon || rawIcon === 'NONE') return null;
+  const cleaned = rawIcon
+    .replace(/^Icon_/i, '')
+    .replace(/[_-]+/g, ' ')
+    .trim();
+  if (!cleaned) return null;
+  return cleaned
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 async function fetchOutfitLookup(): Promise<Map<string, OutfitLookupEntry>> {
@@ -238,7 +258,8 @@ async function fetchOutfitLookup(): Promise<Map<string, OutfitLookupEntry>> {
       const id = item?.itemID;
       if (!id) continue;
       const rawName = item?.description;
-      const name = rawName && rawName !== 'NONE' ? rawName : null;
+      const descName = rawName && rawName !== 'NONE' ? rawName : null;
+      const name = descName || humanizeIconName(item?.icon);
       if (!name) continue;
       lookup.set(String(id), { name });
     }
