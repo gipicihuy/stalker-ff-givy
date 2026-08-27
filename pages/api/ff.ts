@@ -1,5 +1,18 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { waitUntil } from '@vercel/functions';
+import { getCloudflareContext } from '@opennextjs/cloudflare';
+
+// Pengganti waitUntil dari '@vercel/functions'. Di Cloudflare Workers,
+// background task (kirim notif Telegram tanpa nge-block response) harus
+// didaftarkan lewat ctx.waitUntil dari Cloudflare context. Kalau context-nya
+// nggak kedetect (misal lagi jalan di luar Workers runtime), fallback ke
+// eksekusi biasa supaya tetap jalan.
+function waitUntil(promise: Promise<unknown>) {
+  try {
+    getCloudflareContext().ctx.waitUntil(promise);
+  } catch {
+    promise.catch(() => {});
+  }
+}
 
 function getIP(req: NextApiRequest): string {
   const fwd = req.headers['x-forwarded-for'];
