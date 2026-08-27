@@ -214,6 +214,7 @@ function toIconList(ids: any) {
 }
 
 const ITEMID2_BASE = 'https://raw.githubusercontent.com/0xMe/ItemID2/main/assets';
+const FF_RESOURCES_ICON_BASE = 'https://raw.githubusercontent.com/0xme/ff-resources/refs/heads/main/pngs/300x300';
 const OUTFIT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
 type OutfitItem = { id: number; name: string; icon: string | null };
@@ -223,13 +224,15 @@ let outfitLookupCache: { data: Map<string, OutfitLookupEntry>; ts: number } | nu
 let outfitLookupPromise: Promise<Map<string, OutfitLookupEntry>> | null = null;
 
 async function fetchOutfitLookup(): Promise<Map<string, OutfitLookupEntry>> {
-  const [itemRes, cdnRes] = await Promise.all([
+  const [itemRes, cdnRes, pngsRes] = await Promise.all([
     fetch(`${ITEMID2_BASE}/itemData.json`, { cache: 'no-store' }),
     fetch(`${ITEMID2_BASE}/cdn.json`, { cache: 'no-store' }),
+    fetch(`${ITEMID2_BASE}/pngs.json`, { cache: 'no-store' }),
   ]);
 
   const itemList = itemRes.ok ? await itemRes.json() : [];
   const cdnList = cdnRes.ok ? await cdnRes.json() : [];
+  const pngsList = pngsRes.ok ? await pngsRes.json() : [];
 
   const cdnMap = new Map<string, string>();
   if (Array.isArray(cdnList)) {
@@ -240,6 +243,8 @@ async function fetchOutfitLookup(): Promise<Map<string, OutfitLookupEntry>> {
     }
   }
 
+  const pngsSet = new Set<string>(Array.isArray(pngsList) ? pngsList : []);
+
   const lookup = new Map<string, OutfitLookupEntry>();
   if (Array.isArray(itemList)) {
     for (const item of itemList) {
@@ -248,7 +253,17 @@ async function fetchOutfitLookup(): Promise<Map<string, OutfitLookupEntry>> {
       const rawName = item?.description;
       const name = rawName && rawName !== 'NONE' ? rawName : null;
       if (!name) continue;
-      lookup.set(String(id), { name, icon: cdnMap.get(String(id)) || null });
+
+      const key = String(id);
+      const iconName = item?.icon;
+      let icon: string | null = null;
+      if (iconName && iconName !== 'NONE' && pngsSet.has(`${iconName}.png`)) {
+        icon = `${FF_RESOURCES_ICON_BASE}/${iconName}.png`;
+      } else if (cdnMap.has(key)) {
+        icon = cdnMap.get(key) as string;
+      }
+
+      lookup.set(key, { name, icon });
     }
   }
 
