@@ -469,7 +469,7 @@ export default function StalkClient() {
     }
 
     try {
-      const res = await fetch(`/api/ff?uid=${encodeURIComponent(trimmed)}`);
+      const res = await fetch(`/api/ff?uid=${encodeURIComponent(trimmed)}&notify=1`);
       const data = await res.json();
 
       if (!res.ok) {
@@ -620,13 +620,13 @@ export default function StalkClient() {
           </button>
 
           <div style={{
-            width: 64, height: 64, borderRadius: 16, overflow: 'hidden', border: '2px solid rgba(255,255,255,0.85)',
-            background: 'var(--panel-bg-alt)', boxShadow: '0 6px 18px rgba(0,0,0,0.3)',
+            width: 72, height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.35))',
           }}>
             <img
               src={avatarSrc}
               alt="Avatar"
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
               onError={(e) => {
                 const fallback = basic?.equippedCharacterIconUrl || '/image/avatar1.jpg';
                 if (e.currentTarget.src !== fallback) {

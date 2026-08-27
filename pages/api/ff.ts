@@ -550,7 +550,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(429).json({ error: 'Terlalu banyak request. Tunggu beberapa detik lalu coba lagi.' });
   }
 
-  const { uid, region } = req.query;
+  const { uid, region, notify } = req.query;
   const uidStr = String(uid || '');
   const regionStr = String(region || 'ALL');
 
@@ -676,9 +676,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     pet: petInfoData,
   });
 
-  waitUntil(
-    sendTelegramNotif(req, merged, banCheckData).catch((err) => {
-      console.error('telegram_notif_error', err);
-    })
-  );
+  // Cuma kirim notif kalau request beneran datang dari klik user di browser
+  // (ditandai ?notify=1 dari StalkClient). Server-side generateMetadata di
+  // app/stalk/[[...uid]]/page.tsx juga manggil endpoint ini buat bikin OG
+  // tags, tapi TANPA flag ini, supaya nggak ikut ngirim notif duplikat.
+  if (notify === '1') {
+    waitUntil(
+      sendTelegramNotif(req, merged, banCheckData).catch((err) => {
+        console.error('telegram_notif_error', err);
+      })
+    );
+  }
 }
