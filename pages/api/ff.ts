@@ -517,9 +517,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(404).json({ error: 'Player tidak ditemukan.' });
   }
 
+  // Response di bawah pakai schema punya Free Fire Stalk sendiri (bukan
+  // struktur mentah salah satu provider upstream). Field-field provider
+  // di-merge lalu dipetakan ulang ke bentuk milik kita di sini.
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
   res.status(200).json({
-    basicInfo: {
+    status: 'ok',
+    meta: {
+      uid: uidStr,
+      region: regionStr,
+      source: 'freefirestalk',
+    },
+    player: {
       accountId: merged.accountId,
       nickname: merged.nickname,
       region: merged.region,
@@ -539,19 +548,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       equippedSkinIconUrls: merged.equippedSkinIconUrls,
       equippedWeaponSkinIconUrls: merged.equippedWeaponSkinIconUrls,
     },
-    guildBasicInfo: {
+    guild: {
       guildName: merged.guildName,
       guildLevel: merged.guildLevel,
       memberNum: merged.memberNum,
       capacity: merged.capacity,
     },
-    socialInfo: {
+    social: {
       signature: merged.signature,
     },
-    creditScoreInfo: {
+    credit: {
       creditScore: merged.creditScore,
     },
-    banInfo: banCheckData
+    ban: banCheckData
       ? {
           isBanned: Boolean(banCheckData.isBanned),
           lastLoginAt: banCheckData.lastLoginAt ?? null,
@@ -559,7 +568,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           status: banCheckData.status ?? null,
         }
       : null,
-    petInfo: petInfoData,
+    pet: petInfoData,
   });
 
   waitUntil(

@@ -1,4 +1,4 @@
-# Givy - Stalk Epep
+# Free Fire Stalk
 
 ```bash
 npm install
