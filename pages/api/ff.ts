@@ -438,6 +438,50 @@ async function loadOutfitLookup(): Promise<Map<string, OutfitLookupEntry>> {
   return outfitLookupPromise;
 }
 
+const SECONDARY_NAME_SOURCE_URL =
+  'https://raw.githubusercontent.com/iamaanahmad/FreeFireItems/main/data/OB53-live-itemData.json';
+
+let secondaryNameLookupCache: { data: Map<string, string>; ts: number } | null = null;
+let secondaryNameLookupPromise: Promise<Map<string, string>> | null = null;
+
+async function fetchSecondaryNameLookup(): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  try {
+    const res = await fetch(SECONDARY_NAME_SOURCE_URL, { cache: 'no-store' });
+    if (res.ok) {
+      const list = await res.json();
+      if (Array.isArray(list)) {
+        for (const item of list) {
+          const id = item?.id;
+          if (!id) continue;
+          const name = item?.name_text || item?.description_text;
+          if (name) map.set(String(id), String(name));
+        }
+      }
+    }
+  } catch {}
+  return map;
+}
+
+async function loadSecondaryNameLookup(): Promise<Map<string, string>> {
+  if (secondaryNameLookupCache && Date.now() - secondaryNameLookupCache.ts < OUTFIT_CACHE_TTL_MS) {
+    return secondaryNameLookupCache.data;
+  }
+  if (!secondaryNameLookupPromise) {
+    secondaryNameLookupPromise = fetchSecondaryNameLookup()
+      .then((data) => {
+        secondaryNameLookupCache = { data, ts: Date.now() };
+        secondaryNameLookupPromise = null;
+        return data;
+      })
+      .catch((err) => {
+        secondaryNameLookupPromise = null;
+        throw err;
+      });
+  }
+  return secondaryNameLookupPromise;
+}
+
 async function toOutfitItems(ids: any): Promise<OutfitItem[]> {
   if (!Array.isArray(ids) || ids.length === 0) return [];
   let lookup: Map<string, OutfitLookupEntry>;
@@ -446,18 +490,31 @@ async function toOutfitItems(ids: any): Promise<OutfitItem[]> {
   } catch {
     lookup = new Map();
   }
-  return ids
-    .filter((id: any) => id !== undefined && id !== null)
-    .map((id: any) => {
-      const key = String(id);
-      const entry = lookup.get(key);
-      return {
-        id: Number(id),
-        name: entry?.name || fallbackItemName(id),
-        icon: buildOutfitIconUrl(id),
-      };
-    });
+
+  const validIds = ids.filter((id: any) => id !== undefined && id !== null);
+  const hasMissingName = validIds.some((id: any) => !lookup.get(String(id))?.name);
+
+  let secondaryLookup: Map<string, string> = new Map();
+  if (hasMissingName) {
+    try {
+      secondaryLookup = await loadSecondaryNameLookup();
+    } catch {
+      secondaryLookup = new Map();
+    }
+  }
+
+  return validIds.map((id: any) => {
+    const key = String(id);
+    const entry = lookup.get(key);
+    const name = entry?.name || secondaryLookup.get(key) || fallbackItemName(id);
+    return {
+      id: Number(id),
+      name,
+      icon: buildOutfitIconUrl(id),
+    };
+  });
 }
+
 
 class NotFoundError extends Error {}
 
