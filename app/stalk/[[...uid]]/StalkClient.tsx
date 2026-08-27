@@ -364,7 +364,7 @@ function OutfitGrid({ items }: { items: OutfitItem[] }) {
   if (!items || items.length === 0) return null;
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(58px, 1fr))', gap: 10 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))', gap: 12 }}>
       {items.map((item) => {
         const isBroken = brokenIds.has(item.id);
         const showImage = Boolean(item.icon) && !isBroken;
@@ -374,14 +374,14 @@ function OutfitGrid({ items }: { items: OutfitItem[] }) {
             title={item.name}
             style={{
               background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12,
-              padding: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+              padding: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
             }}
           >
             {showImage ? (
               <img
                 src={item.icon as string}
                 alt={item.name}
-                style={{ width: 40, height: 40, objectFit: 'contain' }}
+                style={{ width: 64, height: 64, objectFit: 'contain' }}
                 onError={() => {
                   setBrokenIds((prev) => {
                     const next = new Set(prev);
@@ -392,8 +392,8 @@ function OutfitGrid({ items }: { items: OutfitItem[] }) {
               />
             ) : (
               <span style={{
-                width: 40, height: 40, borderRadius: 8, background: 'var(--gold-soft)', color: 'var(--gold)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10,
+                width: 64, height: 64, borderRadius: 8, background: 'var(--gold-soft)', color: 'var(--gold)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11,
               }}>
                 N/A
               </span>
