@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import StalkClient from './StalkClient';
+import { SITE_NAME, SITE_DESCRIPTION } from '../../lib/seo';
 
 type PageProps = {
   params: { uid?: string[] };
@@ -30,40 +31,67 @@ async function fetchPlayerData(uid: string) {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const uid = getUidFromParams(params);
+  const canonicalPath = uid ? `/stalk/${uid}` : '/stalk';
 
   if (!uid || !/^\d{6,15}$/.test(uid)) {
+    const title = `Stalk UID - ${SITE_NAME}`;
     return {
-      title: 'Givy - Stalk Epep',
-      description: 'Cek info akun Free Fire lewat UID.',
+      title,
+      description: SITE_DESCRIPTION,
+      alternates: { canonical: canonicalPath },
+      openGraph: {
+        title,
+        description: SITE_DESCRIPTION,
+        url: canonicalPath,
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title,
+        description: SITE_DESCRIPTION,
+      },
     };
   }
 
   const data = await fetchPlayerData(uid);
-  const nickname: string | undefined = data?.basicInfo?.nickname;
-  const level: number | undefined = data?.basicInfo?.level;
-  const region: string | undefined = data?.basicInfo?.region;
-  const avatarUrl: string | undefined = data?.basicInfo?.avatarUrl;
+  const nickname: string | undefined = data?.player?.nickname;
+  const level: number | undefined = data?.player?.level;
+  const region: string | undefined = data?.player?.region;
+  const avatarUrl: string | undefined = data?.player?.avatarUrl;
 
   if (!nickname) {
+    const title = `UID ${uid} - ${SITE_NAME}`;
     return {
-      title: `UID ${uid} - Givy Stalk Epep`,
-      description: 'Cek info akun Free Fire lewat UID.',
+      title,
+      description: SITE_DESCRIPTION,
+      alternates: { canonical: canonicalPath },
+      openGraph: {
+        title,
+        description: SITE_DESCRIPTION,
+        url: canonicalPath,
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title,
+        description: SITE_DESCRIPTION,
+      },
     };
   }
 
-  const title = `${nickname} (Lv.${level ?? '-'}) - Givy Stalk Epep`;
-  const description = `Info akun Free Fire UID ${uid}: ${nickname}, Level ${level ?? '-'}${region ? `, Region ${region}` : ''}. Cek statistik lengkapnya di Givy Stalk Epep.`;
+  const title = `${nickname} (Lv.${level ?? '-'}) - ${SITE_NAME}`;
+  const description = `Info akun Free Fire UID ${uid}: ${nickname}, Level ${level ?? '-'}${region ? `, Region ${region}` : ''}. Cek statistik lengkapnya di ${SITE_NAME}.`;
 
   return {
     title,
     description,
+    alternates: { canonical: canonicalPath },
     openGraph: {
       title,
       description,
+      url: canonicalPath,
       images: avatarUrl ? [{ url: avatarUrl }] : undefined,
     },
     twitter: {
-      card: 'summary',
+      card: avatarUrl ? 'summary_large_image' : 'summary',
       title,
       description,
       images: avatarUrl ? [avatarUrl] : undefined,
