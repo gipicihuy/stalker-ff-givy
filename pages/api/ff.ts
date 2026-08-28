@@ -1008,8 +1008,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ? normalizeBanCheck(banCheckResult.value, 'freefirehub')
       : null;
 
+  // petInfo diprioritaskan dari multipurpose (proto asli), tapi fallback ke
+  // adenpedia kalau multipurpose gagal/nggak ngasih data pet - adenpedia
+  // ternyata juga ngirim petInfo (dengan key camelCase: id, name, level,
+  // isSelected, skinId, selectedSkillId) yang bentuknya sama persis, dan
+  // normalizePetInfo() udah case-insensitive lewat getCI() jadi bisa dipakai
+  // langsung buat parsing dari kedua sumber tanpa fungsi terpisah.
   const petInfoData =
-    multipurposeResult.status === 'fulfilled' ? normalizePetInfo(multipurposeResult.value) : null;
+    (multipurposeResult.status === 'fulfilled' ? normalizePetInfo(multipurposeResult.value) : null) ??
+    (adenpediaResult.status === 'fulfilled' ? normalizePetInfo(adenpediaResult.value) : null);
 
   if (!multipurposeData && !freefirehubData && !adenpediaData) {
     const notFound =
