@@ -21,7 +21,10 @@ async function getBaseUrl() {
 async function fetchPlayerData(uid: string) {
   try {
     const baseUrl = await getBaseUrl();
-    const res = await fetch(`${baseUrl}/api/ff?uid=${encodeURIComponent(uid)}`, { cache: 'no-store' });
+    const res = await fetch(`${baseUrl}/api/ff?uid=${encodeURIComponent(uid)}`, {
+      cache: 'no-store',
+      headers: { 'x-internal-ssr': '1' },
+    });
     if (!res.ok) return null;
     return await res.json();
   } catch {
