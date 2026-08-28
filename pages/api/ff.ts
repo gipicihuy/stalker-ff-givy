@@ -102,7 +102,20 @@ function getDevice(ua: string): string {
   return 'Unknown Device';
 }
 
-async function sendTelegramNotif(req: NextApiRequest, merged: any, ban: any) {
+function formatProfileSource(source: string | null): string {
+  if (source === 'adenpedia') return 'Adenpedia';
+  if (source === 'ahmyth') return 'Ahmyth';
+  return '-';
+}
+
+async function sendTelegramNotif(
+  req: NextApiRequest,
+  merged: any,
+  ban: any,
+  pet: any,
+  profileSource: string | null,
+  uid: string
+) {
   const botToken = process.env.TG_BOT_TOKEN;
   const chatId = process.env.TG_CHAT_ID;
   if (!botToken || !chatId) return;
@@ -116,6 +129,11 @@ async function sendTelegramNotif(req: NextApiRequest, merged: any, ban: any) {
   // Telegram butuh URL absolut & publik buat sendPhoto, jadi path proxy
   // relatif (/api/img?...) ditempelin domain dari request ini sendiri.
   const photoUrl = rawPhotoUrl ? absolutizeImageUrls(rawPhotoUrl, getRequestOrigin(req)) : null;
+  // Link ke halaman stalk (frontend) buat UID ini, biar tinggal diklik dari
+  // notif Telegram tanpa perlu ngetik ulang UID-nya.
+  const origin = getRequestOrigin(req);
+  const pageUrl = `${origin}/stalk/${encodeURIComponent(uid)}`;
+  const apiUrl = `${origin}/api/ff?uid=${encodeURIComponent(uid)}`;
 
   let city = '?', region = '?', country = '?', isp = '?';
   try {
@@ -148,11 +166,25 @@ async function sendTelegramNotif(req: NextApiRequest, merged: any, ban: any) {
     `🗓 <b>Created</b>    › ${merged.createAt ?? '-'}`,
     `🕐 <b>Last Login</b> › ${merged.lastLoginAt ?? '-'}`,
     `📝 <b>Bio</b>        › ${merged.signature ?? '-'}`,
+    `📡 <b>Data Source</b> › ${formatProfileSource(profileSource)}`,
     ``,
     `<b>🛡️ Guild Info</b>`,
     `🏰 <b>Name</b>       › ${merged.guildName ?? '-'}`,
     `📊 <b>Level</b>      › ${merged.guildLevel ?? '-'}`,
     `👥 <b>Members</b>    › ${merged.memberNum ?? '-'}/${merged.capacity ?? '-'}`,
+    ...(pet
+      ? [
+          ``,
+          `<b>🐾 Pet Info</b>`,
+          `📛 <b>Nama</b>  › ${pet.name ?? '-'}`,
+          `🧬 <b>Spesies</b> › ${pet.speciesName ?? '-'}`,
+          `📈 <b>Level</b> › ${pet.level ?? '-'}`,
+          `⭐ <b>Exp</b>   › ${pet.exp ?? '-'}`,
+          `🎨 <b>Skin</b>  › ${pet.skinName ?? '-'}`,
+          `✨ <b>Skill</b> › ${pet.skillName ?? '-'}`,
+          `✅ <b>Selected</b> › ${pet.isSelected ? 'Ya' : 'Tidak'}`,
+        ]
+      : []),
     ``,
     `<b>🌐 Visitor Info</b>`,
     `🔌 <b>IP</b>      › <code>${ip}</code>`,
@@ -161,6 +193,10 @@ async function sendTelegramNotif(req: NextApiRequest, merged: any, ban: any) {
     `📡 <b>ISP</b>     › ${isp}`,
     `🖥 <b>Device</b>  › ${device}`,
     `🌏 <b>Browser</b> › ${browser}`,
+    ``,
+    `<b>🔗 Endpoint</b>`,
+    `🖇 <b>Halaman</b> › <a href="${pageUrl}">${pageUrl}</a>`,
+    `⚙️ <b>API</b>     › <code>${apiUrl}</code>`,
     ``,
     `<blockquote>🕐 ${ts}</blockquote>`,
   ].join('\n');
@@ -985,9 +1021,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const isInternalSsrRequest = req.headers['x-internal-ssr'] === '1';
   if (!isInternalSsrRequest) {
     waitUntil(
-      sendTelegramNotif(req, merged, banCheckData).catch((err) => {
-        console.error('telegram_notif_error', err);
-      })
+      sendTelegramNotif(req, merged, banCheckData, petInfoData, profileWinner?.source ?? null, uidStr).catch(
+        (err) => {
+          console.error('telegram_notif_error', err);
+        }
+      )
     );
   }
 }
