@@ -350,14 +350,6 @@ function PetInfoCard({ data }: { data: PetInfo }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
           <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)' }}>{data.name || '—'}</p>
-          {data.isSelected ? (
-            <span style={{
-              fontSize: 9.5, fontWeight: 700, color: 'var(--success)', background: 'rgba(80,200,120,0.12)',
-              border: '1px solid rgba(80,200,120,0.4)', borderRadius: 999, padding: '2px 8px',
-            }}>
-              Aktif
-            </span>
-          ) : null}
         </div>
         <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--light-text)', flexWrap: 'wrap' }}>
           <span>Level: <strong style={{ color: 'var(--white)' }}>{formatNumber(data.level)}</strong></span>
