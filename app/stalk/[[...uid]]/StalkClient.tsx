@@ -485,7 +485,7 @@ export default function StalkClient() {
     }
 
     try {
-      const res = await fetch(`/api/ff?uid=${encodeURIComponent(trimmed)}&notify=1`);
+      const res = await fetch(`/api/ff?uid=${encodeURIComponent(trimmed)}`);
       const data = await res.json();
 
       if (!res.ok) {

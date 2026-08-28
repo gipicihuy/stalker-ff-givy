@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
-import itemDataJson from '../../data/itemData.json';
+import { getConfiguredSiteUrl } from '../../app/lib/seo';
 
 // Pengganti waitUntil dari '@vercel/functions'. Di Cloudflare Workers,
 // background task (kirim notif Telegram tanpa nge-block response) harus
@@ -206,9 +206,17 @@ function pick(...values: any[]) {
   return undefined;
 }
 
+// Semua URL gambar dikirim ke klien lewat proxy internal /api/img, bukan
+// link CDN asli. Ini supaya konsumen API (dan siapapun yang buka Network
+// tab) nggak langsung tahu API ini narik gambar dari mana.
+function buildProxiedImageUrl(targetUrl: string): string {
+  const encoded = Buffer.from(targetUrl, 'utf-8').toString('base64url');
+  return `${getConfiguredSiteUrl()}/api/img?u=${encoded}`;
+}
+
 function buildIconUrl(itemId: any) {
   if (!itemId) return null;
-  return `${ICON_BASE}/${itemId}.png`;
+  return buildProxiedImageUrl(`${ICON_BASE}/${itemId}.png`);
 }
 
 function toIconList(ids: any) {
@@ -291,10 +299,10 @@ async function resolveCleanIconUrl(itemId: any): Promise<string | null> {
     const [lookup, assets] = await Promise.all([loadOutfitLookup(), loadCleanIconAssets()]);
     const entry = lookup.get(key);
     if (entry?.inCdn && entry.icon) {
-      return `${CLEAN_ICON_BASE}/${entry.icon}.png`;
+      return buildProxiedImageUrl(`${CLEAN_ICON_BASE}/${entry.icon}.png`);
     }
     const cdnUrl = assets.cdnMap.get(key);
-    if (cdnUrl) return cdnUrl;
+    if (cdnUrl) return buildProxiedImageUrl(cdnUrl);
   } catch {
     // network/parse error -> biarin caller fallback
   }
@@ -411,25 +419,67 @@ type LocalItemEntry = {
   type?: string;
 };
 
-const localItemData = itemDataJson as LocalItemEntry[];
+// Dulu itemData.json (~6.5MB) ikut ke-bundle di repo & tiap deploy ke
+// Cloudflare jadi berat. Sekarang datanya ditarik dari URL eksternal dan
+// di-cache in-memory (mirip pola loadOutfitLookup di bawah), jadi repo tetap
+// ringan dan deploy cepat.
+const LOCAL_ITEM_DATA_URL =
+  'https://raw.githubusercontent.com/Daxzyy/FF-Items-Givy/refs/heads/main/itemData.json';
+const LOCAL_ITEM_DATA_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
-const localItemMap: Map<string, OutfitLookupEntry> = new Map(
-  localItemData
-    .filter((item) => item && item.itemID !== undefined && item.itemID !== null)
-    .map((item) => {
-      const name = item.name || humanizeIconName(item.icon || '') || undefined;
-      return [
-        String(item.itemID),
-        { name: name || '', icon: item.icon || null, inCdn: false },
-      ] as [string, OutfitLookupEntry];
-    })
-);
+let localItemMap: Map<string, OutfitLookupEntry> = new Map();
+let localItemTypeMap: Map<string, string> = new Map();
+let localItemDataCache: { ts: number } | null = null;
+let localItemDataPromise: Promise<void> | null = null;
 
-const localItemTypeMap: Map<string, string> = new Map(
-  localItemData
-    .filter((item) => item && item.itemID !== undefined && item.itemID !== null && item.type)
-    .map((item) => [String(item.itemID), item.type as string])
-);
+async function fetchLocalItemData(): Promise<void> {
+  const res = await fetch(LOCAL_ITEM_DATA_URL, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`local_item_data_fetch_failed_${res.status}`);
+  const list = (await res.json()) as LocalItemEntry[];
+  if (!Array.isArray(list)) throw new Error('local_item_data_not_array');
+
+  const itemMap: Map<string, OutfitLookupEntry> = new Map(
+    list
+      .filter((item) => item && item.itemID !== undefined && item.itemID !== null)
+      .map((item) => {
+        const name = item.name || humanizeIconName(item.icon || '') || undefined;
+        return [
+          String(item.itemID),
+          { name: name || '', icon: item.icon || null, inCdn: false },
+        ] as [string, OutfitLookupEntry];
+      })
+  );
+
+  const typeMap: Map<string, string> = new Map(
+    list
+      .filter((item) => item && item.itemID !== undefined && item.itemID !== null && item.type)
+      .map((item) => [String(item.itemID), item.type as string])
+  );
+
+  localItemMap = itemMap;
+  localItemTypeMap = typeMap;
+}
+
+// Load (dan refresh berkala) data item lokal dari URL eksternal. Kalau gagal
+// dan belum pernah berhasil sama sekali, map-nya tetap kosong - caller udah
+// didesain buat fallback ke remote lookup (ItemID2) / nama generik.
+async function ensureLocalItemDataLoaded(): Promise<void> {
+  if (localItemDataCache && Date.now() - localItemDataCache.ts < LOCAL_ITEM_DATA_CACHE_TTL_MS) {
+    return;
+  }
+  if (!localItemDataPromise) {
+    localItemDataPromise = fetchLocalItemData()
+      .then(() => {
+        localItemDataCache = { ts: Date.now() };
+        localItemDataPromise = null;
+      })
+      .catch((err) => {
+        localItemDataPromise = null;
+        throw err;
+      });
+  }
+  return localItemDataPromise;
+}
 
 function getLocalEntry(key: string): OutfitLookupEntry | undefined {
   const entry = localItemMap.get(key);
@@ -860,7 +910,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(429).json({ error: 'Terlalu banyak request. Tunggu beberapa detik lalu coba lagi.' });
   }
 
-  const { uid, region, notify } = req.query;
+  const { uid, region } = req.query;
   const uidStr = String(uid || '');
   const regionStr = String(region || 'ALL');
 
@@ -868,14 +918,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'UID tidak valid. Masukkan UID Free Fire yang benar (angka saja).' });
   }
 
-  const [multipurposeResult, freefirehubResult, adenpediaResult, multipurposeBanResult, banCheckResult] =
-    await Promise.allSettled([
-      fetchMultipurpose(uidStr, regionStr),
-      fetchFreefirehub(uidStr, regionStr),
-      fetchAdenpedia(uidStr),
-      fetchMultipurposeBanCheck(uidStr),
-      fetchBanCheck(uidStr),
-    ]);
+  const [
+    multipurposeResult,
+    freefirehubResult,
+    adenpediaResult,
+    multipurposeBanResult,
+    banCheckResult,
+    localItemDataResult,
+  ] = await Promise.allSettled([
+    fetchMultipurpose(uidStr, regionStr),
+    fetchFreefirehub(uidStr, regionStr),
+    fetchAdenpedia(uidStr),
+    fetchMultipurposeBanCheck(uidStr),
+    fetchBanCheck(uidStr),
+    ensureLocalItemDataLoaded(),
+  ]);
 
   if (multipurposeResult.status === 'rejected') {
     console.error('multipurpose_error', multipurposeResult.reason);
@@ -891,6 +948,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (banCheckResult.status === 'rejected') {
     console.error('bancheck_error', banCheckResult.reason);
+  }
+  if (localItemDataResult.status === 'rejected') {
+    console.error('local_item_data_error', localItemDataResult.reason);
   }
 
   const multipurposeData =
@@ -1006,11 +1066,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     pet: petInfoData,
   });
 
-  // Cuma kirim notif kalau request beneran datang dari klik user di browser
-  // (ditandai ?notify=1 dari StalkClient). Server-side generateMetadata di
+  // Notif dikirim default tiap ada hit beneran. generateMetadata di
   // app/stalk/[[...uid]]/page.tsx juga manggil endpoint ini buat bikin OG
-  // tags, tapi TANPA flag ini, supaya nggak ikut ngirim notif duplikat.
-  if (notify === '1') {
+  // tags, tapi ditandai lewat header internal 'x-internal-ssr' (bukan query
+  // param yang bisa keliatan di Network tab browser), supaya nggak ikut
+  // ngirim notif duplikat.
+  const isInternalSsrRequest = req.headers['x-internal-ssr'] === '1';
+  if (!isInternalSsrRequest) {
     waitUntil(
       sendTelegramNotif(req, merged, banCheckData).catch((err) => {
         console.error('telegram_notif_error', err);
