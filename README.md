@@ -23,3 +23,4 @@ public/fonts/       taruh manual: GFF-Latin-Thin/Regular/Medium/Bold.ttf
 ```bash
 npx vercel --prod
 ``` 
+    .
