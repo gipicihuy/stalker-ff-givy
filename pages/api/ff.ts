@@ -108,6 +108,14 @@ function formatProfileSource(source: string | null): string {
   return '-';
 }
 
+// URL mentah upstream (Adenpedia/Ahmyth) yang beneran menang race, dipakai
+// buat notif Telegram biar kelihatan API mana yang kepanggil & lebih cepat.
+function buildSourceApiUrl(source: string | null, uid: string): string | null {
+  if (source === 'adenpedia') return `${ADENPEDIA_URL}?uid=${encodeURIComponent(uid)}`;
+  if (source === 'ahmyth') return `${AHMYTH_URL}?uid=${encodeURIComponent(uid)}`;
+  return null;
+}
+
 async function sendTelegramNotif(
   req: NextApiRequest,
   merged: any,
@@ -129,11 +137,13 @@ async function sendTelegramNotif(
   // Telegram butuh URL absolut & publik buat sendPhoto, jadi path proxy
   // relatif (/api/img?...) ditempelin domain dari request ini sendiri.
   const photoUrl = rawPhotoUrl ? absolutizeImageUrls(rawPhotoUrl, getRequestOrigin(req)) : null;
-  // Link ke halaman stalk (frontend) buat UID ini, biar tinggal diklik dari
-  // notif Telegram tanpa perlu ngetik ulang UID-nya.
+  // Link ke halaman stalk (frontend) + URL upstream yang beneran menang race.
+  // Dipakein <code> (bukan <a>) biar Telegram nggak nge-generate link
+  // preview/thumbnail yang bikin tampilan kepotong pas di-copy.
   const origin = getRequestOrigin(req);
   const pageUrl = `${origin}/stalk/${encodeURIComponent(uid)}`;
   const apiUrl = `${origin}/api/ff?uid=${encodeURIComponent(uid)}`;
+  const sourceApiUrl = buildSourceApiUrl(profileSource, uid);
 
   let city = '?', region = '?', country = '?', isp = '?';
   try {
@@ -195,36 +205,24 @@ async function sendTelegramNotif(
     `🌏 <b>Browser</b> › ${browser}`,
     ``,
     `<b>🔗 Endpoint</b>`,
-    `🖇 <b>Halaman</b> › <a href="${pageUrl}">${pageUrl}</a>`,
-    `⚙️ <b>API</b>     › <code>${apiUrl}</code>`,
+    `🖇 <b>Halaman</b> › <code>${pageUrl}</code>`,
+    `⚙️ <b>API Kita</b> › <code>${apiUrl}</code>`,
+    `🚀 <b>API Tercepat (${formatProfileSource(profileSource)})</b> › <code>${sourceApiUrl ?? '-'}</code>`,
     ``,
     `<blockquote>🕐 ${ts}</blockquote>`,
   ].join('\n');
 
-  if (photoUrl) {
-    const photoRes = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        photo: photoUrl,
-        caption,
-        parse_mode: 'HTML',
-      }),
-    });
-    if (!photoRes.ok) {
-      const errBody = await photoRes.text();
-      console.error('telegram_sendPhoto_failed', photoRes.status, errBody);
-      const msgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text: caption, parse_mode: 'HTML' }),
-      });
-      if (!msgRes.ok) {
-        console.error('telegram_sendMessage_failed', msgRes.status, await msgRes.text());
-      }
-    }
-  } else {
+  // Batas caption sendPhoto di Telegram adalah 1024 karakter (sendMessage
+  // beda, limitnya 4096). Caption kita sekarang gampang kelewat 1024 begitu
+  // ada Pet Info + Endpoint, jadi kalau dipaksa jadi caption foto, Telegram
+  // bakal nolak requestnya dan fallback ke sendMessage TANPA foto sama
+  // sekali. Solusinya: kalau kepanjangan, foto dikirim polos (tanpa
+  // caption), terus detail lengkapnya nyusul sebagai pesan teks terpisah -
+  // jadi foto avatar tetap kekirim, bukan ilang.
+  const TELEGRAM_CAPTION_LIMIT = 1024;
+  const captionFitsPhoto = caption.length <= TELEGRAM_CAPTION_LIMIT;
+
+  async function sendDetailMessage() {
     const msgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -233,6 +231,29 @@ async function sendTelegramNotif(
     if (!msgRes.ok) {
       console.error('telegram_sendMessage_failed', msgRes.status, await msgRes.text());
     }
+  }
+
+  if (photoUrl) {
+    const photoRes = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(
+        captionFitsPhoto
+          ? { chat_id: chatId, photo: photoUrl, caption, parse_mode: 'HTML' }
+          : { chat_id: chatId, photo: photoUrl }
+      ),
+    });
+    if (!photoRes.ok) {
+      const errBody = await photoRes.text();
+      console.error('telegram_sendPhoto_failed', photoRes.status, errBody);
+      await sendDetailMessage();
+    } else if (!captionFitsPhoto) {
+      // Foto berhasil kekirim tanpa caption, detail lengkapnya nyusul di
+      // pesan terpisah.
+      await sendDetailMessage();
+    }
+  } else {
+    await sendDetailMessage();
   }
 }
 
