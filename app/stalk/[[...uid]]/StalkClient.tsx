@@ -329,39 +329,65 @@ function StatCard({ icon, label, value, sub, accent }: { icon?: string; label?: 
   );
 }
 
+function PetStat({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div style={{
+      background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 10,
+      padding: '8px 10px', minWidth: 0,
+    }}>
+      <p style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--muted-text)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>
+        {label}
+      </p>
+      <p style={{
+        fontSize: 12.5, fontWeight: 700, color: 'var(--white)', overflow: 'hidden',
+        textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>
+        {value ?? '—'}
+      </p>
+    </div>
+  );
+}
+
 function PetInfoCard({ data }: { data: PetInfo }) {
   if (!data) return null;
   return (
     <div style={{
       background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 14,
-      padding: '13px 12px', display: 'flex', gap: 12, alignItems: 'center',
+      padding: '14px 14px 12px',
     }}>
-      {data.skinIconUrl ? (
-        <img src={data.skinIconUrl} alt={data.name || 'Pet'} style={{ width: 54, height: 54, objectFit: 'contain', flexShrink: 0 }}
-          onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-      ) : (
-        <span style={{
-          width: 40, height: 40, borderRadius: 10, background: 'var(--gold-soft)', color: 'var(--gold)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
+        <div style={{
+          width: 56, height: 56, borderRadius: 12, background: 'var(--gold-soft)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden',
         }}>
-          <PawPrint size={20} />
-        </span>
-      )}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
-          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)' }}>{data.name || '—'}</p>
+          {data.skinIconUrl ? (
+            <img src={data.skinIconUrl} alt={data.name || 'Pet'} style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+          ) : (
+            <PawPrint size={22} color="var(--gold)" />
+          )}
         </div>
-        <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--light-text)', flexWrap: 'wrap' }}>
-          <span>Level: <strong style={{ color: 'var(--white)' }}>{formatNumber(data.level)}</strong></span>
-          <span>Exp: <strong style={{ color: 'var(--white)' }}>{formatNumber(data.exp)}</strong></span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>
+            Nama Pet
+          </p>
+          <p style={{
+            fontSize: 15, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {data.name || '—'}
+          </p>
+          {data.speciesName ? (
+            <p style={{ fontSize: 11.5, color: 'var(--light-text)', marginTop: 2 }}>{data.speciesName}</p>
+          ) : null}
         </div>
-        {data.speciesName || data.skinName || data.skillName ? (
-          <div style={{ display: 'flex', gap: 16, fontSize: 11.5, color: 'var(--muted-text)', flexWrap: 'wrap', marginTop: 4 }}>
-            {data.speciesName ? <span>Species: <strong style={{ color: 'var(--light-text)' }}>{data.speciesName}</strong></span> : null}
-            {data.skinName ? <span>Skin: <strong style={{ color: 'var(--light-text)' }}>{data.skinName}</strong></span> : null}
-            {data.skillName ? <span>Skill: <strong style={{ color: 'var(--light-text)' }}>{data.skillName}</strong></span> : null}
-          </div>
-        ) : null}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: 8 }}>
+        <PetStat label="Level" value={formatNumber(data.level)} />
+        <PetStat label="Exp" value={formatNumber(data.exp)} />
+        {data.skinName ? <PetStat label="Skin" value={data.skinName} /> : null}
+        {data.skillName ? <PetStat label="Skill" value={data.skillName} /> : null}
       </div>
     </div>
   );
