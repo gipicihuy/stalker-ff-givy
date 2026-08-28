@@ -341,15 +341,28 @@ function PetStat({ label, value }: { label: string; value: React.ReactNode }) {
       <p style={{
         fontSize: 12.5, fontWeight: 700, color: 'var(--white)', overflow: 'hidden',
         textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-      }}>
+      }} title={typeof value === 'string' ? value : undefined}>
         {value ?? '—'}
       </p>
     </div>
   );
 }
 
+// Nama item dari dataset asli sering dibungkus kategori, misal
+// "Pet Skin: Golden Night Panther" atau "Pet Skill: Stay Chill". Prefix itu
+// mubazir di kartu ini karena labelnya sendiri udah bilang "Skin"/"Skill",
+// jadi dipotong biar teksnya lebih pendek & gak gampang kepotong ellipsis.
+function stripNamePrefix(name?: string | null): string | null {
+  if (!name) return null;
+  const idx = name.indexOf(':');
+  if (idx === -1) return name;
+  return name.slice(idx + 1).trim() || name;
+}
+
 function PetInfoCard({ data }: { data: PetInfo }) {
   if (!data) return null;
+  const skinName = stripNamePrefix(data.skinName);
+  const skillName = stripNamePrefix(data.skillName);
   return (
     <div style={{
       background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 14,
@@ -357,11 +370,12 @@ function PetInfoCard({ data }: { data: PetInfo }) {
     }}>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
         <div style={{
-          width: 56, height: 56, borderRadius: 12, background: 'var(--gold-soft)',
+          width: 56, height: 56, borderRadius: 12, background: 'var(--panel-bg)',
+          border: '1px solid var(--panel-border)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden',
         }}>
           {data.skinIconUrl ? (
-            <img src={data.skinIconUrl} alt={data.name || 'Pet'} style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            <img src={data.skinIconUrl} alt={data.name || 'Pet'} style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               onError={(e) => { e.currentTarget.style.display = 'none'; }} />
           ) : (
             <PawPrint size={22} color="var(--gold)" />
@@ -378,16 +392,16 @@ function PetInfoCard({ data }: { data: PetInfo }) {
             {data.name || '—'}
           </p>
           {data.speciesName ? (
-            <p style={{ fontSize: 11.5, color: 'var(--light-text)', marginTop: 2 }}>{data.speciesName}</p>
+            <p style={{ fontSize: 11.5, color: 'var(--light-text)', marginTop: 2 }}>Spesies: {data.speciesName}</p>
           ) : null}
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
         <PetStat label="Level" value={formatNumber(data.level)} />
         <PetStat label="Exp" value={formatNumber(data.exp)} />
-        {data.skinName ? <PetStat label="Skin" value={data.skinName} /> : null}
-        {data.skillName ? <PetStat label="Skill" value={data.skillName} /> : null}
+        <PetStat label="Skin" value={skinName} />
+        <PetStat label="Skill" value={skillName} />
       </div>
     </div>
   );
