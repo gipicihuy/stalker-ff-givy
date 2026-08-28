@@ -528,8 +528,10 @@ export default function StalkClient() {
     (basic?.headPic ? `https://ff.garena.com/avatar/${basic.headPic}.png` : null) ||
     basic?.equippedCharacterIconUrl ||
     '/image/avatar1.jpg';
+  const characterItems: ResolvedItem[] = [basic?.equippedCharacter].filter(
+    (item): item is ResolvedItem => Boolean(item)
+  );
   const profileItems: ResolvedItem[] = [
-    basic?.equippedCharacter,
     basic?.equippedBanner,
     basic?.equippedTitle,
     basic?.equippedPin,
@@ -840,6 +842,16 @@ export default function StalkClient() {
               <p style={{ fontSize: 12, color: 'var(--muted-text)' }}>Tidak tergabung dalam guild.</p>
             )}
           </div>
+
+          {characterItems.length > 0 ? (
+            <>
+              <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+              <div>
+                <SectionLabel>Character</SectionLabel>
+                <OutfitGrid items={characterItems} />
+              </div>
+            </>
+          ) : null}
 
           {profileItems.length > 0 ? (
             <>
