@@ -201,6 +201,7 @@ async function sendTelegramNotif(req: NextApiRequest, merged: any, ban: any) {
 }
 
 const ADENPEDIA_URL = 'https://adenpedia.my.id/adenf9/info.php';
+const AHMYTH_URL = 'https://info.ahmyth.pro/player';
 const MULTIPURPOSE_BASE = 'https://ff-multipurpose-api.onrender.com';
 const MULTIPURPOSE_KEY = process.env.FF_MULTIPURPOSE_KEY || 'codespecter';
 // ashqking/FF-Items dilepas: datanya kurang lengkap (banyak icon 404).
@@ -211,6 +212,12 @@ const ADENPEDIA_HEADERS = {
   Accept: 'application/json',
   'User-Agent':
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+};
+
+const AHMYTH_HEADERS = {
+  Accept: 'application/json',
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
 };
 
 const MULTIPURPOSE_HEADERS = {
@@ -689,6 +696,31 @@ async function fetchAdenpedia(uid: string) {
   return data;
 }
 
+async function fetchAhmyth(uid: string) {
+  const url = `${AHMYTH_URL}?uid=${encodeURIComponent(uid)}`;
+  const upstream = await fetch(url, { headers: AHMYTH_HEADERS, cache: 'no-store' });
+  if (upstream.status === 404) throw new NotFoundError('ahmyth_not_found');
+  if (!upstream.ok) throw new Error(`ahmyth_http_${upstream.status}`);
+  const data = await upstream.json();
+  if (data?.error) throw new Error(data.error);
+  if (!data?.basicInfo?.accountId) throw new NotFoundError('ahmyth_empty');
+  return data;
+}
+
+// Race antar sumber profil: siapa yang paling cepat respons (dan valid), itu
+// yang dipakai. Kalau yang tercepat gagal/reject, Promise.any otomatis
+// lanjut nunggu sumber lain - baru reject total (AggregateError) kalau semua
+// sumber gagal. Ini bikin latensi endpoint ditentukan sama sumber tercepat,
+// bukan sumber terlambat, tanpa kehilangan redundancy.
+type ProfileSource = 'adenpedia' | 'ahmyth';
+
+async function fetchFastestProfile(uid: string): Promise<{ source: ProfileSource; data: any }> {
+  return Promise.any([
+    fetchAdenpedia(uid).then((data) => ({ source: 'adenpedia' as const, data })),
+    fetchAhmyth(uid).then((data) => ({ source: 'ahmyth' as const, data })),
+  ]);
+}
+
 async function fetchMultipurposeBanCheck(uid: string) {
   const url = `${MULTIPURPOSE_BASE}/bancheck/check?uid=${encodeURIComponent(uid)}&key=${MULTIPURPOSE_KEY}`;
   const upstream = await fetch(url, { headers: MULTIPURPOSE_HEADERS, cache: 'no-store' });
@@ -731,7 +763,10 @@ function normalizePetInfo(data: any) {
   };
 }
 
-function normalizeAdenpedia(data: any) {
+// Dipakai buat kedua sumber profil (Adenpedia & Ahmyth) karena bentuk JSON-nya
+// identik: basicInfo/profileInfo/clanBasicInfo/socialInfo/creditScoreInfo,
+// semua camelCase.
+function normalizeProfileData(data: any) {
   const info = data?.basicInfo || {};
   const guild = data?.clanBasicInfo || {};
   const social = data?.socialInfo || {};
@@ -812,14 +847,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'UID tidak valid. Masukkan UID Free Fire yang benar (angka saja).' });
   }
 
-  const [adenpediaResult, multipurposeBanResult, localItemDataResult] = await Promise.allSettled([
-    fetchAdenpedia(uidStr),
+  const [profileResult, multipurposeBanResult, localItemDataResult] = await Promise.allSettled([
+    fetchFastestProfile(uidStr),
     fetchMultipurposeBanCheck(uidStr),
     ensureLocalItemDataLoaded(),
   ]);
 
-  if (adenpediaResult.status === 'rejected') {
-    console.error('adenpedia_error', adenpediaResult.reason);
+  if (profileResult.status === 'rejected') {
+    console.error('profile_error', profileResult.reason);
   }
   if (multipurposeBanResult.status === 'rejected') {
     console.error('multipurpose_bancheck_error', multipurposeBanResult.reason);
@@ -828,16 +863,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.error('local_item_data_error', localItemDataResult.reason);
   }
 
-  const adenpediaData =
-    adenpediaResult.status === 'fulfilled' ? normalizeAdenpedia(adenpediaResult.value) : null;
+  const profileWinner = profileResult.status === 'fulfilled' ? profileResult.value : null;
+  const profileData = profileWinner ? normalizeProfileData(profileWinner.data) : null;
 
   const banCheckData =
     multipurposeBanResult.status === 'fulfilled' ? normalizeBanCheck(multipurposeBanResult.value) : null;
 
-  const petInfoData = adenpediaResult.status === 'fulfilled' ? normalizePetInfo(adenpediaResult.value) : null;
+  const petInfoData = profileWinner ? normalizePetInfo(profileWinner.data) : null;
 
-  if (!adenpediaData) {
-    const notFound = adenpediaResult.status === 'rejected' && adenpediaResult.reason instanceof NotFoundError;
+  if (!profileData) {
+    // Promise.any hanya reject kalau SEMUA sumber gagal, dengan AggregateError
+    // yang isinya array error tiap sumber.
+    const reason = profileResult.status === 'rejected' ? profileResult.reason : null;
+    const notFound =
+      reason instanceof NotFoundError ||
+      (reason instanceof AggregateError && reason.errors?.some((e: unknown) => e instanceof NotFoundError));
 
     if (notFound) {
       return res.status(404).json({ error: 'Player tidak ditemukan.' });
@@ -845,7 +885,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(502).json({ error: 'Server data lagi bermasalah, coba lagi sebentar.' });
   }
 
-  const merged = mergeSources(adenpediaData);
+  const merged = mergeSources(profileData);
 
   if (!merged?.accountId) {
     return res.status(404).json({ error: 'Player tidak ditemukan.' });
@@ -881,6 +921,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           uid: uidStr,
           region: regionStr,
           source: 'freefirestalk',
+          profileSource: profileWinner?.source ?? null,
         },
         player: {
           accountId: merged.accountId,
