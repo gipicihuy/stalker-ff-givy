@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
-import { getConfiguredSiteUrl } from '../../app/lib/seo';
 
 // Pengganti waitUntil dari '@vercel/functions'. Di Cloudflare Workers,
 // background task (kirim notif Telegram tanpa nge-block response) harus
@@ -19,6 +18,38 @@ function getIP(req: NextApiRequest): string {
   const fwd = req.headers['x-forwarded-for'];
   const fwdIp = Array.isArray(fwd) ? fwd[0] : fwd?.split(',')[0]?.trim();
   return fwdIp || (req.headers['x-real-ip'] as string) || req.socket.remoteAddress || '127.0.0.1';
+}
+
+// Domain asli diambil dari header request yang beneran masuk (bukan dari
+// env var), supaya proxy gambar (/api/img) selalu diarahkan ke domain yang
+// sekarang dipakai buat akses API, apapun itu (custom domain, *.pages.dev,
+// preview deploy, dsb).
+function getRequestOrigin(req: NextApiRequest): string {
+  const proto = (req.headers['x-forwarded-proto'] as string) || 'https';
+  const hostHeader = req.headers['x-forwarded-host'] || req.headers.host;
+  const host = Array.isArray(hostHeader) ? hostHeader[0] : hostHeader;
+  return `${proto}://${host}`;
+}
+
+// Jalan-jalan (deep walk) ke seluruh payload JSON dan tempelin domain asli
+// ke tiap path proxy gambar relatif ("/api/img?u=...") yang dibuat
+// buildProxiedImageUrl. Dipanggil sekali di titik paling akhir sebelum
+// response dikirim / notif Telegram dibuat.
+function absolutizeImageUrls<T>(value: T, origin: string): T {
+  if (typeof value === 'string') {
+    return (value.startsWith('/api/img?') ? `${origin}${value}` : value) as unknown as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => absolutizeImageUrls(item, origin)) as unknown as T;
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, any> = {};
+    for (const [key, val] of Object.entries(value as Record<string, any>)) {
+      out[key] = absolutizeImageUrls(val, origin);
+    }
+    return out as unknown as T;
+  }
+  return value;
 }
 
 const RATE_LIMIT_WINDOW_MS = 10_000;
@@ -81,7 +112,10 @@ async function sendTelegramNotif(req: NextApiRequest, merged: any, ban: any) {
   const browser = getBrowser(ua);
   const device = getDevice(ua);
   const ts = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
-  const photoUrl = merged.avatarUrl || merged.equippedCharacterIconUrl || null;
+  const rawPhotoUrl = merged.avatarUrl || merged.equippedCharacterIconUrl || null;
+  // Telegram butuh URL absolut & publik buat sendPhoto, jadi path proxy
+  // relatif (/api/img?...) ditempelin domain dari request ini sendiri.
+  const photoUrl = rawPhotoUrl ? absolutizeImageUrls(rawPhotoUrl, getRequestOrigin(req)) : null;
 
   let city = '?', region = '?', country = '?', isp = '?';
   try {
@@ -209,9 +243,16 @@ function pick(...values: any[]) {
 // Semua URL gambar dikirim ke klien lewat proxy internal /api/img, bukan
 // link CDN asli. Ini supaya konsumen API (dan siapapun yang buka Network
 // tab) nggak langsung tahu API ini narik gambar dari mana.
+//
+// Path-nya sengaja RELATIF (tanpa domain) di sini, karena fungsi ini
+// dipanggil jauh sebelum kita tahu domain apa yang lagi dipakai buat akses
+// API (bisa custom domain, *.pages.dev, preview URL, dst). Domain aslinya
+// ditempelkan belakangan lewat absolutizeImageUrls() pas response mau
+// dikirim, diambil dari header request yang beneran masuk - bukan dari env
+// var yang gampang basi/salah kalau lupa di-set pas deploy ke domain baru.
 function buildProxiedImageUrl(targetUrl: string): string {
   const encoded = Buffer.from(targetUrl, 'utf-8').toString('base64url');
-  return `${getConfiguredSiteUrl()}/api/img?u=${encoded}`;
+  return `/api/img?u=${encoded}`;
 }
 
 function buildIconUrl(itemId: any) {
@@ -1007,64 +1048,71 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const equippedCharacter = resolveSingleItem(merged.equippedCharacterId);
   const equippedAvatar = resolveSingleItem(merged.headPic);
 
+  const requestOrigin = getRequestOrigin(req);
+
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
-  res.status(200).json({
-    status: 'ok',
-    meta: {
-      uid: uidStr,
-      region: regionStr,
-      source: 'freefirestalk',
-    },
-    player: {
-      accountId: merged.accountId,
-      nickname: merged.nickname,
-      region: merged.region,
-      level: merged.level,
-      exp: merged.exp,
-      headPic: merged.headPic,
-      rank: merged.rank,
-      csRank: merged.csRank,
-      badgeCnt: merged.badgeCnt,
-      liked: merged.liked,
-      createAt: merged.createAt,
-      lastLoginAt: merged.lastLoginAt,
-      primeInfo: merged.primeInfo,
-      avatarUrl: merged.avatarUrl,
-      titleIconUrl: merged.titleIconUrl,
-      equippedCharacterIconUrl: merged.equippedCharacterIconUrl,
-      equippedSkinIconUrls: merged.equippedSkinIconUrls,
-      equippedWeaponSkinIconUrls: merged.equippedWeaponSkinIconUrls,
-      equippedOutfitItems,
-      equippedWeaponOutfitItems,
-      equippedLookChangerItems,
-      equippedBanner,
-      equippedTitle,
-      equippedPin,
-      equippedCharacter,
-      equippedAvatar,
-    },
-    guild: {
-      guildName: merged.guildName,
-      guildLevel: merged.guildLevel,
-      memberNum: merged.memberNum,
-      capacity: merged.capacity,
-    },
-    social: {
-      signature: merged.signature,
-    },
-    credit: {
-      creditScore: merged.creditScore,
-    },
-    ban: banCheckData
-      ? {
-          isBanned: Boolean(banCheckData.isBanned),
-          lastLoginAt: banCheckData.lastLoginAt ?? null,
-          banPeriod: banCheckData.banPeriod ?? null,
-          status: banCheckData.status ?? null,
-        }
-      : null,
-    pet: petInfoData,
-  });
+  res.status(200).json(
+    absolutizeImageUrls(
+      {
+        status: 'ok',
+        meta: {
+          uid: uidStr,
+          region: regionStr,
+          source: 'freefirestalk',
+        },
+        player: {
+          accountId: merged.accountId,
+          nickname: merged.nickname,
+          region: merged.region,
+          level: merged.level,
+          exp: merged.exp,
+          headPic: merged.headPic,
+          rank: merged.rank,
+          csRank: merged.csRank,
+          badgeCnt: merged.badgeCnt,
+          liked: merged.liked,
+          createAt: merged.createAt,
+          lastLoginAt: merged.lastLoginAt,
+          primeInfo: merged.primeInfo,
+          avatarUrl: merged.avatarUrl,
+          titleIconUrl: merged.titleIconUrl,
+          equippedCharacterIconUrl: merged.equippedCharacterIconUrl,
+          equippedSkinIconUrls: merged.equippedSkinIconUrls,
+          equippedWeaponSkinIconUrls: merged.equippedWeaponSkinIconUrls,
+          equippedOutfitItems,
+          equippedWeaponOutfitItems,
+          equippedLookChangerItems,
+          equippedBanner,
+          equippedTitle,
+          equippedPin,
+          equippedCharacter,
+          equippedAvatar,
+        },
+        guild: {
+          guildName: merged.guildName,
+          guildLevel: merged.guildLevel,
+          memberNum: merged.memberNum,
+          capacity: merged.capacity,
+        },
+        social: {
+          signature: merged.signature,
+        },
+        credit: {
+          creditScore: merged.creditScore,
+        },
+        ban: banCheckData
+          ? {
+              isBanned: Boolean(banCheckData.isBanned),
+              lastLoginAt: banCheckData.lastLoginAt ?? null,
+              banPeriod: banCheckData.banPeriod ?? null,
+              status: banCheckData.status ?? null,
+            }
+          : null,
+        pet: petInfoData,
+      },
+      requestOrigin
+    )
+  );
 
   // Notif dikirim default tiap ada hit beneran. generateMetadata di
   // app/stalk/[[...uid]]/page.tsx juga manggil endpoint ini buat bikin OG
