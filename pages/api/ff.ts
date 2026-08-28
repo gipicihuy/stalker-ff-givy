@@ -200,19 +200,12 @@ async function sendTelegramNotif(req: NextApiRequest, merged: any, ban: any) {
   }
 }
 
-const FREEFIREHUB_BASE = 'https://freefirehub.com';
 const ADENPEDIA_URL = 'https://adenpedia.my.id/adenf9/info.php';
 const MULTIPURPOSE_BASE = 'https://ff-multipurpose-api.onrender.com';
 const MULTIPURPOSE_KEY = process.env.FF_MULTIPURPOSE_KEY || 'codespecter';
 // ashqking/FF-Items dilepas: datanya kurang lengkap (banyak icon 404).
 // Semua icon (avatar, title, karakter, weapon skin, outfit) sekarang diambil dari ShahGCreator.
 const ICON_BASE = 'https://cdn.jsdelivr.net/gh/ShahGCreator/icon@main/PNG';
-
-const FREEFIREHUB_HEADERS = {
-  'user-agent':
-    'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Mobile Safari/537.36',
-  referer: `${FREEFIREHUB_BASE}/player-tracker`,
-};
 
 const ADENPEDIA_HEADERS = {
   Accept: 'application/json',
@@ -685,17 +678,6 @@ async function toOutfitItems(ids: any, allowedTypes?: string[]): Promise<OutfitI
 
 class NotFoundError extends Error {}
 
-async function fetchFreefirehub(uid: string, region: string) {
-  const url = `${FREEFIREHUB_BASE}/api/player/${uid}?region=${region}&matchType=all`;
-  const upstream = await fetch(url, { headers: FREEFIREHUB_HEADERS, cache: 'no-store' });
-  if (upstream.status === 404) throw new NotFoundError('freefirehub_not_found');
-  if (!upstream.ok) throw new Error(`freefirehub_http_${upstream.status}`);
-  const data = await upstream.json();
-  const info = getCI(data?.profile, 'basicinfo');
-  if (!info || !getCI(info, 'accountid')) throw new NotFoundError('freefirehub_empty');
-  return data;
-}
-
 async function fetchAdenpedia(uid: string) {
   const url = `${ADENPEDIA_URL}?uid=${encodeURIComponent(uid)}`;
   const upstream = await fetch(url, { headers: ADENPEDIA_HEADERS, cache: 'no-store' });
@@ -707,33 +689,6 @@ async function fetchAdenpedia(uid: string) {
   return data;
 }
 
-async function fetchBanCheck(uid: string) {
-  const url = `${FREEFIREHUB_BASE}/api/player/${uid}/ban-check`;
-  const upstream = await fetch(url, { headers: FREEFIREHUB_HEADERS, cache: 'no-store' });
-  if (!upstream.ok) throw new Error(`bancheck_http_${upstream.status}`);
-  const data = await upstream.json();
-  return data;
-}
-
-function resolveMultipurposeServer(region: string) {
-  if (!region || region === 'ALL') return 'id';
-  return region.toLowerCase();
-}
-
-async function fetchMultipurpose(uid: string, region: string) {
-  const server = resolveMultipurposeServer(region);
-  const url = `${MULTIPURPOSE_BASE}/infov2/player?uid=${encodeURIComponent(uid)}&server=${encodeURIComponent(
-    server
-  )}&key=${MULTIPURPOSE_KEY}`;
-  const upstream = await fetch(url, { headers: MULTIPURPOSE_HEADERS, cache: 'no-store' });
-  if (upstream.status === 404) throw new NotFoundError('multipurpose_not_found');
-  if (!upstream.ok) throw new Error(`multipurpose_http_${upstream.status}`);
-  const data = await upstream.json();
-  const info = getCI(data, 'basicinfo');
-  if (!info || !getCI(info, 'accountid')) throw new NotFoundError('multipurpose_empty');
-  return data;
-}
-
 async function fetchMultipurposeBanCheck(uid: string) {
   const url = `${MULTIPURPOSE_BASE}/bancheck/check?uid=${encodeURIComponent(uid)}&key=${MULTIPURPOSE_KEY}`;
   const upstream = await fetch(url, { headers: MULTIPURPOSE_HEADERS, cache: 'no-store' });
@@ -742,115 +697,13 @@ async function fetchMultipurposeBanCheck(uid: string) {
   return data;
 }
 
-function normalizeFreefirehub(data: any) {
-  const profile = data?.profile || {};
-  const info = getCI(profile, 'basicinfo') || {};
-  const social = getCI(profile, 'socialinfo') || {};
-  const guild = getCI(profile, 'clanbasicinfo') || {};
-  const credit = getCI(profile, 'creditscoreinfo') || {};
-  const outfit = getCI(profile, 'profileinfo') || {};
-
-  const equippedSkinIds = getCI(outfit, 'clothes') || [];
-  const weaponSkinIds = getCI(info, 'weaponskinshows') || [];
-  const characterId = getCI(outfit, 'avatarid');
-  const bannerId = getCI(info, 'bannerid');
-  const pinId = getCI(info, 'pinid');
-  const titleId = getCI(info, 'title');
-
-  return {
-    accountId: getCI(info, 'accountid'),
-    nickname: getCI(info, 'nickname'),
-    level: getCI(info, 'level'),
-    exp: getCI(info, 'exp'),
-    liked: getCI(info, 'liked'),
-    region: getCI(info, 'region'),
-    createAt: getCI(info, 'createat'),
-    lastLoginAt: getCI(info, 'lastloginat'),
-    headPic: getCI(info, 'headpic'),
-    rank: getCI(info, 'rank'),
-    csRank: getCI(info, 'csrank'),
-    avatarUrl: buildIconUrl(getCI(info, 'headpic')),
-    titleId,
-    titleIconUrl: buildIconUrl(titleId),
-    bannerId,
-    pinId,
-    equippedCharacterId: characterId,
-    equippedCharacterIconUrl: buildIconUrl(characterId),
-    equippedSkinIds,
-    weaponSkinIds,
-    equippedSkinIconUrls: toIconList(equippedSkinIds),
-    equippedWeaponSkinIconUrls: toIconList(weaponSkinIds),
-    signature: getCI(social, 'signature'),
-    creditScore: getCI(credit, 'creditscore'),
-    guildName: pick(getCI(guild, 'clanName'), getCI(guild, 'clanname'), getCI(guild, 'guildName')),
-    guildLevel: pick(getCI(guild, 'clanLevel'), getCI(guild, 'clanlevel'), getCI(guild, 'guildLevel')),
-    memberNum: pick(getCI(guild, 'memberNum'), getCI(guild, 'membernum')),
-    capacity: getCI(guild, 'capacity'),
-  };
-}
-
-function normalizeMultipurpose(data: any) {
-  const info = getCI(data, 'basicinfo') || {};
-  const profile = getCI(data, 'profileinfo') || {};
-  const guild = getCI(data, 'clanbasicinfo') || {};
-  const social = getCI(data, 'socialinfo') || {};
-  const credit = getCI(data, 'creditscoreinfo') || {};
-
-  const equippedSkinIds = getCI(profile, 'clothes') || [];
-  const weaponSkinIds = getCI(info, 'weaponskinshows') || [];
-  const characterId = getCI(profile, 'avatarid');
-  const bannerId = getCI(info, 'bannerid');
-  const pinId = getCI(info, 'pinid');
-  const titleId = getCI(info, 'title');
-
-  return {
-    accountId: getCI(info, 'accountid'),
-    nickname: getCI(info, 'nickname'),
-    level: getCI(info, 'level'),
-    exp: getCI(info, 'exp'),
-    liked: getCI(info, 'liked'),
-    region: getCI(info, 'region'),
-    createAt: getCI(info, 'createat'),
-    lastLoginAt: getCI(info, 'lastloginat'),
-    headPic: getCI(info, 'headpic'),
-    rank: getCI(info, 'rank'),
-    csRank: getCI(info, 'csrank'),
-    badgeCnt: getCI(info, 'badgecnt'),
-    avatarUrl: buildIconUrl(getCI(info, 'headpic')),
-    titleId,
-    titleIconUrl: buildIconUrl(titleId),
-    bannerId,
-    pinId,
-    equippedCharacterId: characterId,
-    equippedCharacterIconUrl: buildIconUrl(characterId),
-    equippedSkinIds,
-    weaponSkinIds,
-    equippedSkinIconUrls: toIconList(equippedSkinIds),
-    equippedWeaponSkinIconUrls: toIconList(weaponSkinIds),
-    signature: getCI(social, 'signature'),
-    creditScore: getCI(credit, 'creditscore'),
-    guildName: getCI(guild, 'clanname'),
-    guildLevel: getCI(guild, 'clanlevel'),
-    memberNum: getCI(guild, 'membernum'),
-    capacity: getCI(guild, 'capacity'),
-  };
-}
-
-function normalizeBanCheck(data: any, source: 'multipurpose' | 'freefirehub') {
+function normalizeBanCheck(data: any) {
   if (!data) return null;
-  if (source === 'multipurpose') {
-    return {
-      isBanned: Boolean(getCI(data, 'is_banned')),
-      lastLoginAt: pick(getCI(data, 'last_login'), null),
-      banPeriod: pick(getCI(data, 'ban_period'), null),
-      status: pick(getCI(data, 'status'), null),
-    };
-  }
   return {
-    isBanned: Boolean(getCI(data, 'isBanned')),
-    lastLoginAt: pick(getCI(data, 'lastLogin'), null),
-    banPeriod: null,
-    status: null,
+    isBanned: Boolean(getCI(data, 'is_banned')),
+    lastLoginAt: pick(getCI(data, 'last_login'), null),
+    banPeriod: pick(getCI(data, 'ban_period'), null),
+    status: pick(getCI(data, 'status'), null),
   };
 }
 
@@ -959,70 +812,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'UID tidak valid. Masukkan UID Free Fire yang benar (angka saja).' });
   }
 
-  const [
-    multipurposeResult,
-    freefirehubResult,
-    adenpediaResult,
-    multipurposeBanResult,
-    banCheckResult,
-    localItemDataResult,
-  ] = await Promise.allSettled([
-    fetchMultipurpose(uidStr, regionStr),
-    fetchFreefirehub(uidStr, regionStr),
+  const [adenpediaResult, multipurposeBanResult, localItemDataResult] = await Promise.allSettled([
     fetchAdenpedia(uidStr),
     fetchMultipurposeBanCheck(uidStr),
-    fetchBanCheck(uidStr),
     ensureLocalItemDataLoaded(),
   ]);
 
-  if (multipurposeResult.status === 'rejected') {
-    console.error('multipurpose_error', multipurposeResult.reason);
-  }
-  if (freefirehubResult.status === 'rejected') {
-    console.error('freefirehub_error', freefirehubResult.reason);
-  }
   if (adenpediaResult.status === 'rejected') {
     console.error('adenpedia_error', adenpediaResult.reason);
   }
   if (multipurposeBanResult.status === 'rejected') {
     console.error('multipurpose_bancheck_error', multipurposeBanResult.reason);
   }
-  if (banCheckResult.status === 'rejected') {
-    console.error('bancheck_error', banCheckResult.reason);
-  }
   if (localItemDataResult.status === 'rejected') {
     console.error('local_item_data_error', localItemDataResult.reason);
   }
 
-  const multipurposeData =
-    multipurposeResult.status === 'fulfilled' ? normalizeMultipurpose(multipurposeResult.value) : null;
-  const freefirehubData =
-    freefirehubResult.status === 'fulfilled' ? normalizeFreefirehub(freefirehubResult.value) : null;
   const adenpediaData =
     adenpediaResult.status === 'fulfilled' ? normalizeAdenpedia(adenpediaResult.value) : null;
 
   const banCheckData =
-    multipurposeBanResult.status === 'fulfilled'
-      ? normalizeBanCheck(multipurposeBanResult.value, 'multipurpose')
-      : banCheckResult.status === 'fulfilled'
-      ? normalizeBanCheck(banCheckResult.value, 'freefirehub')
-      : null;
+    multipurposeBanResult.status === 'fulfilled' ? normalizeBanCheck(multipurposeBanResult.value) : null;
 
-  // petInfo diprioritaskan dari multipurpose (proto asli), tapi fallback ke
-  // adenpedia kalau multipurpose gagal/nggak ngasih data pet - adenpedia
-  // ternyata juga ngirim petInfo (dengan key camelCase: id, name, level,
-  // isSelected, skinId, selectedSkillId) yang bentuknya sama persis, dan
-  // normalizePetInfo() udah case-insensitive lewat getCI() jadi bisa dipakai
-  // langsung buat parsing dari kedua sumber tanpa fungsi terpisah.
-  const petInfoData =
-    (multipurposeResult.status === 'fulfilled' ? normalizePetInfo(multipurposeResult.value) : null) ??
-    (adenpediaResult.status === 'fulfilled' ? normalizePetInfo(adenpediaResult.value) : null);
+  const petInfoData = adenpediaResult.status === 'fulfilled' ? normalizePetInfo(adenpediaResult.value) : null;
 
-  if (!multipurposeData && !freefirehubData && !adenpediaData) {
-    const notFound =
-      (multipurposeResult.status === 'rejected' && multipurposeResult.reason instanceof NotFoundError) ||
-      (freefirehubResult.status === 'rejected' && freefirehubResult.reason instanceof NotFoundError) ||
-      (adenpediaResult.status === 'rejected' && adenpediaResult.reason instanceof NotFoundError);
+  if (!adenpediaData) {
+    const notFound = adenpediaResult.status === 'rejected' && adenpediaResult.reason instanceof NotFoundError;
 
     if (notFound) {
       return res.status(404).json({ error: 'Player tidak ditemukan.' });
@@ -1030,7 +845,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(502).json({ error: 'Server data lagi bermasalah, coba lagi sebentar.' });
   }
 
-  const merged = mergeSources(multipurposeData, freefirehubData, adenpediaData);
+  const merged = mergeSources(adenpediaData);
 
   if (!merged?.accountId) {
     return res.status(404).json({ error: 'Player tidak ditemukan.' });
