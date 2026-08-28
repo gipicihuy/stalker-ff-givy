@@ -355,9 +355,10 @@ function PetInfoCard({ data }: { data: PetInfo }) {
           <span>Level: <strong style={{ color: 'var(--white)' }}>{formatNumber(data.level)}</strong></span>
           <span>Exp: <strong style={{ color: 'var(--white)' }}>{formatNumber(data.exp)}</strong></span>
         </div>
-        {data.speciesName || data.skillName ? (
+        {data.speciesName || data.skinName || data.skillName ? (
           <div style={{ display: 'flex', gap: 16, fontSize: 11.5, color: 'var(--muted-text)', flexWrap: 'wrap', marginTop: 4 }}>
             {data.speciesName ? <span>Species: <strong style={{ color: 'var(--light-text)' }}>{data.speciesName}</strong></span> : null}
+            {data.skinName ? <span>Skin: <strong style={{ color: 'var(--light-text)' }}>{data.skinName}</strong></span> : null}
             {data.skillName ? <span>Skill: <strong style={{ color: 'var(--light-text)' }}>{data.skillName}</strong></span> : null}
           </div>
         ) : null}
