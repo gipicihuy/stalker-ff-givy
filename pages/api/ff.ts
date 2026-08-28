@@ -222,6 +222,10 @@ const OUTFIT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 type OutfitItem = { id: number; name: string; icon: string | null };
 type OutfitLookupEntry = { name: string; icon: string | null; inCdn: boolean };
 
+const OUTFIT_TYPES = ['Head', 'Mask', 'Facepaint', 'Top', 'Bottom', 'Shoe', 'Bag Skins'];
+const WEAPON_SKIN_TYPES = ['Weapon Skins'];
+const LOOK_CHANGER_TYPES = ['Look Changer'];
+
 let outfitLookupCache: { data: Map<string, OutfitLookupEntry>; ts: number } | null = null;
 let outfitLookupPromise: Promise<Map<string, OutfitLookupEntry>> | null = null;
 
@@ -421,9 +425,44 @@ const localItemMap: Map<string, OutfitLookupEntry> = new Map(
     })
 );
 
+const localItemTypeMap: Map<string, string> = new Map(
+  localItemData
+    .filter((item) => item && item.itemID !== undefined && item.itemID !== null && item.type)
+    .map((item) => [String(item.itemID), item.type as string])
+);
+
 function getLocalEntry(key: string): OutfitLookupEntry | undefined {
   const entry = localItemMap.get(key);
   return entry && entry.name ? entry : undefined;
+}
+
+function isTypeAllowed(id: any, allowedTypes?: string[]): boolean {
+  if (!allowedTypes) return true;
+  const type = localItemTypeMap.get(String(id));
+  if (!type) return true;
+  return allowedTypes.includes(type);
+}
+
+function typeSortIndex(id: any, allowedTypes?: string[]): number {
+  if (!allowedTypes) return 0;
+  const type = localItemTypeMap.get(String(id));
+  if (!type) return allowedTypes.length;
+  const idx = allowedTypes.indexOf(type);
+  return idx === -1 ? allowedTypes.length : idx;
+}
+
+function resolveSingleItem(id: any): { id: number; name: string; icon: string | null; type: string | null } | null {
+  if (id === undefined || id === null || id === 0) return null;
+  const key = String(id);
+  const local = getLocalEntry(key);
+  const type = localItemTypeMap.get(key) || null;
+  const name = local?.name || fallbackItemName(id);
+  return {
+    id: Number(id),
+    name,
+    icon: buildOutfitIconUrl(id),
+    type,
+  };
 }
 
 async function fetchOutfitLookup(): Promise<Map<string, OutfitLookupEntry>> {
@@ -511,10 +550,13 @@ async function loadSecondaryNameLookup(): Promise<Map<string, string>> {
   return secondaryNameLookupPromise;
 }
 
-async function toOutfitItems(ids: any): Promise<OutfitItem[]> {
+async function toOutfitItems(ids: any, allowedTypes?: string[]): Promise<OutfitItem[]> {
   if (!Array.isArray(ids) || ids.length === 0) return [];
 
-  const validIds = ids.filter((id: any) => id !== undefined && id !== null);
+  const validIds = ids
+    .filter((id: any) => id !== undefined && id !== null)
+    .filter((id: any) => isTypeAllowed(id, allowedTypes))
+    .sort((a: any, b: any) => typeSortIndex(a, allowedTypes) - typeSortIndex(b, allowedTypes));
   const missingFromLocal = validIds.filter((id: any) => !getLocalEntry(String(id)));
 
   let remoteLookup: Map<string, OutfitLookupEntry> = new Map();
@@ -620,6 +662,9 @@ function normalizeFreefirehub(data: any) {
   const equippedSkinIds = getCI(outfit, 'clothes') || [];
   const weaponSkinIds = getCI(info, 'weaponskinshows') || [];
   const characterId = getCI(outfit, 'avatarid');
+  const bannerId = getCI(info, 'bannerid');
+  const pinId = getCI(info, 'pinid');
+  const titleId = getCI(info, 'title');
 
   return {
     accountId: getCI(info, 'accountid'),
@@ -634,7 +679,10 @@ function normalizeFreefirehub(data: any) {
     rank: getCI(info, 'rank'),
     csRank: getCI(info, 'csrank'),
     avatarUrl: buildIconUrl(getCI(info, 'headpic')),
-    titleIconUrl: buildIconUrl(getCI(info, 'title')),
+    titleId,
+    titleIconUrl: buildIconUrl(titleId),
+    bannerId,
+    pinId,
     equippedCharacterId: characterId,
     equippedCharacterIconUrl: buildIconUrl(characterId),
     equippedSkinIds,
@@ -660,6 +708,9 @@ function normalizeMultipurpose(data: any) {
   const equippedSkinIds = getCI(profile, 'clothes') || [];
   const weaponSkinIds = getCI(info, 'weaponskinshows') || [];
   const characterId = getCI(profile, 'avatarid');
+  const bannerId = getCI(info, 'bannerid');
+  const pinId = getCI(info, 'pinid');
+  const titleId = getCI(info, 'title');
 
   return {
     accountId: getCI(info, 'accountid'),
@@ -675,7 +726,10 @@ function normalizeMultipurpose(data: any) {
     csRank: getCI(info, 'csrank'),
     badgeCnt: getCI(info, 'badgecnt'),
     avatarUrl: buildIconUrl(getCI(info, 'headpic')),
-    titleIconUrl: buildIconUrl(getCI(info, 'title')),
+    titleId,
+    titleIconUrl: buildIconUrl(titleId),
+    bannerId,
+    pinId,
     equippedCharacterId: characterId,
     equippedCharacterIconUrl: buildIconUrl(characterId),
     equippedSkinIds,
@@ -712,16 +766,24 @@ function normalizeBanCheck(data: any, source: 'multipurpose' | 'freefirehub') {
 function normalizePetInfo(data: any) {
   const pet = getCI(data, 'petinfo');
   if (!pet || !getCI(pet, 'id')) return null;
+  const petId = getCI(pet, 'id');
   const skinId = getCI(pet, 'skinid');
+  const selectedSkillId = getCI(pet, 'selectedskillid');
+  const species = resolveSingleItem(petId);
+  const skin = resolveSingleItem(skinId);
+  const skill = resolveSingleItem(selectedSkillId);
   return {
-    id: getCI(pet, 'id'),
+    id: petId,
     name: getCI(pet, 'name'),
+    speciesName: species?.name || null,
     level: getCI(pet, 'level'),
     exp: getCI(pet, 'exp'),
     isSelected: Boolean(getCI(pet, 'isselected')),
     skinId,
+    skinName: skin?.name || null,
     skinIconUrl: buildIconUrl(skinId),
-    selectedSkillId: getCI(pet, 'selectedskillid'),
+    selectedSkillId,
+    skillName: skill?.name || null,
   };
 }
 
@@ -735,6 +797,9 @@ function normalizeAdenpedia(data: any) {
   const equippedSkinIds = profile.clothes || [];
   const weaponSkinIds = info.weaponSkinShows || [];
   const characterId = profile.avatarId;
+  const bannerId = info.bannerId;
+  const pinId = info.pinId;
+  const titleId = info.title;
 
   return {
     accountId: info.accountId,
@@ -751,7 +816,10 @@ function normalizeAdenpedia(data: any) {
     badgeCnt: info.badgeCnt,
     primeInfo: info.primeInfo,
     avatarUrl: buildIconUrl(info.headPic),
-    titleIconUrl: buildIconUrl(info.title),
+    titleId,
+    titleIconUrl: buildIconUrl(titleId),
+    bannerId,
+    pinId,
     equippedCharacterId: characterId,
     equippedCharacterIconUrl: buildIconUrl(characterId),
     equippedSkinIds,
@@ -860,9 +928,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(404).json({ error: 'Player tidak ditemukan.' });
   }
 
-  const [equippedOutfitItems, equippedWeaponOutfitItems, cleanAvatarUrl] = await Promise.all([
-    toOutfitItems(merged.equippedSkinIds || []),
-    toOutfitItems(merged.weaponSkinIds || []),
+  const [equippedOutfitItems, equippedWeaponOutfitItems, equippedLookChangerItems, cleanAvatarUrl] = await Promise.all([
+    toOutfitItems(merged.equippedSkinIds || [], OUTFIT_TYPES),
+    toOutfitItems(merged.weaponSkinIds || [], WEAPON_SKIN_TYPES),
+    toOutfitItems(merged.weaponSkinIds || [], LOOK_CHANGER_TYPES),
     resolveCleanIconUrl(merged.headPic),
   ]);
 
@@ -871,6 +940,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (cleanAvatarUrl) {
     merged.avatarUrl = cleanAvatarUrl;
   }
+
+  const equippedBanner = resolveSingleItem(merged.bannerId);
+  const equippedTitle = resolveSingleItem(merged.titleId);
+  const equippedPin = resolveSingleItem(merged.pinId);
+  const equippedCharacter = resolveSingleItem(merged.equippedCharacterId);
+  const equippedAvatar = resolveSingleItem(merged.headPic);
 
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
   res.status(200).json({
@@ -901,6 +976,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       equippedWeaponSkinIconUrls: merged.equippedWeaponSkinIconUrls,
       equippedOutfitItems,
       equippedWeaponOutfitItems,
+      equippedLookChangerItems,
+      equippedBanner,
+      equippedTitle,
+      equippedPin,
+      equippedCharacter,
+      equippedAvatar,
     },
     guild: {
       guildName: merged.guildName,

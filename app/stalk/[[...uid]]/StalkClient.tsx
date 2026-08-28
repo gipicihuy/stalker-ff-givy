@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint } from 'lucide-react';
 
 type PrimeInfo = { primeLevel?: number };
+type ResolvedItem = { id: number; name: string; icon: string | null; type: string | null };
 type BasicInfo = {
   accountId: string;
   nickname: string;
@@ -26,6 +27,12 @@ type BasicInfo = {
   equippedWeaponSkinIconUrls?: (string | null)[];
   equippedOutfitItems?: OutfitItem[];
   equippedWeaponOutfitItems?: OutfitItem[];
+  equippedLookChangerItems?: OutfitItem[];
+  equippedBanner?: ResolvedItem | null;
+  equippedTitle?: ResolvedItem | null;
+  equippedPin?: ResolvedItem | null;
+  equippedCharacter?: ResolvedItem | null;
+  equippedAvatar?: ResolvedItem | null;
 };
 type OutfitItem = { id: number; name: string; icon: string | null };
 type GuildInfo = { guildName?: string; guildLevel?: number; memberNum?: number; capacity?: number };
@@ -35,12 +42,15 @@ type BanInfo = { isBanned?: boolean; lastLoginAt?: string | null; banPeriod?: nu
 type PetInfo = {
   id?: number;
   name?: string;
+  speciesName?: string | null;
   level?: number;
   exp?: number;
   isSelected?: boolean;
   skinId?: number;
+  skinName?: string | null;
   skinIconUrl?: string;
   selectedSkillId?: number;
+  skillName?: string | null;
 } | null;
 type FfResponse = {
   basicInfo: BasicInfo;
@@ -353,6 +363,12 @@ function PetInfoCard({ data }: { data: PetInfo }) {
           <span>Level: <strong style={{ color: 'var(--white)' }}>{formatNumber(data.level)}</strong></span>
           <span>Exp: <strong style={{ color: 'var(--white)' }}>{formatNumber(data.exp)}</strong></span>
         </div>
+        {data.speciesName || data.skillName ? (
+          <div style={{ display: 'flex', gap: 16, fontSize: 11.5, color: 'var(--muted-text)', flexWrap: 'wrap', marginTop: 4 }}>
+            {data.speciesName ? <span>Species: <strong style={{ color: 'var(--light-text)' }}>{data.speciesName}</strong></span> : null}
+            {data.skillName ? <span>Skill: <strong style={{ color: 'var(--light-text)' }}>{data.skillName}</strong></span> : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -512,6 +528,12 @@ export default function StalkClient() {
     (basic?.headPic ? `https://ff.garena.com/avatar/${basic.headPic}.png` : null) ||
     basic?.equippedCharacterIconUrl ||
     '/image/avatar1.jpg';
+  const profileItems: ResolvedItem[] = [
+    basic?.equippedCharacter,
+    basic?.equippedBanner,
+    basic?.equippedTitle,
+    basic?.equippedPin,
+  ].filter((item): item is ResolvedItem => Boolean(item));
 
   return (
     <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 16px 64px' }}>
@@ -819,6 +841,16 @@ export default function StalkClient() {
             )}
           </div>
 
+          {profileItems.length > 0 ? (
+            <>
+              <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+              <div>
+                <SectionLabel>Profile Items</SectionLabel>
+                <OutfitGrid items={profileItems} />
+              </div>
+            </>
+          ) : null}
+
           {basic?.equippedOutfitItems && basic.equippedOutfitItems.length > 0 ? (
             <>
               <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
@@ -835,6 +867,16 @@ export default function StalkClient() {
               <div>
                 <SectionLabel>Weapon Skin</SectionLabel>
                 <OutfitGrid items={basic.equippedWeaponOutfitItems} />
+              </div>
+            </>
+          ) : null}
+
+          {basic?.equippedLookChangerItems && basic.equippedLookChangerItems.length > 0 ? (
+            <>
+              <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+              <div>
+                <SectionLabel>Look Changer</SectionLabel>
+                <OutfitGrid items={basic.equippedLookChangerItems} />
               </div>
             </>
           ) : null}
