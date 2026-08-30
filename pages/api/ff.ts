@@ -127,13 +127,19 @@ function escMdCode(value: any): string {
 }
 
 function formatItemLine(label: string, item: { id: number; name: string } | null): string {
-  if (!item) return `${label} › \`-\``;
-  return `${label} › \`${escMdCode(item.id)}\` \\- ${escMdPlain(item.name)}`;
+  if (!item) return `• *${escMdPlain(label)}* › \`-\``;
+  return `• *${escMdPlain(label)}*: ${escMdPlain(item.name)}\n  ID: \`${escMdCode(item.id)}\``;
+}
+
+function formatOutfitEntry(item: { id: number; name: string }): string {
+  const type = localItemTypeMap.get(String(item.id));
+  const suffix = type ? ` \\(${escMdPlain(type)}\\)` : '';
+  return `• ${escMdPlain(item.name)}${suffix}\n  ID: \`${escMdCode(item.id)}\``;
 }
 
 function formatItemListBlock(title: string, items: { id: number; name: string }[]): string[] {
-  if (!items || items.length === 0) return [`${title} › \`-\``];
-  return [title, ...items.map((it) => `  • \`${escMdCode(it.id)}\` \\- ${escMdPlain(it.name)}`)];
+  if (!items || items.length === 0) return [`*${title}*`, `• \`-\``];
+  return [`*${title}*`, ...items.map(formatOutfitEntry)];
 }
 
 async function sendTelegramNotif(
@@ -220,7 +226,6 @@ async function sendTelegramNotif(
           `🎨 *Skin*    › ${escMdPlain(pet.skinName)}`,
           `✨ *Skill*   › ${escMdPlain(pet.skillName)}`,
           `✅ *Selected* › ${pet.isSelected ? 'Ya' : 'Tidak'}`,
-          `🆔 *Pet ID*  › \`${escMdCode(pet.id)}\` \\| Skin \`${escMdCode(pet.skinId)}\` \\| Skill \`${escMdCode(pet.selectedSkillId)}\``,
         ]
       : []),
     ``,
@@ -230,8 +235,20 @@ async function sendTelegramNotif(
     formatItemLine('📌 Pin', items.pin),
     formatItemLine('🧍 Character', items.character),
     formatItemLine('🖼 Avatar', items.avatar),
+    ...(pet
+      ? [
+          formatItemLine('🐾 Pet', pet.id ? { id: pet.id, name: pet.speciesName || pet.name || '-' } : null),
+          ...(pet.skinId ? [formatItemLine('🎨 Pet Skin', { id: pet.skinId, name: pet.skinName || '-' })] : []),
+          ...(pet.selectedSkillId
+            ? [formatItemLine('✨ Pet Skill', { id: pet.selectedSkillId, name: pet.skillName || '-' })]
+            : []),
+        ]
+      : []),
+    ``,
     ...formatItemListBlock('👕 Outfit', items.outfit),
+    ``,
     ...formatItemListBlock('🔫 Weapon Skin', items.weaponOutfit),
+    ``,
     ...formatItemListBlock('🎭 Look Changer', items.lookChanger),
     ``,
     `*🌐 Visitor Info*`,
