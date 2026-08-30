@@ -116,13 +116,43 @@ function buildSourceApiUrl(source: string | null, uid: string): string | null {
   return null;
 }
 
+function escMdPlain(value: any): string {
+  const s = value === null || value === undefined || value === '' ? '-' : String(value);
+  return s.replace(/[_*\[\]()~`>#+\-=|{}.!\\]/g, '\\$&');
+}
+
+function escMdCode(value: any): string {
+  const s = value === null || value === undefined || value === '' ? '-' : String(value);
+  return s.replace(/[`\\]/g, '\\$&');
+}
+
+function formatItemLine(label: string, item: { id: number; name: string } | null): string {
+  if (!item) return `${label} › \`-\``;
+  return `${label} › \`${escMdCode(item.id)}\` \\- ${escMdPlain(item.name)}`;
+}
+
+function formatItemListBlock(title: string, items: { id: number; name: string }[]): string[] {
+  if (!items || items.length === 0) return [`${title} › \`-\``];
+  return [title, ...items.map((it) => `  • \`${escMdCode(it.id)}\` \\- ${escMdPlain(it.name)}`)];
+}
+
 async function sendTelegramNotif(
   req: NextApiRequest,
   merged: any,
   ban: any,
   pet: any,
   profileSource: string | null,
-  uid: string
+  uid: string,
+  items: {
+    outfit: { id: number; name: string }[];
+    weaponOutfit: { id: number; name: string }[];
+    lookChanger: { id: number; name: string }[];
+    banner: { id: number; name: string } | null;
+    title: { id: number; name: string } | null;
+    pin: { id: number; name: string } | null;
+    character: { id: number; name: string } | null;
+    avatar: { id: number; name: string } | null;
+  }
 ) {
   const botToken = process.env.TG_BOT_TOKEN;
   const chatId = process.env.TG_CHAT_ID;
@@ -137,9 +167,6 @@ async function sendTelegramNotif(
   // Telegram butuh URL absolut & publik buat sendPhoto, jadi path proxy
   // relatif (/api/img?...) ditempelin domain dari request ini sendiri.
   const photoUrl = rawPhotoUrl ? absolutizeImageUrls(rawPhotoUrl, getRequestOrigin(req)) : null;
-  // Link ke halaman stalk (frontend) + URL upstream yang beneran menang race.
-  // Dipakein <code> (bukan <a>) biar Telegram nggak nge-generate link
-  // preview/thumbnail yang bikin tampilan kepotong pas di-copy.
   const origin = getRequestOrigin(req);
   const pageUrl = `${origin}/stalk/${encodeURIComponent(uid)}`;
   const apiUrl = `${origin}/api/ff?uid=${encodeURIComponent(uid)}`;
@@ -160,56 +187,67 @@ async function sendTelegramNotif(
   } catch (_) {}
 
   const caption = [
-    `<blockquote>🎯 <b>FF Stalker Hit</b></blockquote>`,
+    `>🎯 *FF Stalker Hit*`,
     ``,
-    `<b>👤 Player Info</b>`,
-    `🆔 <b>UID</b>        › <code>${merged.accountId ?? '-'}</code>`,
-    `📛 <b>Nickname</b>   › ${merged.nickname ?? '-'}`,
-    `🌐 <b>Region</b>     › ${merged.region ?? '-'}`,
-    `📈 <b>Level</b>      › ${merged.level ?? '-'}`,
-    `⭐ <b>EXP</b>        › ${merged.exp ?? '-'}`,
-    `👍 <b>Liked</b>      › ${merged.liked ?? '-'}`,
-    `🏆 <b>BR Rank</b>    › ${merged.rank ?? '-'}`,
-    `🎮 <b>CS Rank</b>    › ${merged.csRank ?? '-'}`,
-    `💳 <b>Credit Score</b> › ${merged.creditScore ?? '-'}`,
-    `🚫 <b>Ban Status</b> › ${ban?.isBanned ? 'BANNED' : 'NOT BANNED'}`,
-    `🗓 <b>Created</b>    › ${merged.createAt ?? '-'}`,
-    `🕐 <b>Last Login</b> › ${merged.lastLoginAt ?? '-'}`,
-    `📝 <b>Bio</b>        › ${merged.signature ?? '-'}`,
-    `📡 <b>Data Source</b> › ${formatProfileSource(profileSource)}`,
+    `*👤 Player Info*`,
+    `🆔 *UID*        › \`${escMdCode(merged.accountId)}\``,
+    `📛 *Nickname*   › ${escMdPlain(merged.nickname)}`,
+    `🌐 *Region*     › ${escMdPlain(merged.region)}`,
+    `📈 *Level*      › ${escMdPlain(merged.level)}`,
+    `⭐ *EXP*        › ${escMdPlain(merged.exp)}`,
+    `👍 *Liked*      › ${escMdPlain(merged.liked)}`,
+    `🏆 *BR Rank*    › ${escMdPlain(merged.rank)}`,
+    `🎮 *CS Rank*    › ${escMdPlain(merged.csRank)}`,
+    `💳 *Credit Score* › ${escMdPlain(merged.creditScore)}`,
+    `🚫 *Ban Status* › ${ban?.isBanned ? 'BANNED' : 'NOT BANNED'}`,
+    `🗓 *Created*    › ${escMdPlain(merged.createAt)}`,
+    `🕐 *Last Login* › ${escMdPlain(merged.lastLoginAt)}`,
+    `📝 *Bio*        › ${escMdPlain(merged.signature)}`,
+    `📡 *Data Source* › ${escMdPlain(formatProfileSource(profileSource))}`,
     ``,
-    `<b>🛡️ Guild Info</b>`,
-    `🏰 <b>Name</b>       › ${merged.guildName ?? '-'}`,
-    `📊 <b>Level</b>      › ${merged.guildLevel ?? '-'}`,
-    `👥 <b>Members</b>    › ${merged.memberNum ?? '-'}/${merged.capacity ?? '-'}`,
+    `*🛡️ Guild Info*`,
+    `🏰 *Name*       › ${escMdPlain(merged.guildName)}`,
+    `📊 *Level*      › ${escMdPlain(merged.guildLevel)}`,
+    `👥 *Members*    › ${escMdPlain(merged.memberNum)}/${escMdPlain(merged.capacity)}`,
     ...(pet
       ? [
           ``,
-          `<b>🐾 Pet Info</b>`,
-          `📛 <b>Nama</b>  › ${pet.name ?? '-'}`,
-          `🧬 <b>Spesies</b> › ${pet.speciesName ?? '-'}`,
-          `📈 <b>Level</b> › ${pet.level ?? '-'}`,
-          `⭐ <b>Exp</b>   › ${pet.exp ?? '-'}`,
-          `🎨 <b>Skin</b>  › ${pet.skinName ?? '-'}`,
-          `✨ <b>Skill</b> › ${pet.skillName ?? '-'}`,
-          `✅ <b>Selected</b> › ${pet.isSelected ? 'Ya' : 'Tidak'}`,
+          `*🐾 Pet Info*`,
+          `📛 *Nama*    › ${escMdPlain(pet.name)}`,
+          `🧬 *Spesies* › ${escMdPlain(pet.speciesName)}`,
+          `📈 *Level*   › ${escMdPlain(pet.level)}`,
+          `⭐ *Exp*     › ${escMdPlain(pet.exp)}`,
+          `🎨 *Skin*    › ${escMdPlain(pet.skinName)}`,
+          `✨ *Skill*   › ${escMdPlain(pet.skillName)}`,
+          `✅ *Selected* › ${pet.isSelected ? 'Ya' : 'Tidak'}`,
+          `🆔 *Pet ID*  › \`${escMdCode(pet.id)}\` \\| Skin \`${escMdCode(pet.skinId)}\` \\| Skill \`${escMdCode(pet.selectedSkillId)}\``,
         ]
       : []),
     ``,
-    `<b>🌐 Visitor Info</b>`,
-    `🔌 <b>IP</b>      › <code>${ip}</code>`,
-    `📍 <b>Kota</b>    › ${city}, ${region}`,
-    `🌍 <b>Negara</b>  › ${country}`,
-    `📡 <b>ISP</b>     › ${isp}`,
-    `🖥 <b>Device</b>  › ${device}`,
-    `🌏 <b>Browser</b> › ${browser}`,
+    `*🆔 Item ID*`,
+    formatItemLine('🎗 Banner', items.banner),
+    formatItemLine('🏷 Title', items.title),
+    formatItemLine('📌 Pin', items.pin),
+    formatItemLine('🧍 Character', items.character),
+    formatItemLine('🖼 Avatar', items.avatar),
+    ...formatItemListBlock('👕 Outfit', items.outfit),
+    ...formatItemListBlock('🔫 Weapon Skin', items.weaponOutfit),
+    ...formatItemListBlock('🎭 Look Changer', items.lookChanger),
     ``,
-    `<b>🔗 Endpoint</b>`,
-    `🖇 <b>Halaman</b> › <code>${pageUrl}</code>`,
-    `⚙️ <b>API Kita</b> › <code>${apiUrl}</code>`,
-    `🚀 <b>API Tercepat (${formatProfileSource(profileSource)})</b> › <code>${sourceApiUrl ?? '-'}</code>`,
+    `*🌐 Visitor Info*`,
+    `🔌 *IP*      › \`${escMdCode(ip)}\``,
+    `📍 *Kota*    › ${escMdPlain(city)}, ${escMdPlain(region)}`,
+    `🌍 *Negara*  › ${escMdPlain(country)}`,
+    `📡 *ISP*     › ${escMdPlain(isp)}`,
+    `🖥 *Device*  › ${escMdPlain(device)}`,
+    `🌏 *Browser* › ${escMdPlain(browser)}`,
     ``,
-    `<blockquote>🕐 ${ts}</blockquote>`,
+    `*🔗 Endpoint*`,
+    `🖇 *Halaman* › \`${escMdCode(pageUrl)}\``,
+    `⚙️ *API Kita* › \`${escMdCode(apiUrl)}\``,
+    `🚀 *API Tercepat \\(${escMdPlain(formatProfileSource(profileSource))}\\)* › \`${escMdCode(sourceApiUrl ?? '-')}\``,
+    ``,
+    `>🕐 ${escMdPlain(ts)}`,
   ].join('\n');
 
   // Batas caption sendPhoto di Telegram adalah 1024 karakter (sendMessage
@@ -226,7 +264,7 @@ async function sendTelegramNotif(
     const msgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: caption, parse_mode: 'HTML' }),
+      body: JSON.stringify({ chat_id: chatId, text: caption, parse_mode: 'MarkdownV2' }),
     });
     if (!msgRes.ok) {
       console.error('telegram_sendMessage_failed', msgRes.status, await msgRes.text());
@@ -239,7 +277,7 @@ async function sendTelegramNotif(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(
         captionFitsPhoto
-          ? { chat_id: chatId, photo: photoUrl, caption, parse_mode: 'HTML' }
+          ? { chat_id: chatId, photo: photoUrl, caption, parse_mode: 'MarkdownV2' }
           : { chat_id: chatId, photo: photoUrl }
       ),
     });
@@ -1041,11 +1079,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const isInternalSsrRequest = req.headers['x-internal-ssr'] === '1';
   if (!isInternalSsrRequest) {
     waitUntil(
-      sendTelegramNotif(req, merged, banCheckData, petInfoData, profileWinner?.source ?? null, uidStr).catch(
-        (err) => {
-          console.error('telegram_notif_error', err);
-        }
-      )
+      sendTelegramNotif(req, merged, banCheckData, petInfoData, profileWinner?.source ?? null, uidStr, {
+        outfit: equippedOutfitItems,
+        weaponOutfit: equippedWeaponOutfitItems,
+        lookChanger: equippedLookChangerItems,
+        banner: equippedBanner,
+        title: equippedTitle,
+        pin: equippedPin,
+        character: equippedCharacter,
+        avatar: equippedAvatar,
+      }).catch((err) => {
+        console.error('telegram_notif_error', err);
+      })
     );
   }
 }
