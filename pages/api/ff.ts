@@ -978,7 +978,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           uid: uidStr,
           region: regionStr,
           source: 'freefirestalk',
-          profileSource: profileWinner?.source ?? null,
         },
         player: {
           accountId: merged.accountId,
