@@ -465,6 +465,69 @@ function PetInfoCard({ data }: { data: PetInfo }) {
   );
 }
 
+function HowToUseSection() {
+  const steps = [
+    { title: 'Cari UID Kamu', desc: 'Buka Free Fire, ketuk avatar profil di pojok kiri atas lobby. UID muncul di bawah nickname — ketuk buat langsung disalin.' },
+    { title: 'Masukkan UID', desc: 'Tempel atau ketik UID tadi ke kolom di atas. Cuma angka yang diterima, jadi karakter lain otomatis kefilter.' },
+    { title: 'Klik Cek ID', desc: 'Tekan tombol kaca pembesar atau tinggal Enter. Data langsung diambil dari server Free Fire.' },
+    { title: 'Lihat Hasilnya', desc: 'Statistik lengkap mulai dari level, guild, outfit, sampai pet langsung muncul dalam hitungan detik.' },
+  ];
+
+  return (
+    <section style={{ width: '100%', maxWidth: 720, marginTop: 40 }}>
+      <SectionDividerLabel>Cara Pakai</SectionDividerLabel>
+      <div style={{
+        background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 16,
+        padding: 18, display: 'flex', flexDirection: 'column', gap: 14,
+      }}>
+        {steps.map((step, i) => (
+          <div key={step.title} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <div style={{
+              flexShrink: 0, width: 28, height: 28, borderRadius: '50%',
+              background: 'var(--gold-soft)', border: '1px solid var(--gold)', color: 'var(--gold)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-display)',
+            }}>
+              {i + 1}
+            </div>
+            <div>
+              <p style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--white)', marginBottom: 2 }}>{step.title}</p>
+              <p style={{ fontSize: 12.5, color: 'var(--light-text)', lineHeight: 1.55 }}>{step.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function InfoCategoriesSection() {
+  const items = [
+    { label: 'Profil & Level', desc: 'Nickname, level, EXP, dan tanggal akun dibuat.' },
+    { label: 'Guild', desc: 'Nama guild, level guild, dan jumlah member.' },
+    { label: 'Outfit & Skin', desc: 'Karakter, outfit, dan skin senjata yang lagi dipakai.' },
+    { label: 'Pet Info', desc: 'Nama pet, level, skin, dan skill yang lagi aktif.' },
+    { label: 'Status Akun', desc: 'Credit score dan status banned atau aman.' },
+    { label: 'Statistik', desc: 'Estimasi rank dan data lain yang tersedia di akun.' },
+  ];
+
+  return (
+    <section style={{ width: '100%', maxWidth: 720, marginTop: 28 }}>
+      <SectionDividerLabel>Info yang Bisa Dicek</SectionDividerLabel>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
+        {items.map((item) => (
+          <div key={item.label} style={{
+            background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12, padding: '13px 14px',
+          }}>
+            <p style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--gold)', marginBottom: 4 }}>{item.label}</p>
+            <p style={{ fontSize: 11.5, color: 'var(--light-text)', lineHeight: 1.5 }}>{item.desc}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function OutfitGrid({ items }: { items: OutfitItem[] }) {
   const [brokenIds, setBrokenIds] = useState<Set<number>>(new Set());
 
@@ -728,6 +791,13 @@ export default function StalkClient() {
           </div>
         ) : null}
       </section>
+
+      {!basic ? (
+        <>
+          <HowToUseSection />
+          <InfoCategoriesSection />
+        </>
+      ) : null}
 
       {basic ? (
         <section className="profile-card" style={{
