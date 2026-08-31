@@ -467,15 +467,14 @@ function PetInfoCard({ data }: { data: PetInfo }) {
 
 function HowToUseSection() {
   const steps = [
-    { title: 'Cari UID Kamu', desc: 'Buka Free Fire, ketuk avatar profil di pojok kiri atas lobby. UID muncul di bawah nickname — ketuk buat langsung disalin.' },
-    { title: 'Masukkan UID', desc: 'Tempel atau ketik UID tadi ke kolom di atas. Cuma angka yang diterima, jadi karakter lain otomatis kefilter.' },
-    { title: 'Klik Cek ID', desc: 'Tekan tombol kaca pembesar atau tinggal Enter. Data langsung diambil dari server Free Fire.' },
-    { title: 'Lihat Hasilnya', desc: 'Statistik lengkap mulai dari level, guild, outfit, sampai pet langsung muncul dalam hitungan detik.' },
+    { title: 'Enter Your UID', desc: 'Type or paste your Free Fire UID into the search field above.' },
+    { title: 'Click Search', desc: 'Tap the search icon or press Enter to fetch the player\u2019s data.' },
+    { title: 'View The Results', desc: 'Full profile stats \u2014 level, guild, outfit, and pet \u2014 load in seconds.' },
   ];
 
   return (
     <section style={{ width: '100%', maxWidth: 720, marginTop: 40 }}>
-      <SectionDividerLabel>Cara Pakai</SectionDividerLabel>
+      <SectionDividerLabel>How To Use</SectionDividerLabel>
       <div style={{
         background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 16,
         padding: 18, display: 'flex', flexDirection: 'column', gap: 14,
@@ -496,6 +495,12 @@ function HowToUseSection() {
             </div>
           </div>
         ))}
+        <div style={{
+          borderTop: '1px solid var(--panel-border)', paddingTop: 12, fontSize: 11.5,
+          color: 'var(--muted-text)', lineHeight: 1.55,
+        }}>
+          Don&apos;t know your UID? Open Free Fire, tap your avatar in the lobby, and copy the number shown below your nickname.
+        </div>
       </div>
     </section>
   );
@@ -503,17 +508,17 @@ function HowToUseSection() {
 
 function InfoCategoriesSection() {
   const items = [
-    { label: 'Profil & Level', desc: 'Nickname, level, EXP, dan tanggal akun dibuat.' },
-    { label: 'Guild', desc: 'Nama guild, level guild, dan jumlah member.' },
-    { label: 'Outfit & Skin', desc: 'Karakter, outfit, dan skin senjata yang lagi dipakai.' },
-    { label: 'Pet Info', desc: 'Nama pet, level, skin, dan skill yang lagi aktif.' },
-    { label: 'Status Akun', desc: 'Credit score dan status banned atau aman.' },
-    { label: 'Statistik', desc: 'Estimasi rank dan data lain yang tersedia di akun.' },
+    { label: 'Profile & Level', desc: 'Nickname, level, EXP, and account creation date.' },
+    { label: 'Guild', desc: 'Guild name, guild level, and member count.' },
+    { label: 'Outfit & Skin', desc: 'Currently equipped character, outfit, and weapon skins.' },
+    { label: 'Pet Info', desc: 'Pet name, level, skin, and active skill.' },
+    { label: 'Account Status', desc: 'Credit score and ban status.' },
+    { label: 'Account Age', desc: 'Account age, likes received, and last login time.' },
   ];
 
   return (
-    <section style={{ width: '100%', maxWidth: 720, marginTop: 28 }}>
-      <SectionDividerLabel>Info yang Bisa Dicek</SectionDividerLabel>
+    <section style={{ width: '100%', maxWidth: 720, marginTop: 28, marginBottom: 40 }}>
+      <SectionDividerLabel>What You Can Check</SectionDividerLabel>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
         {items.map((item) => (
           <div key={item.label} style={{
