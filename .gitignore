@@ -14,3 +14,4 @@ next-env.d.ts
 .dev.vars
 .wrangler/
 cloudflare-env.d.ts
+*.tsbuildinfo
