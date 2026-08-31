@@ -629,7 +629,7 @@ export default function StalkClient() {
   ].filter((item): item is ResolvedItem => Boolean(item));
 
   return (
-    <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 16px 40px' }}>
+    <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 16px 0' }}>
       <header style={{
         position: 'relative', width: '100%', maxWidth: 720,
         padding: '22px 20px 18px',
@@ -731,7 +731,7 @@ export default function StalkClient() {
 
       {basic ? (
         <section className="profile-card" style={{
-          width: '100%', maxWidth: 720, marginTop: 28, background: 'var(--panel-bg)',
+          width: '100%', maxWidth: 720, marginTop: 28, marginBottom: 40, background: 'var(--panel-bg)',
           border: '1px solid var(--panel-border)', borderRadius: 20, padding: 18, animation: 'fadeUp 0.35s ease',
         }}>
           <button
