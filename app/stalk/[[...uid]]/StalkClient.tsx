@@ -304,6 +304,47 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+function SectionDividerLabel({ children }: { children: React.ReactNode }) {
+  const textRef = useRef<HTMLParagraphElement>(null);
+  const [lineWidth, setLineWidth] = useState(73);
+
+  useEffect(() => {
+    if (textRef.current) {
+      setLineWidth(textRef.current.offsetWidth);
+    }
+  }, [children]);
+
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <p
+        ref={textRef}
+        style={{
+          fontWeight: 600, fontSize: 10.5, color: 'var(--gold)', textTransform: 'uppercase',
+          letterSpacing: '0.12em', marginBottom: 8, display: 'inline-block',
+        }}
+      >
+        {children}
+      </p>
+      <svg width={lineWidth} height="4" viewBox="0 0 73 4" preserveAspectRatio="none" fill="none" aria-hidden="true" style={{ display: 'block' }}>
+        <path d="M57.2497 0L53.6572 3.60889H0V0H57.2497Z" fill="var(--gold)" />
+        <path d="M62.4526 0L58.8601 3.60889H56.8293L60.4218 0H62.4526Z" fill="var(--gold)" />
+        <path d="M67.6555 0L64.063 3.60889H62.0278L65.6247 0H67.6555Z" fill="var(--gold)" />
+        <path d="M72.8583 0L69.2614 3.60889H67.2307L70.8276 0H72.8583Z" fill="var(--gold)" />
+      </svg>
+    </div>
+  );
+}
+
+function FFLogo() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+      <polygon points="14,2 26,8 26,20 14,26 2,20 2,8" fill="var(--gold)" opacity="0.15" />
+      <polygon points="14,2 26,8 26,20 14,26 2,20 2,8" fill="none" stroke="var(--gold)" strokeWidth="1.5" />
+      <text x="14" y="18" textAnchor="middle" fill="var(--gold)" fontSize="11" fontWeight="700" fontFamily="sans-serif">FF</text>
+    </svg>
+  );
+}
+
 function Spinner() {
   return (
     <span style={{
@@ -572,21 +613,20 @@ export default function StalkClient() {
 
   return (
     <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 16px 64px' }}>
-      <header style={{ width: '100%', maxWidth: 720, marginBottom: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 10,
-            background: 'linear-gradient(135deg, var(--gold), #ff9d00)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: 700, color: '#14161b', fontSize: 13, fontFamily: 'var(--font-display)',
-          }}>
-            FF
-          </div>
-          <div>
-            <h1 style={{ fontSize: 16, fontWeight: 700, color: 'var(--white)', letterSpacing: '0.02em', fontFamily: 'var(--font-display)' }}>FREE FIRE STALK</h1>
-            <p style={{ fontSize: 11, color: 'var(--muted-text)' }}>Cek info akun Free Fire lewat UID</p>
-          </div>
+      <header style={{
+        position: 'sticky', top: 0, zIndex: 50, width: '100%',
+        background: 'var(--panel-bg, #1a1c20)', borderBottom: '1px solid rgba(153,153,153,0.15)',
+        marginBottom: 24,
+      }}>
+        <div style={{ maxWidth: 720, margin: '0 auto', height: 52, display: 'flex', alignItems: 'center', gap: 10, padding: '0 4px' }}>
+          <FFLogo />
+          <span style={{ fontWeight: 700, fontSize: 15, color: '#ffffff', letterSpacing: '0.04em', fontFamily: 'var(--font-display)' }}>
+            Stalker
+          </span>
         </div>
+        <p style={{ maxWidth: 720, margin: '0 auto', padding: '0 4px 10px', fontSize: 11, color: 'var(--muted-text)' }}>
+          Cek info akun Free Fire lewat UID
+        </p>
       </header>
 
       <div style={{ margin: '28px 0' }}>
@@ -790,7 +830,7 @@ export default function StalkClient() {
           <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
 
           <div>
-            <SectionLabel>Estimasi &amp; Statistik</SectionLabel>
+            <SectionDividerLabel>Estimasi &amp; Statistik</SectionDividerLabel>
             <div style={{
               background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)',
               borderRadius: 14, padding: '14px 14px 10px', display: 'grid',
@@ -880,7 +920,7 @@ export default function StalkClient() {
             <>
               <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
               <div>
-                <SectionLabel>Character</SectionLabel>
+                <SectionDividerLabel>Character</SectionDividerLabel>
                 <OutfitGrid items={characterItems} />
               </div>
             </>
@@ -890,7 +930,7 @@ export default function StalkClient() {
             <>
               <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
               <div>
-                <SectionLabel>Profile Items</SectionLabel>
+                <SectionDividerLabel>Profile Items</SectionDividerLabel>
                 <OutfitGrid items={profileItems} />
               </div>
             </>
@@ -900,7 +940,7 @@ export default function StalkClient() {
             <>
               <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
               <div>
-                <SectionLabel>Outfit</SectionLabel>
+                <SectionDividerLabel>Outfit</SectionDividerLabel>
                 <OutfitGrid items={basic.equippedOutfitItems} />
               </div>
             </>
@@ -910,7 +950,7 @@ export default function StalkClient() {
             <>
               <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
               <div>
-                <SectionLabel>Weapon Skin</SectionLabel>
+                <SectionDividerLabel>Weapon Skin</SectionDividerLabel>
                 <OutfitGrid items={basic.equippedWeaponOutfitItems} />
               </div>
             </>
