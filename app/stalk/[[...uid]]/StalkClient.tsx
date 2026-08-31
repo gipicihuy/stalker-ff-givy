@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint, Github, Send, Phone } from 'lucide-react';
+import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint, Send } from 'lucide-react';
 
 type PrimeInfo = { primeLevel?: number };
 type ResolvedItem = { id: number; name: string; icon: string | null; type: string | null };
@@ -1048,25 +1048,6 @@ export default function StalkClient() {
               </p>
               <div style={{ display: 'flex', gap: 10 }}>
                 <a
-                  href="https://github.com/gipicihuy/stalker-ff-givy"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="GitHub"
-                  className="icon-btn"
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: '50%',
-                    border: '1px solid var(--panel-border)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'var(--light-text)',
-                  }}
-                >
-                  <Github size={16} />
-                </a>
-                <a
                   href="https://t.me"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -1084,25 +1065,6 @@ export default function StalkClient() {
                   }}
                 >
                   <Send size={16} />
-                </a>
-                <a
-                  href="https://wa.me"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="WhatsApp"
-                  className="icon-btn"
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: '50%',
-                    border: '1px solid var(--panel-border)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'var(--light-text)',
-                  }}
-                >
-                  <Phone size={16} />
                 </a>
               </div>
             </div>
