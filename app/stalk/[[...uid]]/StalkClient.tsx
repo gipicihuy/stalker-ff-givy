@@ -629,7 +629,7 @@ export default function StalkClient() {
   ].filter((item): item is ResolvedItem => Boolean(item));
 
   return (
-    <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 16px 0' }}>
+    <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 16px 40px' }}>
       <header style={{
         position: 'relative', width: '100%', maxWidth: 720,
         padding: '22px 20px 18px',
