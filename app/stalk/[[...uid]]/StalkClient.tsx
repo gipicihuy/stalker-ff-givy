@@ -614,13 +614,12 @@ export default function StalkClient() {
   return (
     <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 16px 64px' }}>
       <header style={{
-        position: 'sticky', top: 0, zIndex: 50, width: '100%',
-        background: 'var(--panel-bg, #1a1c20)',
-        backgroundImage: 'radial-gradient(ellipse 480px 160px at 8% 0%, rgba(250,191,0,0.16), transparent 70%), linear-gradient(180deg, var(--panel-bg-alt) 0%, var(--panel-bg) 100%)',
-        borderBottom: '1px solid var(--panel-border)',
+        position: 'relative', width: '100%', maxWidth: 720,
+        padding: '22px 20px 18px',
         marginBottom: 24,
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
       }}>
-        {/* HUD corner accents — decorative only, do not affect text/logo layout */}
+        {/* HUD corner accents — decorative only, standalone, do not affect content layout */}
         <span aria-hidden="true" style={{
           position: 'absolute', top: 0, left: 0, width: 22, height: 22,
           borderTop: '2px solid var(--gold)', borderLeft: '2px solid var(--gold)',
@@ -631,14 +630,18 @@ export default function StalkClient() {
           borderBottom: '2px solid var(--gold)', borderRight: '2px solid var(--gold)',
           pointerEvents: 'none',
         }} />
-        <div style={{ maxWidth: 720, margin: '0 auto', height: 52, display: 'flex', alignItems: 'center', gap: 10, padding: '0 4px' }}>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <FFLogo />
-          <span style={{ fontWeight: 700, fontSize: 15, color: '#ffffff', letterSpacing: '0.04em', fontFamily: 'var(--font-display)' }}>
-            Stalker
+          <span style={{ fontWeight: 700, fontSize: 17, color: '#ffffff', letterSpacing: '0.04em', fontFamily: 'var(--font-display)' }}>
+            Stalker UID
           </span>
         </div>
-        <p style={{ maxWidth: 720, margin: '0 auto', padding: '0 4px 10px', fontSize: 11, color: 'var(--muted-text)' }}>
+        <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--muted-text)', textAlign: 'center' }}>
           Cek info akun Free Fire lewat UID
+        </p>
+        <p style={{ margin: '4px 0 0', fontSize: 10.5, color: 'var(--gold)', letterSpacing: '0.03em', textAlign: 'center' }}>
+          » By Givy «
         </p>
       </header>
 
