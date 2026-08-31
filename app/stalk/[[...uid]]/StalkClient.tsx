@@ -892,7 +892,7 @@ export default function StalkClient() {
           <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
 
           <div>
-            <SectionLabel>Guild</SectionLabel>
+            <SectionDividerLabel>Guild</SectionDividerLabel>
             {guild?.guildName ? (
               <>
                 <div style={{
@@ -960,7 +960,7 @@ export default function StalkClient() {
             <>
               <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
               <div>
-                <SectionLabel>Look Changer</SectionLabel>
+                <SectionDividerLabel>Look Changer</SectionDividerLabel>
                 <OutfitGrid items={basic.equippedLookChangerItems} />
               </div>
             </>
@@ -970,7 +970,7 @@ export default function StalkClient() {
             <>
               <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
               <div>
-                <SectionLabel>Pet Info</SectionLabel>
+                <SectionDividerLabel>Pet Info</SectionDividerLabel>
                 <PetInfoCard data={pet} />
               </div>
             </>
