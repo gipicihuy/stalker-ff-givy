@@ -1013,34 +1013,14 @@ export default function StalkClient() {
             }}
           >
             <div style={{ maxWidth: 320 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    background: 'var(--white)',
-                    color: '#0b0b0f',
-                    fontFamily: 'var(--font-display)',
-                    fontWeight: 700,
-                    fontSize: 13,
-                    padding: '6px 12px',
-                    borderRadius: 999,
-                  }}
-                >
-                  FF
-                </span>
-                <span
-                  style={{
-                    background: 'var(--gold)',
-                    color: '#0b0b0f',
-                    fontWeight: 800,
-                    fontSize: 13,
-                    padding: '6px 12px',
-                    borderRadius: 999,
-                  }}
-                >
-                  STALK
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <img
+                  src="https://www.freelogovectors.net/wp-content/uploads/2023/09/free_fire-logo-freelogovectors.net_.png"
+                  alt="Free Fire"
+                  style={{ width: 28, height: 28, objectFit: 'contain' }}
+                />
+                <span style={{ fontWeight: 700, fontSize: 17, color: '#ffffff', letterSpacing: '0.04em', fontFamily: 'var(--font-display)' }}>
+                  Stalker
                 </span>
               </div>
               <p style={{ fontSize: 12.5, color: 'var(--muted-text)', lineHeight: 1.6, margin: '0 0 18px' }}>
