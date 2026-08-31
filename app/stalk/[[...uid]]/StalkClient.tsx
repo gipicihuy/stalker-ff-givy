@@ -279,20 +279,38 @@ function SignatureText({ text }: { text: string }) {
 
 function AngleDivider() {
   return (
-    <svg width="100%" height="5" viewBox="0 0 560 5" preserveAspectRatio="none" aria-hidden="true" style={{ display: 'block', margin: '28px 0' }}>
-      <path d="M0 4H560" stroke="#fabf00" strokeMiterlimit="10" />
-      <path d="M430 0H560V4H420L424.76 1.20615C425.66 0.429117 426.81 0.000859238 430 0Z" fill="#fabf00" />
-    </svg>
+    <div style={{ position: 'relative', height: 4, margin: '28px 0' }}>
+      <div style={{ position: 'absolute', inset: 0, background: '#fabf00' }} />
+      <div
+        style={{
+          position: 'absolute', top: 0, right: 0, bottom: 0, width: '25%',
+          background: 'var(--background)',
+          clipPath: 'polygon(0 0, 100% 0, 82% 100%, 0 100%)',
+        }}
+      />
+    </div>
   );
 }
 
 function AngleDividerDouble() {
   return (
-    <svg width="100%" height="5" viewBox="0 0 560 5" preserveAspectRatio="none" aria-hidden="true" style={{ display: 'block' }}>
-      <path d="M0 4H560" stroke="#fabf00" strokeMiterlimit="10" />
-      <path d="M430 0H560V4H420L424.76 1.20615C425.66 0.429117 426.81 0.000859238 430 0Z" fill="#fabf00" />
-      <path d="M130 0H0V4H140L135.24 1.20615C134.34 0.429117 133.19 0.000859238 130 0Z" fill="#fabf00" />
-    </svg>
+    <div style={{ position: 'relative', height: 4 }}>
+      <div style={{ position: 'absolute', inset: 0, background: '#fabf00' }} />
+      <div
+        style={{
+          position: 'absolute', top: 0, right: 0, bottom: 0, width: '25%',
+          background: 'var(--background)',
+          clipPath: 'polygon(0 0, 100% 0, 82% 100%, 0 100%)',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute', top: 0, left: 0, bottom: 0, width: '25%',
+          background: 'var(--background)',
+          clipPath: 'polygon(18% 0, 100% 0, 100% 100%, 0 100%)',
+        }}
+      />
+    </div>
   );
 }
 
