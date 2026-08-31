@@ -495,12 +495,6 @@ function HowToUseSection() {
             </div>
           </div>
         ))}
-        <div style={{
-          borderTop: '1px solid var(--panel-border)', paddingTop: 12, fontSize: 11.5,
-          color: 'var(--muted-text)', lineHeight: 1.55,
-        }}>
-          Don&apos;t know your UID? Open Free Fire, tap your avatar in the lobby, and copy the number shown below your nickname.
-        </div>
       </div>
     </section>
   );
