@@ -992,13 +992,6 @@ export default function StalkClient() {
             </>
           ) : null}
         </section>
-      ) : (!loading && !error) ? (
-        <section style={{ width: '100%', maxWidth: 720, marginTop: 48, textAlign: 'center', color: 'var(--muted-text)' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, opacity: 0.5 }}>
-            <Search size={36} />
-          </div>
-          <p>Masukkan UID Free Fire</p>
-        </section>
       ) : null}
 
       <footer style={{ marginTop: 56, textAlign: 'center' }}>
