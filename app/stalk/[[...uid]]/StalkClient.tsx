@@ -279,38 +279,20 @@ function SignatureText({ text }: { text: string }) {
 
 function AngleDivider() {
   return (
-    <div style={{ position: 'relative', height: 4, margin: '28px 0' }}>
-      <div style={{ position: 'absolute', inset: 0, background: '#fabf00' }} />
-      <div
-        style={{
-          position: 'absolute', top: 0, right: 0, bottom: 0, width: '25%',
-          background: 'var(--background)',
-          clipPath: 'polygon(0 0, 100% 0, 82% 100%, 0 100%)',
-        }}
-      />
-    </div>
+    <svg width="100%" height="5" viewBox="0 0 560 5" preserveAspectRatio="none" aria-hidden="true" style={{ display: 'block', margin: '28px 0' }}>
+      <path d="M0 4H560" stroke="#fabf00" strokeMiterlimit="10" />
+      <path d="M430 0H560V4H420L424.76 1.20615C425.66 0.429117 426.81 0.000859238 430 0Z" fill="#fabf00" />
+    </svg>
   );
 }
 
 function AngleDividerDouble() {
   return (
-    <div style={{ position: 'relative', height: 4 }}>
-      <div style={{ position: 'absolute', inset: 0, background: '#fabf00' }} />
-      <div
-        style={{
-          position: 'absolute', top: 0, right: 0, bottom: 0, width: '25%',
-          background: 'var(--background)',
-          clipPath: 'polygon(0 0, 100% 0, 82% 100%, 0 100%)',
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute', top: 0, left: 0, bottom: 0, width: '25%',
-          background: 'var(--background)',
-          clipPath: 'polygon(18% 0, 100% 0, 100% 100%, 0 100%)',
-        }}
-      />
-    </div>
+    <svg width="100%" height="5" viewBox="0 0 560 5" preserveAspectRatio="none" aria-hidden="true" style={{ display: 'block' }}>
+      <path d="M0 4H560" stroke="#fabf00" strokeMiterlimit="10" />
+      <path d="M430 0H560V4H420L424.76 1.20615C425.66 0.429117 426.81 0.000859238 430 0Z" fill="#fabf00" />
+      <path d="M130 0H0V4H140L135.24 1.20615C134.34 0.429117 133.19 0.000859238 130 0Z" fill="#fabf00" />
+    </svg>
   );
 }
 
@@ -633,7 +615,9 @@ export default function StalkClient() {
     <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 16px 64px' }}>
       <header style={{
         position: 'sticky', top: 0, zIndex: 50, width: '100%',
-        background: 'var(--panel-bg, #1a1c20)', borderBottom: '1px solid rgba(153,153,153,0.15)',
+        background: 'var(--panel-bg, #1a1c20)',
+        backgroundImage: 'radial-gradient(ellipse 480px 160px at 8% 0%, rgba(250,191,0,0.16), transparent 70%), linear-gradient(180deg, var(--panel-bg-alt) 0%, var(--panel-bg) 100%)',
+        borderBottom: '1px solid rgba(250,191,0,0.18)',
         marginBottom: 24,
       }}>
         <div style={{ maxWidth: 720, margin: '0 auto', height: 52, display: 'flex', alignItems: 'center', gap: 10, padding: '0 4px' }}>
