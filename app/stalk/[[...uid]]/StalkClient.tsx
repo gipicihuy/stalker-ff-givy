@@ -994,13 +994,32 @@ export default function StalkClient() {
         </section>
       ) : null}
 
-      <footer style={{ marginTop: 56, textAlign: 'center' }}>
-        <div style={{ marginBottom: 10 }}>
-          <AngleDividerDouble />
+      <footer style={{ marginTop: 56, width: '100%', maxWidth: 720, borderTop: '1px solid var(--panel-border)', paddingTop: 28 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 32 }}>
+          <div style={{ minWidth: 140, textAlign: 'center' }}>
+            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--light-text)', marginBottom: 10 }}>
+              <span style={{ color: 'var(--gold)' }}>///</span> Information
+            </p>
+            <p style={{ fontSize: 12, color: 'var(--muted-text)', marginBottom: 6, cursor: 'default' }}>About</p>
+            <p style={{ fontSize: 12, color: 'var(--muted-text)', cursor: 'default' }}>Status</p>
+          </div>
+          <div style={{ minWidth: 140, textAlign: 'center' }}>
+            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--light-text)', marginBottom: 10 }}>
+              <span style={{ color: 'var(--gold)' }}>///</span> Legal
+            </p>
+            <p style={{ fontSize: 12, color: 'var(--muted-text)', marginBottom: 6, cursor: 'default' }}>Terms of Service</p>
+            <p style={{ fontSize: 12, color: 'var(--muted-text)', cursor: 'default' }}>Privacy Policy</p>
+          </div>
         </div>
-        <p style={{ margin: 0, fontSize: 11, fontWeight: 500, letterSpacing: '0.01em', color: 'var(--light-text)' }}>
-          Free Fire Stalk
-        </p>
+
+        <div style={{ borderTop: '1px solid var(--panel-border)', marginTop: 28, paddingTop: 18, textAlign: 'center' }}>
+          <p style={{ fontSize: 10.5, color: 'var(--muted-text)', lineHeight: 1.6, maxWidth: 480, margin: '0 auto 10px' }}>
+            Free Fire Stalk is an independent fan-made service and has no official affiliation with Garena International. Free Fire and related trademarks belong to their respective owners.
+          </p>
+          <p style={{ fontSize: 10.5, color: 'var(--muted-text)', margin: 0 }}>
+            © 2026 Free Fire Stalk. All rights reserved.
+          </p>
+        </div>
       </footer>
     </main>
   );
