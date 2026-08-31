@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint } from 'lucide-react';
+import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint, Github, Send, Phone } from 'lucide-react';
 
 type PrimeInfo = { primeLevel?: number };
 type ResolvedItem = { id: number; name: string; icon: string | null; type: string | null };
@@ -994,31 +994,173 @@ export default function StalkClient() {
         </section>
       ) : null}
 
-      <footer style={{ marginTop: 56, width: '100%', maxWidth: 720, borderTop: '1px solid var(--panel-border)', paddingTop: 28 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 32 }}>
-          <div style={{ minWidth: 140, textAlign: 'center' }}>
-            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--light-text)', marginBottom: 10 }}>
-              <span style={{ color: 'var(--gold)' }}>///</span> Information
-            </p>
-            <p style={{ fontSize: 12, color: 'var(--muted-text)', marginBottom: 6, cursor: 'default' }}>About</p>
-            <p style={{ fontSize: 12, color: 'var(--muted-text)', cursor: 'default' }}>Status</p>
-          </div>
-          <div style={{ minWidth: 140, textAlign: 'center' }}>
-            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--light-text)', marginBottom: 10 }}>
-              <span style={{ color: 'var(--gold)' }}>///</span> Legal
-            </p>
-            <p style={{ fontSize: 12, color: 'var(--muted-text)', marginBottom: 6, cursor: 'default' }}>Terms of Service</p>
-            <p style={{ fontSize: 12, color: 'var(--muted-text)', cursor: 'default' }}>Privacy Policy</p>
-          </div>
-        </div>
+      <footer
+        style={{
+          marginTop: 56,
+          width: '100vw',
+          marginLeft: 'calc(50% - 50vw)',
+          background: 'var(--panel-bg)',
+          borderTop: '1px solid var(--panel-border)',
+        }}
+      >
+        <div style={{ maxWidth: 960, margin: '0 auto', padding: '40px 24px 24px' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'space-between',
+              gap: 32,
+            }}
+          >
+            <div style={{ maxWidth: 320 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    background: 'var(--white)',
+                    color: '#0b0b0f',
+                    fontFamily: 'var(--font-display)',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    padding: '6px 12px',
+                    borderRadius: 999,
+                  }}
+                >
+                  FF
+                </span>
+                <span
+                  style={{
+                    background: 'var(--gold)',
+                    color: '#0b0b0f',
+                    fontWeight: 800,
+                    fontSize: 13,
+                    padding: '6px 12px',
+                    borderRadius: 999,
+                  }}
+                >
+                  STALK
+                </span>
+              </div>
+              <p style={{ fontSize: 12.5, color: 'var(--muted-text)', lineHeight: 1.6, margin: '0 0 18px' }}>
+                Cek statistik akun Free Fire secara instan. Lookup profil, ranked, guild, dan koleksi item hanya dengan Player ID.
+              </p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <a
+                  href="https://github.com/gipicihuy/stalker-ff-givy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="GitHub"
+                  className="icon-btn"
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: '50%',
+                    border: '1px solid var(--panel-border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--light-text)',
+                  }}
+                >
+                  <Github size={16} />
+                </a>
+                <a
+                  href="https://t.me"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Telegram"
+                  className="icon-btn"
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: '50%',
+                    border: '1px solid var(--panel-border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--light-text)',
+                  }}
+                >
+                  <Send size={16} />
+                </a>
+                <a
+                  href="https://wa.me"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="WhatsApp"
+                  className="icon-btn"
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: '50%',
+                    border: '1px solid var(--panel-border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--light-text)',
+                  }}
+                >
+                  <Phone size={16} />
+                </a>
+              </div>
+            </div>
 
-        <div style={{ borderTop: '1px solid var(--panel-border)', marginTop: 28, paddingTop: 18, textAlign: 'center' }}>
-          <p style={{ fontSize: 10.5, color: 'var(--muted-text)', lineHeight: 1.6, maxWidth: 480, margin: '0 auto 10px' }}>
-            Free Fire Stalk is an independent fan-made service and has no official affiliation with Garena International. Free Fire and related trademarks belong to their respective owners.
-          </p>
-          <p style={{ fontSize: 10.5, color: 'var(--muted-text)', margin: 0 }}>
-            © 2026 Free Fire Stalk. All rights reserved.
-          </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 48 }}>
+              <div style={{ minWidth: 130 }}>
+                <p
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 800,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    color: 'var(--gold)',
+                    marginBottom: 14,
+                  }}
+                >
+                  Information
+                </p>
+                <p style={{ fontSize: 13, color: 'var(--muted-text)', marginBottom: 10, cursor: 'default' }}>About</p>
+                <p style={{ fontSize: 13, color: 'var(--muted-text)', cursor: 'default' }}>Status</p>
+              </div>
+              <div style={{ minWidth: 130 }}>
+                <p
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 800,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    color: 'var(--gold)',
+                    marginBottom: 14,
+                  }}
+                >
+                  Legal
+                </p>
+                <p style={{ fontSize: 13, color: 'var(--muted-text)', marginBottom: 10, cursor: 'default' }}>Terms of Service</p>
+                <p style={{ fontSize: 13, color: 'var(--muted-text)', cursor: 'default' }}>Privacy Policy</p>
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              borderTop: '1px solid var(--panel-border)',
+              marginTop: 32,
+              paddingTop: 18,
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'space-between',
+              gap: 8,
+            }}
+          >
+            <p style={{ fontSize: 11.5, color: 'var(--muted-text)', margin: 0 }}>
+              © 2026 Free Fire Stalk. All rights reserved.
+            </p>
+            <p style={{ fontSize: 11.5, color: 'var(--muted-text)', margin: 0 }}>
+              Not affiliated with Garena International.
+            </p>
+          </div>
         </div>
       </footer>
     </main>
