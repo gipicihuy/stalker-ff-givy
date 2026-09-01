@@ -580,24 +580,33 @@ function FaqSection() {
 
   return (
     <section style={{ width: '100%', maxWidth: 720, marginTop: 28, marginBottom: 40 }}>
-      <SectionDividerLabel>Frequently Asked Questions</SectionDividerLabel>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <SectionDividerLabel>FAQ</SectionDividerLabel>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {faqs.map((item) => (
           <details key={item.q} className="faq-item" style={{
-            position: 'relative', overflow: 'hidden',
-            background: 'linear-gradient(155deg, rgba(250, 191, 0, 0.07), var(--background) 55%)',
-            border: '1px solid var(--panel-border)', borderRadius: 12,
+            background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 12,
           }}>
             <summary style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-              padding: '14px 16px', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '13px 14px', cursor: 'pointer',
             }}>
-              <span className="faq-question" style={{ fontSize: 13, fontWeight: 700, color: 'var(--white)', transition: 'color 0.2s ease' }}>
+              <span style={{
+                flexShrink: 0, width: 26, height: 26, borderRadius: 7,
+                background: 'var(--gold-soft)', border: '1px solid var(--gold)', color: 'var(--gold)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-display)',
+              }}>
+                Q
+              </span>
+              <span className="faq-question" style={{
+                flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--white)',
+                fontFamily: 'var(--font-display)', transition: 'color 0.2s ease',
+              }}>
                 {item.q}
               </span>
-              <ChevronDown className="faq-chevron" size={16} color="var(--gold)" style={{ flexShrink: 0 }} />
+              <ChevronDown className="faq-chevron" size={16} color="var(--muted-text)" style={{ flexShrink: 0 }} />
             </summary>
-            <div style={{ padding: '0 16px 16px', fontSize: 12.5, color: 'var(--light-text)', lineHeight: 1.6 }}>
+            <div style={{ padding: '0 14px 14px 52px', fontSize: 12.5, color: 'var(--light-text)', lineHeight: 1.6 }}>
               {item.a}
             </div>
           </details>

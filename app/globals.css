@@ -152,6 +152,7 @@ a {
 
 .faq-item[open] .faq-chevron {
   transform: rotate(180deg);
+  color: var(--gold) !important;
 }
 
 .faq-item summary:hover .faq-question {
