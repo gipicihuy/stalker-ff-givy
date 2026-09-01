@@ -518,9 +518,22 @@ function InfoCategoriesSection() {
           const Icon = item.icon;
           return (
             <div key={item.label} style={{
+              position: 'relative', overflow: 'hidden',
               background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12, padding: '14px',
               display: 'flex', gap: 12, alignItems: 'flex-start',
             }}>
+              <div style={{
+                position: 'absolute', top: 8, left: 8, width: 10, height: 10,
+                borderTop: `1px solid ${item.color}80`, borderLeft: `1px solid ${item.color}80`,
+              }} />
+              <div style={{
+                position: 'absolute', bottom: 8, right: 8, width: 10, height: 10,
+                borderBottom: `1px solid ${item.color}80`, borderRight: `1px solid ${item.color}80`,
+              }} />
+              <div style={{
+                position: 'absolute', bottom: 0, left: 0, right: 0, height: 2,
+                background: `linear-gradient(90deg, transparent, ${item.color}70, transparent)`,
+              }} />
               <div style={{
                 flexShrink: 0, width: 34, height: 34, borderRadius: 10,
                 background: `${item.color}29`,
