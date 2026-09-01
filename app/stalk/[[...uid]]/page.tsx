@@ -102,6 +102,61 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
+const FAQ_SCHEMA = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'Is this tool free to use?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Yes, checking a Free Fire profile with this tool is completely free. No login, no download, and no hidden fees — just enter a UID and search.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Where does the player data come from?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: "Data is pulled directly from Free Fire's servers based on the UID you search, so it reflects the player's live in-game profile.",
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Is it safe to check someone else\u2019s profile?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Yes. This tool only reads public profile data that\u2019s already visible in-game, such as level, guild, outfit, and pet. It cannot access passwords, linked accounts, or private information.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Why does my search return no results?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'This usually means the UID was typed incorrectly, or the account doesn\u2019t exist. Double-check the number on your profile in-game and try again.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Can I check a player\u2019s rank or match history?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Not yet — this tool currently focuses on profile info: level, guild, outfit, weapon skins, and pet details. Rank and match history may be added in a future update.',
+      },
+    },
+  ],
+};
+
 export default function Page() {
-  return <StalkClient />;
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_SCHEMA) }}
+      />
+      <StalkClient />
+    </>
+  );
 }
