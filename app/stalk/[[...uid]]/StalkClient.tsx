@@ -801,7 +801,7 @@ export default function StalkClient() {
           Cek info akun Free Fire lewat UID
         </p>
         <p style={{ margin: '4px 0 0', fontSize: 10.5, color: 'var(--gold)', letterSpacing: '0.03em', textAlign: 'center' }}>
-          » By Givy «
+          • By Givy •
         </p>
       </header>
 
