@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint, Send, User, Shirt } from 'lucide-react';
+import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint, Send, User, Shirt, ChevronDown } from 'lucide-react';
 
 type PrimeInfo = { primeLevel?: number };
 type ResolvedItem = { id: number; name: string; icon: string | null; type: string | null };
@@ -549,6 +549,59 @@ function InfoCategoriesSection() {
             </div>
           );
         })}
+      </div>
+    </section>
+  );
+}
+
+function FaqSection() {
+  const faqs = [
+    {
+      q: 'Is this tool free to use?',
+      a: 'Yes, checking a Free Fire profile with this tool is completely free. No login, no download, and no hidden fees — just enter a UID and search.',
+    },
+    {
+      q: 'Where does the player data come from?',
+      a: "Data is pulled directly from Free Fire's servers based on the UID you search, so it reflects the player's live in-game profile.",
+    },
+    {
+      q: 'Is it safe to check someone else\u2019s profile?',
+      a: 'Yes. This tool only reads public profile data that\u2019s already visible in-game, such as level, guild, outfit, and pet. It cannot access passwords, linked accounts, or private information.',
+    },
+    {
+      q: 'Why does my search return no results?',
+      a: 'This usually means the UID was typed incorrectly, or the account doesn\u2019t exist. Double-check the number on your profile in-game and try again.',
+    },
+    {
+      q: 'Can I check a player\u2019s rank or match history?',
+      a: 'Not yet — this tool currently focuses on profile info: level, guild, outfit, weapon skins, and pet details. Rank and match history may be added in a future update.',
+    },
+  ];
+
+  return (
+    <section style={{ width: '100%', maxWidth: 720, marginTop: 28, marginBottom: 40 }}>
+      <SectionDividerLabel>Frequently Asked Questions</SectionDividerLabel>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {faqs.map((item) => (
+          <details key={item.q} className="faq-item" style={{
+            position: 'relative', overflow: 'hidden',
+            background: 'linear-gradient(155deg, rgba(250, 191, 0, 0.07), var(--background) 55%)',
+            border: '1px solid var(--panel-border)', borderRadius: 12,
+          }}>
+            <summary style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+              padding: '14px 16px', cursor: 'pointer',
+            }}>
+              <span className="faq-question" style={{ fontSize: 13, fontWeight: 700, color: 'var(--white)', transition: 'color 0.2s ease' }}>
+                {item.q}
+              </span>
+              <ChevronDown className="faq-chevron" size={16} color="var(--gold)" style={{ flexShrink: 0 }} />
+            </summary>
+            <div style={{ padding: '0 16px 16px', fontSize: 12.5, color: 'var(--light-text)', lineHeight: 1.6 }}>
+              {item.a}
+            </div>
+          </details>
+        ))}
       </div>
     </section>
   );
@@ -1106,6 +1159,8 @@ export default function StalkClient() {
           ) : null}
         </section>
       ) : null}
+
+      <FaqSection />
 
       <footer
         style={{

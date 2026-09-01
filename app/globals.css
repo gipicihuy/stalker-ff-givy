@@ -137,3 +137,23 @@ a {
 .info-row + .info-row {
   border-top: 1px solid var(--panel-border);
 }
+
+.faq-item summary {
+  list-style: none;
+}
+
+.faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq-item .faq-chevron {
+  transition: transform 0.2s ease;
+}
+
+.faq-item[open] .faq-chevron {
+  transform: rotate(180deg);
+}
+
+.faq-item summary:hover .faq-question {
+  color: var(--gold);
+}
