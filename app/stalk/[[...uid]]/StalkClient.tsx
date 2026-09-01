@@ -519,7 +519,8 @@ function InfoCategoriesSection() {
           return (
             <div key={item.label} style={{
               position: 'relative', overflow: 'hidden',
-              background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12, padding: '14px',
+              background: `linear-gradient(155deg, ${item.color}1c, var(--panel-bg-alt) 60%)`,
+              border: '1px solid var(--panel-border)', borderRadius: 12, padding: '14px',
               display: 'flex', gap: 12, alignItems: 'flex-start',
             }}>
               <div style={{
