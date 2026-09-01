@@ -469,7 +469,7 @@ function HowToUseSection() {
   const steps = [
     { title: 'Enter Your UID', desc: 'Type or paste your Free Fire UID into the search field above.' },
     { title: 'Click Search', desc: 'Tap the search icon or press Enter to fetch the player\u2019s data.' },
-    { title: 'View The Results', desc: 'Full profile stats \u2014 level, guild, outfit, and pet \u2014 load in seconds.' },
+    { title: 'View The Results', desc: 'Full profile stats load in seconds: level, guild, outfit, and pet.' },
   ];
 
   return (
@@ -558,7 +558,7 @@ function FaqSection() {
   const faqs = [
     {
       q: 'Is this tool free to use?',
-      a: 'Yes, checking a Free Fire profile with this tool is completely free. No login, no download, and no hidden fees — just enter a UID and search.',
+      a: 'Yes, checking a Free Fire profile with this tool is completely free. No login, no download, and no hidden fees. Just enter a UID and search.',
     },
     {
       q: 'Where does the player data come from?',
@@ -574,7 +574,7 @@ function FaqSection() {
     },
     {
       q: 'Can I check a player\u2019s rank or match history?',
-      a: 'Not yet — this tool currently focuses on profile info: level, guild, outfit, weapon skins, and pet details. Rank and match history may be added in a future update.',
+      a: 'Not yet. This tool currently focuses on profile info: level, guild, outfit, weapon skins, and pet details. Rank and match history may be added in a future update.',
     },
   ];
 
