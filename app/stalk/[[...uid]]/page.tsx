@@ -111,7 +111,7 @@ const FAQ_SCHEMA = {
       name: 'Is this tool free to use?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Yes, checking a Free Fire profile with this tool is completely free. No login, no download, and no hidden fees — just enter a UID and search.',
+        text: 'Yes, checking a Free Fire profile with this tool is completely free. No login, no download, and no hidden fees. Just enter a UID and search.',
       },
     },
     {
@@ -143,7 +143,7 @@ const FAQ_SCHEMA = {
       name: 'Can I check a player\u2019s rank or match history?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Not yet — this tool currently focuses on profile info: level, guild, outfit, weapon skins, and pet details. Rank and match history may be added in a future update.',
+        text: 'Not yet. This tool currently focuses on profile info: level, guild, outfit, weapon skins, and pet details. Rank and match history may be added in a future update.',
       },
     },
   ],
