@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint, Send } from 'lucide-react';
+import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint, Send, User, Shirt } from 'lucide-react';
 
 type PrimeInfo = { primeLevel?: number };
 type ResolvedItem = { id: number; name: string; icon: string | null; type: string | null };
@@ -502,26 +502,39 @@ function HowToUseSection() {
 
 function InfoCategoriesSection() {
   const items = [
-    { label: 'Profile & Level', desc: 'Nickname, level, EXP, and account creation date.' },
-    { label: 'Guild', desc: 'Guild name, guild level, and member count.' },
-    { label: 'Outfit & Skin', desc: 'Currently equipped character, outfit, and weapon skins.' },
-    { label: 'Pet Info', desc: 'Pet name, level, skin, and active skill.' },
-    { label: 'Account Status', desc: 'Credit score and ban status.' },
-    { label: 'Account Age', desc: 'Account age, likes received, and last login time.' },
+    { label: 'Profile & Level', desc: 'Nickname, level, EXP, and account creation date.', icon: User, color: '#fabf00' },
+    { label: 'Guild', desc: 'Guild name, guild level, and member count.', icon: Users, color: '#5aa9e6' },
+    { label: 'Outfit & Skin', desc: 'Currently equipped character, outfit, and weapon skins.', icon: Shirt, color: '#c084fc' },
+    { label: 'Pet Info', desc: 'Pet name, level, skin, and active skill.', icon: PawPrint, color: '#4ade80' },
+    { label: 'Account Status', desc: 'Credit score and ban status.', icon: ShieldCheck, color: '#ff8a5c' },
+    { label: 'Account Age', desc: 'Account age, likes received, and last login time.', icon: Clock, color: '#fabf00' },
   ];
 
   return (
     <section style={{ width: '100%', maxWidth: 720, marginTop: 28, marginBottom: 40 }}>
       <SectionDividerLabel>What You Can Check</SectionDividerLabel>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
-        {items.map((item) => (
-          <div key={item.label} style={{
-            background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12, padding: '13px 14px',
-          }}>
-            <p style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--gold)', marginBottom: 4 }}>{item.label}</p>
-            <p style={{ fontSize: 11.5, color: 'var(--light-text)', lineHeight: 1.5 }}>{item.desc}</p>
-          </div>
-        ))}
+        {items.map((item) => {
+          const Icon = item.icon;
+          return (
+            <div key={item.label} style={{
+              background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12, padding: '14px',
+              display: 'flex', gap: 12, alignItems: 'flex-start',
+            }}>
+              <div style={{
+                flexShrink: 0, width: 34, height: 34, borderRadius: 10,
+                background: `${item.color}29`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Icon size={16} color={item.color} />
+              </div>
+              <div>
+                <p style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--white)', marginBottom: 4 }}>{item.label}</p>
+                <p style={{ fontSize: 11.5, color: 'var(--light-text)', lineHeight: 1.5 }}>{item.desc}</p>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </section>
   );
