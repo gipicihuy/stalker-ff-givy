@@ -800,7 +800,7 @@ export default function StalkClient() {
         <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--muted-text)', textAlign: 'center' }}>
           Cek info akun Free Fire lewat UID
         </p>
-        <p style={{ margin: '4px 0 0', fontSize: 10.5, color: 'var(--gold)', letterSpacing: '0.03em', textAlign: 'center' }}>
+        <p style={{ margin: '4px 0 0', fontSize: 10.5, color: 'var(--gold)', letterSpacing: '0.05em', textAlign: 'center', fontFamily: 'var(--font-display)', fontWeight: 500 }}>
           • By Givy •
         </p>
       </header>
