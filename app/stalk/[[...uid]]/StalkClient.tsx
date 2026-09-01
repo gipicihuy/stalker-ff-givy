@@ -588,16 +588,8 @@ function FaqSection() {
           }}>
             <summary style={{
               display: 'flex', alignItems: 'center', gap: 12,
-              padding: '13px 14px', cursor: 'pointer',
+              padding: '14px 16px', cursor: 'pointer',
             }}>
-              <span style={{
-                flexShrink: 0, width: 26, height: 26, borderRadius: 7,
-                background: 'var(--gold-soft)', border: '1px solid var(--gold)', color: 'var(--gold)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-display)',
-              }}>
-                Q
-              </span>
               <span className="faq-question" style={{
                 flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--white)',
                 fontFamily: 'var(--font-display)', transition: 'color 0.2s ease',
@@ -606,7 +598,7 @@ function FaqSection() {
               </span>
               <ChevronDown className="faq-chevron" size={16} color="var(--muted-text)" style={{ flexShrink: 0 }} />
             </summary>
-            <div style={{ padding: '0 14px 14px 52px', fontSize: 12.5, color: 'var(--light-text)', lineHeight: 1.6 }}>
+            <div style={{ padding: '0 16px 16px', fontSize: 12.5, color: 'var(--light-text)', lineHeight: 1.6 }}>
               {item.a}
             </div>
           </details>
