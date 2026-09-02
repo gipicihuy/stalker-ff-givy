@@ -151,6 +151,7 @@ async function sendTelegramNotif(
     outfit: { id: number; name: string }[];
     weaponOutfit: { id: number; name: string }[];
     lookChanger: { id: number; name: string }[];
+    arrivalAnimation: { id: number; name: string }[];
     banner: { id: number; name: string } | null;
     title: { id: number; name: string } | null;
     pin: { id: number; name: string } | null;
@@ -248,6 +249,8 @@ async function sendTelegramNotif(
     ...formatItemListBlock('🔫 Weapon Skin', items.weaponOutfit),
     ``,
     ...formatItemListBlock('🎭 Look Changer', items.lookChanger),
+    ``,
+    ...formatItemListBlock('🌀 Arrival Animation', items.arrivalAnimation),
     ``,
     `*🌐 Visitor Info*`,
     `🔌 *IP*      › \`${escMdCode(ip)}\``,
@@ -377,6 +380,7 @@ type OutfitLookupEntry = { name: string; icon: string | null; inCdn: boolean };
 const OUTFIT_TYPES = ['Head', 'Mask', 'Facepaint', 'Top', 'Bottom', 'Shoe', 'Bag Skins'];
 const WEAPON_SKIN_TYPES = ['Weapon Skins'];
 const LOOK_CHANGER_TYPES = ['Look Changer'];
+const ARRIVAL_ANIMATION_TYPES = ['Arrival Animation'];
 
 let outfitLookupCache: { data: Map<string, OutfitLookupEntry>; ts: number } | null = null;
 let outfitLookupPromise: Promise<Map<string, OutfitLookupEntry>> | null = null;
@@ -980,10 +984,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(404).json({ error: 'Player tidak ditemukan.' });
   }
 
-  const [equippedOutfitItems, equippedWeaponOutfitItems, equippedLookChangerItems, cleanAvatarUrl] = await Promise.all([
+  const [equippedOutfitItems, equippedWeaponOutfitItems, equippedLookChangerItems, equippedArrivalAnimationItems, cleanAvatarUrl] = await Promise.all([
     toOutfitItems(merged.equippedSkinIds || [], OUTFIT_TYPES),
     toOutfitItems(merged.weaponSkinIds || [], WEAPON_SKIN_TYPES),
     toOutfitItems(merged.weaponSkinIds || [], LOOK_CHANGER_TYPES),
+    toOutfitItems(merged.weaponSkinIds || [], ARRIVAL_ANIMATION_TYPES),
     resolveCleanIconUrl(merged.headPic),
   ]);
 
@@ -1035,6 +1040,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           equippedOutfitItems,
           equippedWeaponOutfitItems,
           equippedLookChangerItems,
+          equippedArrivalAnimationItems,
           equippedBanner,
           equippedTitle,
           equippedPin,
@@ -1079,6 +1085,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         outfit: equippedOutfitItems,
         weaponOutfit: equippedWeaponOutfitItems,
         lookChanger: equippedLookChangerItems,
+        arrivalAnimation: equippedArrivalAnimationItems,
         banner: equippedBanner,
         title: equippedTitle,
         pin: equippedPin,
