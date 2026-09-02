@@ -1212,22 +1212,24 @@ export default function StalkClient() {
             </>
           ) : null}
 
-          {basic?.equippedWeaponOutfitItems && basic.equippedWeaponOutfitItems.length > 0 ? (
+          {(basic?.equippedWeaponOutfitItems && basic.equippedWeaponOutfitItems.length > 0) ||
+          (basic?.equippedLookChangerItems && basic.equippedLookChangerItems.length > 0) ? (
             <>
               <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
-              <div>
-                <SectionDividerLabel>Weapon Skin</SectionDividerLabel>
-                <OutfitGrid items={basic.equippedWeaponOutfitItems} />
-              </div>
-            </>
-          ) : null}
+              <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+                {basic?.equippedWeaponOutfitItems && basic.equippedWeaponOutfitItems.length > 0 ? (
+                  <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+                    <SectionDividerLabel>Weapon</SectionDividerLabel>
+                    <OutfitGrid items={basic.equippedWeaponOutfitItems} />
+                  </div>
+                ) : null}
 
-          {basic?.equippedLookChangerItems && basic.equippedLookChangerItems.length > 0 ? (
-            <>
-              <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
-              <div>
-                <SectionDividerLabel>Look Changer</SectionDividerLabel>
-                <OutfitGrid items={basic.equippedLookChangerItems} />
+                {basic?.equippedLookChangerItems && basic.equippedLookChangerItems.length > 0 ? (
+                  <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+                    <SectionDividerLabel>Look Changer</SectionDividerLabel>
+                    <OutfitGrid items={basic.equippedLookChangerItems} />
+                  </div>
+                ) : null}
               </div>
             </>
           ) : null}
