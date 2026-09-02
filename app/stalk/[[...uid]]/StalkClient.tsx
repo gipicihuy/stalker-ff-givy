@@ -29,6 +29,7 @@ type BasicInfo = {
   equippedOutfitItems?: OutfitItem[];
   equippedWeaponOutfitItems?: OutfitItem[];
   equippedLookChangerItems?: OutfitItem[];
+  equippedArrivalAnimationItems?: OutfitItem[];
   equippedBanner?: ResolvedItem | null;
   equippedTitle?: ResolvedItem | null;
   equippedPin?: ResolvedItem | null;
@@ -1224,6 +1225,16 @@ export default function StalkClient() {
                     ...(basic?.equippedLookChangerItems ?? []),
                   ]}
                 />
+              </div>
+            </>
+          ) : null}
+
+          {basic?.equippedArrivalAnimationItems && basic.equippedArrivalAnimationItems.length > 0 ? (
+            <>
+              <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+              <div>
+                <SectionDividerLabel>Arrival Animation</SectionDividerLabel>
+                <OutfitGrid items={basic.equippedArrivalAnimationItems} />
               </div>
             </>
           ) : null}
