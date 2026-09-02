@@ -665,7 +665,7 @@ function OutfitGrid({ items }: { items: OutfitItem[] }) {
   if (!items || items.length === 0) return null;
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))', gap: 12 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: 10 }}>
       {items.map((item) => {
         const isBroken = brokenIds.has(item.id);
         const showImage = Boolean(item.icon) && !isBroken;
@@ -1216,16 +1216,16 @@ export default function StalkClient() {
           (basic?.equippedLookChangerItems && basic.equippedLookChangerItems.length > 0) ? (
             <>
               <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
-              <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 14 }}>
                 {basic?.equippedWeaponOutfitItems && basic.equippedWeaponOutfitItems.length > 0 ? (
-                  <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+                  <div style={{ flex: '1 1 0%', minWidth: 0 }}>
                     <SectionDividerLabel>Weapon</SectionDividerLabel>
                     <OutfitGrid items={basic.equippedWeaponOutfitItems} />
                   </div>
                 ) : null}
 
                 {basic?.equippedLookChangerItems && basic.equippedLookChangerItems.length > 0 ? (
-                  <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+                  <div style={{ flex: '1 1 0%', minWidth: 0 }}>
                     <SectionDividerLabel>Look Changer</SectionDividerLabel>
                     <OutfitGrid items={basic.equippedLookChangerItems} />
                   </div>
