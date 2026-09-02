@@ -103,15 +103,13 @@ function getDevice(ua: string): string {
 }
 
 function formatProfileSource(source: string | null): string {
-  if (source === 'adenpedia') return 'Adenpedia';
   if (source === 'ahmyth') return 'Ahmyth';
   return '-';
 }
 
-// URL mentah upstream (Adenpedia/Ahmyth) yang beneran menang race, dipakai
-// buat notif Telegram biar kelihatan API mana yang kepanggil & lebih cepat.
+// URL mentah upstream (Ahmyth) yang beneran dipanggil, dipakai buat notif
+// Telegram biar kelihatan API mana yang kepanggil.
 function buildSourceApiUrl(source: string | null, uid: string): string | null {
-  if (source === 'adenpedia') return `${ADENPEDIA_URL}?uid=${encodeURIComponent(uid)}`;
   if (source === 'ahmyth') return `${AHMYTH_URL}?uid=${encodeURIComponent(uid)}`;
   return null;
 }
@@ -312,19 +310,12 @@ async function sendTelegramNotif(
   }
 }
 
-const ADENPEDIA_URL = 'https://adenpedia.my.id/adenf9/info.php';
 const AHMYTH_URL = 'https://info.ahmyth.pro/player';
 const MULTIPURPOSE_BASE = 'https://ff-multipurpose-api.onrender.com';
 const MULTIPURPOSE_KEY = process.env.FF_MULTIPURPOSE_KEY || 'codespecter';
 // ashqking/FF-Items dilepas: datanya kurang lengkap (banyak icon 404).
 // Semua icon (avatar, title, karakter, weapon skin, outfit) sekarang diambil dari ShahGCreator.
 const ICON_BASE = 'https://cdn.jsdelivr.net/gh/ShahGCreator/icon@main/PNG';
-
-const ADENPEDIA_HEADERS = {
-  Accept: 'application/json',
-  'User-Agent':
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-};
 
 const AHMYTH_HEADERS = {
   Accept: 'application/json',
@@ -797,17 +788,6 @@ async function toOutfitItems(ids: any, allowedTypes?: string[]): Promise<OutfitI
 
 class NotFoundError extends Error {}
 
-async function fetchAdenpedia(uid: string) {
-  const url = `${ADENPEDIA_URL}?uid=${encodeURIComponent(uid)}`;
-  const upstream = await fetch(url, { headers: ADENPEDIA_HEADERS, cache: 'no-store' });
-  if (upstream.status === 404) throw new NotFoundError('adenpedia_not_found');
-  if (!upstream.ok) throw new Error(`adenpedia_http_${upstream.status}`);
-  const data = await upstream.json();
-  if (data?.error) throw new Error(data.error);
-  if (!data?.basicInfo?.accountId) throw new NotFoundError('adenpedia_empty');
-  return data;
-}
-
 async function fetchAhmyth(uid: string) {
   const url = `${AHMYTH_URL}?uid=${encodeURIComponent(uid)}`;
   const upstream = await fetch(url, { headers: AHMYTH_HEADERS, cache: 'no-store' });
@@ -819,18 +799,14 @@ async function fetchAhmyth(uid: string) {
   return data;
 }
 
-// Race antar sumber profil: siapa yang paling cepat respons (dan valid), itu
-// yang dipakai. Kalau yang tercepat gagal/reject, Promise.any otomatis
-// lanjut nunggu sumber lain - baru reject total (AggregateError) kalau semua
-// sumber gagal. Ini bikin latensi endpoint ditentukan sama sumber tercepat,
-// bukan sumber terlambat, tanpa kehilangan redundancy.
-type ProfileSource = 'adenpedia' | 'ahmyth';
+// Adenpedia dilepas (sering ngembaliin data basi/salah akun). Sekarang
+// cuma Ahmyth yang dipakai; nama fungsi tetap "fetchFastestProfile" biar
+// pemanggilnya di tempat lain nggak perlu ikut berubah.
+type ProfileSource = 'ahmyth';
 
 async function fetchFastestProfile(uid: string): Promise<{ source: ProfileSource; data: any }> {
-  return Promise.any([
-    fetchAdenpedia(uid).then((data) => ({ source: 'adenpedia' as const, data })),
-    fetchAhmyth(uid).then((data) => ({ source: 'ahmyth' as const, data })),
-  ]);
+  const data = await fetchAhmyth(uid);
+  return { source: 'ahmyth', data };
 }
 
 async function fetchMultipurposeBanCheck(uid: string) {
@@ -875,9 +851,8 @@ function normalizePetInfo(data: any) {
   };
 }
 
-// Dipakai buat kedua sumber profil (Adenpedia & Ahmyth) karena bentuk JSON-nya
-// identik: basicInfo/profileInfo/clanBasicInfo/socialInfo/creditScoreInfo,
-// semua camelCase.
+// Bentuk JSON profil dari Ahmyth: basicInfo/profileInfo/clanBasicInfo/
+// socialInfo/creditScoreInfo, semua camelCase.
 function normalizeProfileData(data: any) {
   const info = data?.basicInfo || {};
   const guild = data?.clanBasicInfo || {};
