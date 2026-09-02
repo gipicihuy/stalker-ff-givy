@@ -1214,27 +1214,19 @@ export default function StalkClient() {
           ) : null}
 
           {(basic?.equippedWeaponOutfitItems && basic.equippedWeaponOutfitItems.length > 0) ||
-          (basic?.equippedLookChangerItems && basic.equippedLookChangerItems.length > 0) ? (
+          (basic?.equippedLookChangerItems && basic.equippedLookChangerItems.length > 0) ||
+          (basic?.equippedArrivalAnimationItems && basic.equippedArrivalAnimationItems.length > 0) ? (
             <>
               <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
               <div>
-                <SectionDividerLabel>Weapon &amp; Look Changer</SectionDividerLabel>
+                <SectionDividerLabel>Weapon / Look Changer / Arrival Animation</SectionDividerLabel>
                 <OutfitGrid
                   items={[
                     ...(basic?.equippedWeaponOutfitItems ?? []),
                     ...(basic?.equippedLookChangerItems ?? []),
+                    ...(basic?.equippedArrivalAnimationItems ?? []),
                   ]}
                 />
-              </div>
-            </>
-          ) : null}
-
-          {basic?.equippedArrivalAnimationItems && basic.equippedArrivalAnimationItems.length > 0 ? (
-            <>
-              <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
-              <div>
-                <SectionDividerLabel>Arrival Animation</SectionDividerLabel>
-                <OutfitGrid items={basic.equippedArrivalAnimationItems} />
               </div>
             </>
           ) : null}
