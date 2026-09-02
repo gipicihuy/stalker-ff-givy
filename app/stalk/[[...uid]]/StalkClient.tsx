@@ -375,9 +375,10 @@ function Spinner() {
 
 // Tabel ambang batas poin BR Ranking -> [file icon, label tier]. Cara
 // bacanya: cari ambang batas TERTINGGI yang masih <= poin akun, itulah
-// tier saat ini. Icon di-serve dari CDN eksternal (lihat BR_RANK_ICON_BASE)
-// biar repo tidak berat.
-const BR_RANK_ICON_BASE = 'https://ff-items-givy-coy.vercel.app/rank';
+// tier saat ini. Icon aslinya di-serve dari CDN eksternal, tapi
+// di-proxy lewat /api/img/rank/ (lihat app/api/img/rank/[file]/route.ts)
+// supaya origin CDN-nya tidak keliatan pas inspect / network tab.
+const BR_RANK_ICON_BASE = '/api/img/rank';
 
 const BR_RANKING_MAP: Array<[number, string, string]> = [
   [1000, 'br-bronze1.png', 'Bronze I'],
