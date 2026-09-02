@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint, Send, User, Shirt, ChevronDown } from 'lucide-react';
+import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint, Send, User, Shirt, ChevronDown, Trophy } from 'lucide-react';
 
 type PrimeInfo = { primeLevel?: number };
 type ResolvedItem = { id: number; name: string; icon: string | null; type: string | null };
@@ -371,6 +371,52 @@ function Spinner() {
       verticalAlign: 'middle',
     }} />
   );
+}
+
+// Tabel ambang batas poin BR Ranking -> [file icon, label tier]. Cara
+// bacanya: cari ambang batas TERTINGGI yang masih <= poin akun, itulah
+// tier saat ini. File icon disimpan manual di public/image/rank/.
+const BR_RANKING_MAP: Array<[number, string, string]> = [
+  [1000, 'br-bronze1.png', 'Bronze I'],
+  [1100, 'br-bronze2.png', 'Bronze II'],
+  [1200, 'br-bronze3.png', 'Bronze III'],
+  [1310, 'br-silver1.png', 'Silver I'],
+  [1410, 'br-silver2.png', 'Silver II'],
+  [1600, 'br-silver3.png', 'Silver III'],
+  [1610, 'br-gold1.png', 'Gold I'],
+  [1735, 'br-gold2.png', 'Gold II'],
+  [1860, 'br-gold3.png', 'Gold III'],
+  [1985, 'br-gold4.png', 'Gold IV'],
+  [2110, 'br-platinum1.png', 'Platinum I'],
+  [2235, 'br-platinum2.png', 'Platinum II'],
+  [2360, 'br-platinum3.png', 'Platinum III'],
+  [2485, 'br-platinum4.png', 'Platinum IV'],
+  [2610, 'br-platinum5.png', 'Platinum V'],
+  [2760, 'br-diamond1.png', 'Diamond I'],
+  [2910, 'br-diamond2.png', 'Diamond II'],
+  [3060, 'br-diamond3.png', 'Diamond III'],
+  [3210, 'br-diamond4.png', 'Diamond IV'],
+  [3350, 'br-diamond5.png', 'Diamond V'],
+  [3500, 'br-heroic1.png', 'Heroic I'],
+  [4100, 'br-heroic2.png', 'Heroic II'],
+  [4300, 'br-heroic3.png', 'Heroic III'],
+  [4900, 'br-heroic4.png', 'Heroic IV'],
+  [5500, 'br-heroic5.png', 'Heroic V'],
+  [6300, 'br-master1.png', 'Master I'],
+  [7100, 'br-master2.png', 'Master II'],
+  [8000, 'br-master3.png', 'Master III'],
+  [9000, 'br-master4.png', 'Master IV'],
+  [10000, 'br-master5.png', 'Master V'],
+];
+
+function getBrRankInfo(points?: number): { icon: string; label: string; points: number } {
+  const p = points ?? 0;
+  let best = BR_RANKING_MAP[0];
+  for (const entry of BR_RANKING_MAP) {
+    if (entry[0] <= p) best = entry;
+    else break;
+  }
+  return { icon: `/image/rank/${best[1]}`, label: best[2], points: p };
 }
 
 function StatCard({ icon, label, value, sub, accent }: { icon?: string; label?: string; value: React.ReactNode; sub?: string; accent?: string }) {
@@ -757,6 +803,7 @@ export default function StalkClient() {
   const accountAgeDays = basic ? calculateAccountAgeDays(basic.createAt) : null;
   const ageBreakdown = basic ? calculateAgeBreakdown(basic.createAt) : null;
   const estimatedTopup = basic ? estimateTopupPrice(basic) : 0;
+  const brRankInfo = basic ? getBrRankInfo(basic.rank) : null;
   const avatarSrc =
     basic?.avatarUrl ||
     (basic?.headPic ? `https://ff.garena.com/avatar/${basic.headPic}.png` : null) ||
@@ -1009,6 +1056,37 @@ export default function StalkClient() {
               Login terakhir {formatFullDateTime(basic.lastLoginAt)}
             </InfoRow>
           </div>
+
+          {brRankInfo ? (
+            <div style={{
+              marginTop: 10, background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)',
+              borderRadius: 14, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12,
+            }}>
+              <img
+                src={brRankInfo.icon}
+                alt={brRankInfo.label}
+                style={{ width: 42, height: 42, objectFit: 'contain', flexShrink: 0 }}
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{
+                  fontSize: 10, fontWeight: 600, color: 'var(--gold)', textTransform: 'uppercase',
+                  letterSpacing: '0.05em', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 5,
+                }}>
+                  <Trophy size={12} /> BR Rank
+                </p>
+                <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)' }}>
+                  {brRankInfo.label}
+                </p>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)' }}>
+                  {formatNumber(brRankInfo.points)}
+                </p>
+                <p style={{ fontSize: 10, color: 'var(--muted-text)' }}>Points</p>
+              </div>
+            </div>
+          ) : null}
 
           <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
 
