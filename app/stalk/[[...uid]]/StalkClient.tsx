@@ -375,7 +375,10 @@ function Spinner() {
 
 // Tabel ambang batas poin BR Ranking -> [file icon, label tier]. Cara
 // bacanya: cari ambang batas TERTINGGI yang masih <= poin akun, itulah
-// tier saat ini. File icon disimpan manual di public/image/rank/.
+// tier saat ini. Icon di-serve dari CDN eksternal (lihat BR_RANK_ICON_BASE)
+// biar repo tidak berat.
+const BR_RANK_ICON_BASE = 'https://ff-items-givy-coy.vercel.app/rank';
+
 const BR_RANKING_MAP: Array<[number, string, string]> = [
   [1000, 'br-bronze1.png', 'Bronze I'],
   [1100, 'br-bronze2.png', 'Bronze II'],
@@ -416,7 +419,7 @@ function getBrRankInfo(points?: number): { icon: string; label: string; points: 
     if (entry[0] <= p) best = entry;
     else break;
   }
-  return { icon: `/image/rank/${best[1]}`, label: best[2], points: p };
+  return { icon: `${BR_RANK_ICON_BASE}/${best[1]}`, label: best[2], points: p };
 }
 
 function StatCard({ icon, label, value, sub, accent }: { icon?: string; label?: string; value: React.ReactNode; sub?: string; accent?: string }) {
