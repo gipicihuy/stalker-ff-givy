@@ -1218,19 +1218,12 @@ export default function StalkClient() {
               <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
               <div>
                 <SectionDividerLabel>Weapon &amp; Look Changer</SectionDividerLabel>
-                <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 6 }}>
-                  {basic?.equippedWeaponOutfitItems && basic.equippedWeaponOutfitItems.length > 0 ? (
-                    <div style={{ flex: '1 1 0%', minWidth: 0 }}>
-                      <OutfitGrid items={basic.equippedWeaponOutfitItems} />
-                    </div>
-                  ) : null}
-
-                  {basic?.equippedLookChangerItems && basic.equippedLookChangerItems.length > 0 ? (
-                    <div style={{ flex: '1 1 0%', minWidth: 0 }}>
-                      <OutfitGrid items={basic.equippedLookChangerItems} />
-                    </div>
-                  ) : null}
-                </div>
+                <OutfitGrid
+                  items={[
+                    ...(basic?.equippedWeaponOutfitItems ?? []),
+                    ...(basic?.equippedLookChangerItems ?? []),
+                  ]}
+                />
               </div>
             </>
           ) : null}
