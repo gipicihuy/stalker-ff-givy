@@ -14,6 +14,7 @@ type BasicInfo = {
   exp?: number;
   headPic?: number;
   rank?: number;
+  rankingPoints?: number;
   csRank?: number;
   badgeCnt?: number;
   liked?: number;
@@ -807,7 +808,7 @@ export default function StalkClient() {
   const accountAgeDays = basic ? calculateAccountAgeDays(basic.createAt) : null;
   const ageBreakdown = basic ? calculateAgeBreakdown(basic.createAt) : null;
   const estimatedTopup = basic ? estimateTopupPrice(basic) : 0;
-  const brRankInfo = basic ? getBrRankInfo(basic.rank) : null;
+  const brRankInfo = basic ? getBrRankInfo(basic.rankingPoints) : null;
   const avatarSrc =
     basic?.avatarUrl ||
     (basic?.headPic ? `https://ff.garena.com/avatar/${basic.headPic}.png` : null) ||
