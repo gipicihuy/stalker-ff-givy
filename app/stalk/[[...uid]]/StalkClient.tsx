@@ -1148,7 +1148,7 @@ export default function StalkClient() {
               <StatCard
                 icon={basic.hasElitePass ? '/image/bphidup.png' : '/image/bpmati.png'}
                 label="Booyah Pass"
-                value={basic.hasElitePass ? 'ON' : 'OFF'}
+                value={basic.hasElitePass ? 'Aktif' : 'Tidak Aktif'}
                 accent={basic.hasElitePass ? 'var(--gold)' : 'var(--muted-text)'}
                 sub={`Badge: ${basic.badgeCnt ?? '—'}`}
               />
