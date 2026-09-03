@@ -1219,7 +1219,7 @@ export default function StalkClient() {
             <>
               <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
               <div>
-                <SectionDividerLabel>Weapon // Look Changer // Arrival Animation</SectionDividerLabel>
+                <SectionDividerLabel>Weapon • Look Changer • Arrival Animation</SectionDividerLabel>
                 <OutfitGrid
                   items={[
                     ...(basic?.equippedWeaponOutfitItems ?? []),
