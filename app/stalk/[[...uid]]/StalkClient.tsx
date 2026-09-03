@@ -376,6 +376,30 @@ function Spinner() {
   );
 }
 
+function LoadingOverlay() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+        background: 'transparent', backdropFilter: 'blur(1px)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        zIndex: 9999,
+      }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/loading/Loading.gif" alt="Loading" style={{ width: 80 }} />
+      <span style={{
+        color: 'var(--gold)', fontSize: '1.2rem', fontWeight: 800,
+        marginTop: 15, fontStyle: 'italic', letterSpacing: 1,
+      }}>
+        LOADING...
+      </span>
+    </div>
+  );
+}
+
 // Tabel ambang batas poin BR Ranking -> [file icon, label tier]. Cara
 // bacanya: cari ambang batas TERTINGGI yang masih <= poin akun, itulah
 // tier saat ini. Icon aslinya di-serve dari CDN eksternal, tapi
@@ -827,6 +851,7 @@ export default function StalkClient() {
 
   return (
     <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 16px 0' }}>
+      {loading ? <LoadingOverlay /> : null}
       <header style={{
         position: 'relative', width: '100%', maxWidth: 720,
         padding: '22px 20px 18px',
