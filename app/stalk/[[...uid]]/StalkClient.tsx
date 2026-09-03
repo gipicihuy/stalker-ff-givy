@@ -17,6 +17,7 @@ type BasicInfo = {
   rankingPoints?: number;
   csRank?: number;
   badgeCnt?: number;
+  hasElitePass?: boolean;
   liked?: number;
   createAt?: string;
   lastLoginAt?: string;
@@ -1144,7 +1145,13 @@ export default function StalkClient() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-              <StatCard icon="/image/bpmati.png" value="Booyah Pass" accent="var(--gold)" sub={`Badge: ${basic.badgeCnt ?? '—'}`} />
+              <StatCard
+                icon={basic.hasElitePass ? '/image/bphidup.png' : '/image/bpmati.png'}
+                label="Booyah Pass"
+                value={basic.hasElitePass ? 'ON' : 'OFF'}
+                accent={basic.hasElitePass ? 'var(--gold)' : 'var(--muted-text)'}
+                sub={`Badge: ${basic.badgeCnt ?? '—'}`}
+              />
               <StatCard
                 icon={`/image/prime${basic.primeInfo?.primeLevel || 1}.png`}
                 label="Prime Level"
