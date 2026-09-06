@@ -1,24 +1,10 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DEFAULT_OB_VERSION = exports.GARENA_CLIENT = exports.URLS = exports.HEADERS = exports.AE = void 0;
 exports.normalizeObVersion = normalizeObVersion;
 exports.resolveObVersion = resolveObVersion;
 exports.getCommonHeaders = getCommonHeaders;
-const fs_1 = __importDefault(require("fs"));
-const js_yaml_1 = __importDefault(require("js-yaml"));
-const resolve_path_1 = require("./resolve-path");
-function loadYamlFile(filePath) {
-    try {
-        const yamlRaw = fs_1.default.readFileSync(filePath, 'utf8');
-        return js_yaml_1.default.load(yamlRaw);
-    }
-    catch {
-        return {};
-    }
-}
+const embedded_data_1 = require("../embedded-data");
 function readConfigValue(config, key, fallback) {
     const value = config[key];
     if (value === undefined || value === null || value === '') {
@@ -32,7 +18,7 @@ function requireConfigValue(config, key) {
     return readConfigValue(config, key);
 }
 function loadSettings() {
-    const parsed = loadYamlFile((0, resolve_path_1.resolveProjectFile)('config/settings.yaml'));
+    const parsed = embedded_data_1.embeddedSettings;
     return {
         AE: {
             MAIN_KEY: Buffer.from(requireConfigValue(parsed, 'AE_MAIN_KEY'), 'binary'),
