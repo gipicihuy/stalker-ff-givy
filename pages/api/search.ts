@@ -33,23 +33,42 @@ function isRateLimited(ip: string): boolean {
   return bucket.count > RATE_LIMIT_MAX_REQUESTS;
 }
 
-async function searchOnce(keyword: string) {
-  const api = new FreeFireAPI();
+async function searchOnce(api: FreeFireAPI, keyword: string) {
   try {
-    return await api.searchAccount(keyword);
+    return { ok: true as const, results: await api.searchAccount(keyword) };
   } catch (error) {
-    console.error('[api/search] searchAccount failed:', error instanceof Error ? error.message : error);
-    return [];
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[api/search] searchAccount failed:', message);
+    return { ok: false as const, message };
   }
 }
 
-async function searchWithRetry(keyword: string, attempts = 5) {
+async function searchWithRetry(keyword: string, attempts = 3) {
+  // Pakai 1 instance/session buat semua percobaan. Sebelumnya tiap percobaan
+  // bikin FreeFireAPI() baru -> login guest baru ke server Garena tiap kali,
+  // yang boros dan gampang kena limit/gagal auth di sisi Garena.
+  const api = new FreeFireAPI();
   const merged = new Map();
+  let lastErrorMessage: string | null = null;
+  let anySucceeded = false;
+
   for (let i = 0; i < attempts; i++) {
-    const results = await searchOnce(keyword);
-    for (const p of results) merged.set(p.accountid, p);
+    const attempt = await searchOnce(api, keyword);
+    if (!attempt.ok) {
+      lastErrorMessage = attempt.message;
+      continue;
+    }
+    anySucceeded = true;
+    for (const p of attempt.results) merged.set(p.accountid, p);
   }
-  return Array.from(merged.values());
+
+  return {
+    results: Array.from(merged.values()),
+    // Cuma dianggap "gagal total" kalau semua percobaan error, bukan cuma
+    // hasilnya kosong (kosong = memang gak ketemu akunnya).
+    failed: !anySucceeded && lastErrorMessage !== null,
+    errorMessage: lastErrorMessage,
+  };
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -67,12 +86,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { q } = req.query;
   const keyword = String(q || '').trim();
 
-  if (!keyword || keyword.length < 2) {
-    return res.status(400).json({ error: 'Nickname minimal 2 karakter.' });
+  if (!keyword || keyword.length < 3) {
+    return res.status(400).json({ error: 'Nickname minimal 3 karakter.' });
   }
 
   try {
-    const results = await searchWithRetry(keyword);
+    const { results, failed, errorMessage } = await searchWithRetry(keyword);
+
+    if (failed) {
+      return res.status(502).json({
+        error: 'Server pencarian lagi bermasalah, coba lagi sebentar.',
+        reason: errorMessage,
+      });
+    }
+
     const mapped = results.map((p: any) => ({
       accountid: String(p.accountid),
       nickname: p.nickname,
@@ -81,7 +108,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }));
     res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=60');
     return res.status(200).json({ status: 'ok', results: mapped });
-  } catch {
+  } catch (error) {
+    console.error('[api/search] unexpected failure:', error instanceof Error ? error.message : error);
     return res.status(502).json({ error: 'Server pencarian lagi bermasalah, coba lagi sebentar.' });
   }
 }
