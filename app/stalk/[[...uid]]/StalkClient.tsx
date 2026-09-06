@@ -774,6 +774,7 @@ export default function StalkClient() {
   const [nicknameError, setNicknameError] = useState<string | null>(null);
   const lastCheckRef = useRef(0);
   const didInitRef = useRef(false);
+  const lastRequestedUidRef = useRef<string | undefined>(initialUid);
 
   const copySignature = useCallback((text: string) => {
     if (!text) return;
@@ -814,6 +815,7 @@ export default function StalkClient() {
       return;
     }
     lastCheckRef.current = now;
+    lastRequestedUidRef.current = trimmed;
 
     setLoading(true);
     setError(null);
@@ -902,6 +904,35 @@ export default function StalkClient() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sinkronkan state kalau URL berubah dari LUAR aksi app ini sendiri —
+  // misalnya user pencet tombol Back/Forward browser abis pilih hasil
+  // pencarian nickname. router.push() di cekID() juga mengubah initialUid,
+  // makanya lastRequestedUidRef dipakai buat bedain: kalau initialUid yang
+  // baru sama dengan yang barusan kita minta sendiri, skip (biar gak
+  // double-fetch); kalau beda (navigasi dari luar), baru sync ulang.
+  useEffect(() => {
+    if (!didInitRef.current) return;
+    if (initialUid === lastRequestedUidRef.current) return;
+    lastRequestedUidRef.current = initialUid;
+
+    if (initialUid && /^\d{6,15}$/.test(initialUid)) {
+      setUid(initialUid);
+      setSearchMode('uid');
+      cekID(initialUid);
+    } else {
+      // Balik ke /stalk tanpa UID -> reset total ke state kosong.
+      setSearchMode('uid');
+      setUid('');
+      setResult(null);
+      setError(null);
+      setCopied(false);
+      setNickname('');
+      setNicknameResults([]);
+      setNicknameError(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialUid]);
 
   const basic = result?.basicInfo;
   const social = result?.socialInfo;
