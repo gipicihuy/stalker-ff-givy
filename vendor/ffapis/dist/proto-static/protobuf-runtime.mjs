@@ -1688,6 +1688,15 @@ var require_minimal = __commonJS({
         return null;
       }
     }();
+    // PATCH: force-disable Buffer detection for the protobufjs writer/reader.
+    // Cloudflare Workers' `Buffer` polyfill (nodejs_compat) implements
+    // `.utf8Write()` but with a buggy internal capacity check, causing
+    // "RangeError [ERR_OUT_OF_RANGE]: The value of 'length' is out of range"
+    // once a written string is long enough to force a buffer resize
+    // (e.g. Garena's OAuth logintoken). Setting this to null makes protobufjs
+    // fall back to its pure Uint8Array-based Writer/Reader, which doesn't
+    // rely on that buggy method and works correctly everywhere.
+    util.Buffer = null;
     util.newBuffer = function newBuffer(sizeOrArray) {
       var Buffer2 = util.Buffer;
       return typeof sizeOrArray === "number" ? Buffer2 ? Buffer2.allocUnsafe(sizeOrArray) : new Uint8Array(sizeOrArray) : Buffer2 ? Buffer2.from(sizeOrArray) : new Uint8Array(sizeOrArray);
