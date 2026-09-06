@@ -888,6 +888,17 @@ export default function StalkClient() {
     setError(null);
     setNicknameError(null);
     setNicknameResults([]);
+
+    if (mode === 'nickname' && initialUid) {
+      // Pindah ke tab "By Nickname" tapi URL masih nyangkut di /stalk/{uid}
+      // dari hasil sebelumnya -> ikut dibersihkan biar URL & tampilan sinkron.
+      // lastRequestedUidRef ditandai duluan biar effect sync URL gak nganggep
+      // ini navigasi dari luar dan nge-reset ulang / refetch.
+      lastRequestedUidRef.current = undefined;
+      router.push('/stalk', { scroll: false });
+      setUid('');
+      setResult(null);
+    }
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
