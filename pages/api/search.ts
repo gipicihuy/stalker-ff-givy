@@ -72,7 +72,7 @@ function sortByRelevance<T extends { nickname?: string }>(results: T[], keyword:
   });
 }
 
-async function searchWithRetry(keyword: string, attempts = 6) {
+async function searchWithRetry(keyword: string, attempts = 10) {
   // GANTI AKUN GUEST DI SETIAP PERCOBAAN. Sebelumnya sempat dicoba reuse 1
   // session buat semua percobaan (biar hemat login), lalu di-refine jadi
   // "rotate kalau kelihatan kering" — dua-duanya masih bikin user harus
@@ -86,14 +86,23 @@ async function searchWithRetry(keyword: string, attempts = 6) {
   // Pool akun guest yang ada lumayan besar (~250+ gabungan semua region),
   // jadi sekarang tiap percobaan pakai login guest yang baru & beda-beda,
   // hasilnya di-merge (dedupe by accountid) biar cakupannya maksimal dalam
-  // SATU kali klik search, dengan early-stop begitu udah dapet cukup banyak
-  // biar gak buang-buang waktu/quota kalau hasilnya emang udah lengkap dari
-  // awal.
-  const EARLY_STOP_AT = 12;
+  // SATU kali klik search.
+  //
+  // STOP CRITERION: sebelumnya pakai flat cap (EARLY_STOP_AT = 12) yang
+  // ternyata bikin akun tertentu (yang legit match, cth. keyword pendek/umum
+  // kayak "givy") gak ke-cover kalau kebetulan udah kekumpul 12 akun LAIN
+  // duluan dari attempt-attempt awal — padahal beberapa attempt berikutnya
+  // yang gak sempet jalan justru bisa nemu akun yang dicari. Sekarang
+  // berhenti berdasarkan "diminishing returns": kalau beberapa attempt
+  // beruntun udah gak nambahin akun BARU sama sekali, baru dianggap hasil
+  // udah stabil/lengkap dan berhenti — bukan asal kepotong di angka tetap.
+  const STALE_STREAK_LIMIT = 3; // berhenti kalau 3x berturut-turut gak ada akun baru
+  const HARD_CAP = 40; // pengaman biar list gak membengkak gak wajar & tetep kebatasi total attempt
 
   const merged = new Map();
   let lastErrorMessage: string | null = null;
   let anySucceeded = false;
+  let staleStreak = 0;
 
   for (let i = 0; i < attempts; i++) {
     const api = new FreeFireAPI();
@@ -105,11 +114,18 @@ async function searchWithRetry(keyword: string, attempts = 6) {
     }
 
     anySucceeded = true;
+    const sizeBefore = merged.size;
     for (const p of attempt.results) merged.set(p.accountid, p);
-    if (merged.size >= EARLY_STOP_AT) break;
+    const gainedNew = merged.size > sizeBefore;
+
+    if (merged.size >= HARD_CAP) break;
+
+    staleStreak = gainedNew ? 0 : staleStreak + 1;
+    if (staleStreak >= STALE_STREAK_LIMIT) break;
   }
 
   return {
+
     results: sortByRelevance(Array.from(merged.values()), keyword),
     // Cuma dianggap "gagal total" kalau semua percobaan error, bukan cuma
     // hasilnya kosong (kosong = memang gak ketemu akunnya).
