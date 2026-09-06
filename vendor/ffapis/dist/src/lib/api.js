@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FreeFireAPI = void 0;
-const axios_1 = __importDefault(require("axios"));
+const http_client_1 = require("./http-client");
 const crypto_1 = __importDefault(require("crypto"));
 const protobuf_1 = require("./protobuf");
 const constants_1 = require("./constants");
@@ -182,7 +182,7 @@ class FreeFireAPI {
         params.append('client_secret', constants_1.GARENA_CLIENT.CLIENT_SECRET);
         params.append('client_id', constants_1.GARENA_CLIENT.CLIENT_ID);
         try {
-            const response = await axios_1.default.post(constants_1.URLS.GARENA_TOKEN, params, { headers: constants_1.HEADERS.GARENA_AUTH, timeout: 30000 });
+            const response = await (0, http_client_1.httpPost)(constants_1.URLS.GARENA_TOKEN, params, { headers: constants_1.HEADERS.GARENA_AUTH, timeout: 30000 });
             return response.data;
         }
         catch (error) {
@@ -193,7 +193,7 @@ class FreeFireAPI {
         const payload = { openid: openId, logintoken: accessToken, platform: '4' };
         const encryptedBody = await protobuf_1.protoHandler.encode('MajorLogin.proto', 'request', payload, true);
         try {
-            const response = await axios_1.default.post(constants_1.URLS.MAJOR_LOGIN, encryptedBody, {
+            const response = await (0, http_client_1.httpPost)(constants_1.URLS.MAJOR_LOGIN, encryptedBody, {
                 headers: {
                     ...this._headers(obVersion),
                     Authorization: 'Bearer',
@@ -224,7 +224,7 @@ class FreeFireAPI {
         const encryptedBody = await protobuf_1.protoHandler.encode('SearchAccountByName.proto', 'SearchAccountByName.request', payload, true);
         const url = constants_1.URLS.SEARCH(this.session.serverUrl);
         try {
-            const response = await axios_1.default.post(url, encryptedBody, {
+            const response = await (0, http_client_1.httpPost)(url, encryptedBody, {
                 headers: {
                     ...this._headers(obVersion),
                     Authorization: `Bearer ${this.session.token}`,
@@ -255,7 +255,7 @@ class FreeFireAPI {
         const encryptedBody = await protobuf_1.protoHandler.encode('PlayerPersonalShow.proto', 'request', payload, true);
         const url = constants_1.URLS.PERSONAL_SHOW(this.session.serverUrl);
         try {
-            const response = await axios_1.default.post(url, encryptedBody, {
+            const response = await (0, http_client_1.httpPost)(url, encryptedBody, {
                 headers: { ...this._headers(obVersion), Authorization: `Bearer ${this.session.token}` },
                 responseType: 'arraybuffer',
                 timeout: 30000
@@ -264,7 +264,7 @@ class FreeFireAPI {
             return decoded;
         }
         catch (error) {
-            const status = axios_1.default.isAxiosError(error) ? error.response?.status : 0;
+            const status = (0, http_client_1.isHttpError)(error) ? error.status : 0;
             if (!isRetry && (status === 400 || status === 401)) {
                 this.session.token = null;
                 await this._checkSession(obVersion);
@@ -319,7 +319,7 @@ class FreeFireAPI {
         }
         const encryptedBody = await protobuf_1.protoHandler.encode(protoFile, 'request', payload, true);
         try {
-            const response = await axios_1.default.post(url, encryptedBody, {
+            const response = await (0, http_client_1.httpPost)(url, encryptedBody, {
                 headers: { ...this._headers(obVersion), Authorization: `Bearer ${this.session.token}` },
                 responseType: 'arraybuffer',
                 timeout: 30000
@@ -369,7 +369,7 @@ class FreeFireAPI {
         params.append('app_id', constants_1.GARENA_CLIENT.CLIENT_ID);
         const signature = crypto_1.default.createHmac('sha256', constants_1.GARENA_CLIENT.CLIENT_SECRET).update(params.toString()).digest('hex');
         try {
-            const response = await axios_1.default.post(constants_1.URLS.GUEST_REGISTER, params, {
+            const response = await (0, http_client_1.httpPost)(constants_1.URLS.GUEST_REGISTER, params, {
                 headers: {
                     ...constants_1.HEADERS.GARENA_AUTH,
                     Authorization: `Signature ${signature}`,
@@ -392,7 +392,7 @@ class FreeFireAPI {
         params.append('client_secret', constants_1.GARENA_CLIENT.CLIENT_SECRET);
         params.append('client_id', constants_1.GARENA_CLIENT.CLIENT_ID);
         try {
-            const response = await axios_1.default.post(constants_1.URLS.GARENA_TOKEN, params, { headers: constants_1.HEADERS.GARENA_AUTH, timeout: 30000 });
+            const response = await (0, http_client_1.httpPost)(constants_1.URLS.GARENA_TOKEN, params, { headers: constants_1.HEADERS.GARENA_AUTH, timeout: 30000 });
             return response.data;
         }
         catch (error) {
@@ -461,7 +461,7 @@ class FreeFireAPI {
         const encryptedBody = encrypt(protoBytes);
         const headers = this._headers(obVersion);
         try {
-            const response = await axios_1.default.post(constants_1.URLS.MAJOR_REGISTER, encryptedBody, {
+            const response = await (0, http_client_1.httpPost)(constants_1.URLS.MAJOR_REGISTER, encryptedBody, {
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
                     'X-Unity-Version': headers['X-Unity-Version'] || '2018.4.11f1',

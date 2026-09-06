@@ -37,7 +37,8 @@ async function searchOnce(keyword: string) {
   const api = new FreeFireAPI();
   try {
     return await api.searchAccount(keyword);
-  } catch {
+  } catch (error) {
+    console.error('[api/search] searchAccount failed:', error instanceof Error ? error.message : error);
     return [];
   }
 }

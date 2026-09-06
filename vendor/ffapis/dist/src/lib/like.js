@@ -1,10 +1,7 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LikeAPI = void 0;
-const axios_1 = __importDefault(require("axios"));
+const http_client_1 = require("./http-client");
 const constants_1 = require("./constants");
 const credential_manager_1 = require("./credential-manager");
 const protobuf_1 = require("./protobuf");
@@ -71,7 +68,7 @@ class LikeAPI {
             params.append('client_type', '2');
             params.append('client_secret', constants_1.GARENA_CLIENT.CLIENT_SECRET);
             params.append('client_id', constants_1.GARENA_CLIENT.CLIENT_ID);
-            const tokenResponse = await axios_1.default.post(constants_1.URLS.GARENA_TOKEN, params, { headers: constants_1.HEADERS.GARENA_AUTH, timeout: 30000 });
+            const tokenResponse = await (0, http_client_1.httpPost)(constants_1.URLS.GARENA_TOKEN, params, { headers: constants_1.HEADERS.GARENA_AUTH, timeout: 30000 });
             if (!tokenResponse.data?.access_token)
                 return null;
             const accessToken = tokenResponse.data.access_token;
@@ -79,7 +76,7 @@ class LikeAPI {
             const loginPayload = { openid: openId, logintoken: accessToken, platform: '4' };
             const encryptedBody = await protobuf_1.protoHandler.encode('MajorLogin.proto', 'request', loginPayload, true);
             const headers = this._headers(obVersion);
-            const loginResponse = await axios_1.default.post(constants_1.URLS.MAJOR_LOGIN, encryptedBody, {
+            const loginResponse = await (0, http_client_1.httpPost)(constants_1.URLS.MAJOR_LOGIN, encryptedBody, {
                 headers: {
                     ...headers,
                     Authorization: 'Bearer',
@@ -133,7 +130,7 @@ class LikeAPI {
                 'X-GA': base['X-GA'],
                 ReleaseVersion: base['ReleaseVersion']
             };
-            const response = await axios_1.default.post(`${serverUrl}/LikeProfile`, payload, {
+            const response = await (0, http_client_1.httpPost)(`${serverUrl}/LikeProfile`, payload, {
                 headers,
                 timeout: 30000,
                 responseType: 'arraybuffer'
