@@ -169,7 +169,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       level: p.level,
       region: p.region,
     }));
-    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=60');
+    // JANGAN di-cache. Endpoint ini sengaja didesain buat ngasih hasil yang
+    // paling lengkap/bervariasi tiap kali dipanggil (lihat komentar di
+    // searchWithRetry) - kalau di-cache pake s-maxage, CDN/edge (situs ini
+    // jalan di Cloudflare via opennextjs-cloudflare) bakal ngunci hasil dari
+    // request pertama buat keyword yang sama selama masa cache-nya, bikin
+    // semua perbaikan di retry logic jadi sia-sia karena origin gak
+    // ke-hit ulang.
+    res.setHeader('Cache-Control', 'no-store');
     return res.status(200).json({ status: 'ok', results: mapped });
   } catch (error) {
     console.error('[api/search] unexpected failure:', error instanceof Error ? error.message : error);
