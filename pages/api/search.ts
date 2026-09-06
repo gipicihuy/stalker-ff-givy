@@ -38,7 +38,11 @@ async function searchOnce(api: FreeFireAPI, keyword: string) {
     return { ok: true as const, results: await api.searchAccount(keyword) };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('[api/search] searchAccount failed:', message);
+    const stack = error instanceof Error ? error.stack : undefined;
+    // DEBUG: full stack biar ketauan persis baris mana yg throw "length out of range".
+    // getErrorMessage() di vendor/ffapis buang stack asli, jadi ini stack dari titik
+    // catch di ffapis's searchAccount (masih lebih baik daripada cuma message).
+    console.error('[api/search] searchAccount failed:', message, '\nSTACK:', stack);
     return { ok: false as const, message };
   }
 }
