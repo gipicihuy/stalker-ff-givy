@@ -1,0 +1,25 @@
+{
+  "name": "ffapis",
+  "version": "1.6.0",
+  "description": "A powerful TypeScript/Node.js library to interact with Garena Free Fire API using Protobuf. (vendored build with fixed dist chunk files - see /vendor/ffapis/README.md)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.mjs",
+      "require": "./dist/types/index.js"
+    }
+  },
+  "dependencies": {
+    "protobufjs": "^7.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
