@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint, Send, User, Shirt, ChevronDown, Trophy, Hash } from 'lucide-react';
+import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint, Send, User, Shirt, ChevronDown, ChevronRight, Trophy, Hash } from 'lucide-react';
 
 type PrimeInfo = { primeLevel?: number };
 type ResolvedItem = { id: number; name: string; icon: string | null; type: string | null };
@@ -978,6 +978,18 @@ export default function StalkClient() {
     `polygon(0 0, 100% 0, 100% 100%, ${n}px 100%, 0 calc(100% - ${n}px))`;
   const notchTR = (n: number) =>
     `polygon(0 0, calc(100% - ${n}px) 0, 100% ${n}px, 100% 100%, 0 100%)`;
+  // Avatar inisial nickname (bukan avatar dari FF) - warnanya gantian antara
+  // gold/biru (dua-duanya udah ada di palet Stalker) berdasarkan accountid,
+  // biar list hasil search ada ritme visualnya, gak monoton satu warna terus.
+  const avatarPalette = [
+    { bg: 'var(--gold-soft)', fg: 'var(--gold)' },
+    { bg: 'var(--blue-soft)', fg: 'var(--blue)' },
+  ];
+  const avatarStyleFor = (id: string) => {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) hash = (hash + id.charCodeAt(i)) % avatarPalette.length;
+    return avatarPalette[hash];
+  };
 
   return (
     <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 16px 0' }}>
@@ -1137,38 +1149,55 @@ export default function StalkClient() {
         ) : null}
 
         {searchMode === 'nickname' && nicknameResults.length > 0 ? (
-          <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {nicknameResults.map((p) => (
-              <button
-                key={p.accountid}
-                type="button"
-                onClick={() => selectNicknameResult(p.accountid)}
-                className="icon-btn"
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
-                  textAlign: 'left', background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)',
-                  borderRadius: 12, padding: '11px 14px', cursor: 'pointer',
-                }}
-              >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+          <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column' }}>
+            {nicknameResults.map((p, idx) => {
+              const avatar = avatarStyleFor(p.accountid);
+              const initial = (p.nickname || '?').trim().charAt(0).toUpperCase() || '?';
+              return (
+                <button
+                  key={p.accountid}
+                  type="button"
+                  onClick={() => selectNicknameResult(p.accountid)}
+                  className="icon-btn"
+                  style={{
+                    display: 'flex', alignItems: 'center', width: '100%',
+                    textAlign: 'left', background: 'transparent', border: 'none',
+                    borderBottom: idx === nicknameResults.length - 1 ? 'none' : '1px solid var(--panel-border)',
+                    padding: '12px 4px', cursor: 'pointer', gap: 12,
+                  }}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 36, height: 36, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: avatar.bg, color: avatar.fg, fontSize: 14.5, fontWeight: 700,
+                      clipPath: notchTag(6),
+                    }}
+                  >
+                    {initial}
+                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0, flex: 1 }}>
+                    <span style={{
+                      fontSize: 13.5, fontWeight: 600, color: 'var(--white)', overflow: 'hidden',
+                      textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {p.nickname}
+                    </span>
+                    <span style={{ fontSize: 11, color: 'var(--muted-text)' }}>
+                      UID {p.accountid} • {getRegionName(p.region)}
+                    </span>
+                  </div>
                   <span style={{
-                    fontSize: 13.5, fontWeight: 600, color: 'var(--white)', overflow: 'hidden',
-                    textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    fontSize: 11, fontWeight: 700, color: '#14161b', background: 'var(--gold)',
+                    padding: '4px 10px 4px 8px', flexShrink: 0, marginLeft: 6,
+                    clipPath: notchTR(5),
                   }}>
-                    {p.nickname}
+                    Lv.{p.level ?? '-'}
                   </span>
-                  <span style={{ fontSize: 11, color: 'var(--muted-text)' }}>
-                    UID {p.accountid} • {getRegionName(p.region)}
-                  </span>
-                </div>
-                <span style={{
-                  fontSize: 11, fontWeight: 600, color: 'var(--gold)', background: 'var(--gold-soft)',
-                  borderRadius: 8, padding: '4px 9px', flexShrink: 0, marginLeft: 10,
-                }}>
-                  Lv.{p.level ?? '-'}
-                </span>
-              </button>
-            ))}
+                  <ChevronRight size={16} style={{ color: 'var(--muted-text)', flexShrink: 0, marginLeft: 4 }} />
+                </button>
+              );
+            })}
           </div>
         ) : null}
       </section>
