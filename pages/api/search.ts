@@ -72,63 +72,41 @@ function sortByRelevance<T extends { nickname?: string }>(results: T[], keyword:
   });
 }
 
-async function searchWithRetry(keyword: string, attempts = 5) {
-  // Pakai 1 instance/session buat semua percobaan selama sesi itu keliatan
-  // "sehat" (ngasih hasil). Sebelumnya tiap percobaan bikin FreeFireAPI() baru
-  // -> login guest baru ke server Garena tiap kali, yang boros dan gampang
-  // kena limit/gagal auth di sisi Garena.
+async function searchWithRetry(keyword: string, attempts = 6) {
+  // GANTI AKUN GUEST DI SETIAP PERCOBAAN. Sebelumnya sempat dicoba reuse 1
+  // session buat semua percobaan (biar hemat login), lalu di-refine jadi
+  // "rotate kalau kelihatan kering" — dua-duanya masih bikin user harus
+  // klik search 2x buat dapet hasil lengkap, karena beberapa akun guest
+  // ternyata konsisten cuma ngasih hasil pas-pasan (misal 3-4 doang) di
+  // ambang batas yang kepake buat nentuin "kering", padahal akun lain bisa
+  // dapet 10+ match buat keyword yang sama. Endpoint FuzzySearchAccountByName
+  // di server Garena kelihatannya membatasi/scoping hasil per akun yang
+  // request, bukan cuma random per-hit.
   //
-  // Kenapa attempts > 1 & di-merge: endpoint FuzzySearchAccountByName di
-  // server Garena keliatannya cuma balikin subset acak dari kandidat yang
-  // cocok tiap kali di-hit (bukan hasil lengkap & deterministik), makanya
-  // hasilnya beda-beda tiap request walau query sama persis. Beberapa kali
-  // percobaan digabung (dedupe by accountid) biar cakupannya lebih lengkap
-  // & konsisten, dengan early-stop kalau udah dapet cukup banyak biar gak
-  // buang-buang waktu/quota kalau hasilnya emang udah lengkap dari awal.
-  //
-  // BUG YANG DIPERBAIKI: akun guest tertentu ternyata bisa "kering" -
-  // search-nya sukses (gak error) tapi hasilnya dikit banget terus walau
-  // di-retry pake session yang sama persis, kayaknya fuzzy-search-nya
-  // scoped/limited per akun yang request. Sebelumnya ini gak ke-cover:
-  // 5x retry pake 1 akun yang kering ya tetep aja hasil dikit -> user harus
-  // klik search sekali lagi (dapet akun baru yang random) baru hasilnya
-  // lengkap. Sekarang: kalau session yang sedang dipakai udah dicoba
-  // REFRESH_AFTER_ATTEMPTS kali dan hasil gabungannya masih di bawah
-  // MIN_RESULTS_BEFORE_REFRESH, otomatis ganti ke akun guest baru buat sisa
-  // percobaan yang ada, tanpa nunggu user klik ulang.
-  const REFRESH_AFTER_ATTEMPTS = 2;
-  const MIN_RESULTS_BEFORE_REFRESH = 3;
+  // Pool akun guest yang ada lumayan besar (~250+ gabungan semua region),
+  // jadi sekarang tiap percobaan pakai login guest yang baru & beda-beda,
+  // hasilnya di-merge (dedupe by accountid) biar cakupannya maksimal dalam
+  // SATU kali klik search, dengan early-stop begitu udah dapet cukup banyak
+  // biar gak buang-buang waktu/quota kalau hasilnya emang udah lengkap dari
+  // awal.
   const EARLY_STOP_AT = 12;
 
-  let api = new FreeFireAPI();
-  let attemptsOnCurrentSession = 0;
   const merged = new Map();
   let lastErrorMessage: string | null = null;
   let anySucceeded = false;
 
   for (let i = 0; i < attempts; i++) {
+    const api = new FreeFireAPI();
     const attempt = await searchOnce(api, keyword);
-    attemptsOnCurrentSession += 1;
 
     if (!attempt.ok) {
       lastErrorMessage = attempt.message;
-      // Session ini error -> langsung ganti akun guest buat percobaan berikutnya.
-      api = new FreeFireAPI();
-      attemptsOnCurrentSession = 0;
       continue;
     }
 
     anySucceeded = true;
     for (const p of attempt.results) merged.set(p.accountid, p);
     if (merged.size >= EARLY_STOP_AT) break;
-
-    const isLastAttempt = i === attempts - 1;
-    const sessionLooksKering =
-      attemptsOnCurrentSession >= REFRESH_AFTER_ATTEMPTS && merged.size < MIN_RESULTS_BEFORE_REFRESH;
-    if (sessionLooksKering && !isLastAttempt) {
-      api = new FreeFireAPI();
-      attemptsOnCurrentSession = 0;
-    }
   }
 
   return {
