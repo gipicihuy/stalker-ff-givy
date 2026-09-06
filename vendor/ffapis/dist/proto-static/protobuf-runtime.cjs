@@ -1667,6 +1667,9 @@ var require_minimal = __commonJS({
         return null;
       }
     }();
+    // PATCH: see protobuf-runtime.mjs for rationale - disable Buffer-based
+    // writer/reader to avoid Cloudflare Workers' buggy Buffer.utf8Write.
+    util.Buffer = null;
     util.newBuffer = function newBuffer(sizeOrArray) {
       var Buffer2 = util.Buffer;
       return typeof sizeOrArray === "number" ? Buffer2 ? Buffer2.allocUnsafe(sizeOrArray) : new Uint8Array(sizeOrArray) : Buffer2 ? Buffer2.from(sizeOrArray) : new Uint8Array(sizeOrArray);
