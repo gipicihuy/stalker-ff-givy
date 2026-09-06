@@ -1346,8 +1346,63 @@ __export(index_exports, {
 });
 module.exports = __toCommonJS(index_exports);
 
+// src/lib/http-client.ts
+var HttpError = class extends Error {
+  constructor(message, status, data) {
+    super(message);
+    this.name = "HttpError";
+    this.status = status;
+    this.data = data;
+  }
+};
+function toBodyInit(body) {
+  if (body instanceof URLSearchParams) return body;
+  if (Buffer.isBuffer(body)) return new Uint8Array(body);
+  if (body instanceof Uint8Array) return body;
+  if (typeof body === "string") return body;
+  return body;
+}
+async function httpPost(url, body, options = {}) {
+  const controller = new AbortController();
+  const timeoutId = options.timeout ? setTimeout(() => controller.abort(), options.timeout) : void 0;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: options.headers,
+      body: toBodyInit(body),
+      signal: controller.signal
+    });
+    const statusOk = options.validateStatus ? options.validateStatus(res.status) : res.ok;
+    if (!statusOk) {
+      let errData;
+      try {
+        errData = options.responseType === "arraybuffer" ? Buffer.from(await res.arrayBuffer()) : await res.text();
+      } catch {
+        errData = void 0;
+      }
+      throw new HttpError(`Request failed with status code ${res.status}`, res.status, errData);
+    }
+    if (options.responseType === "arraybuffer") {
+      const buf = await res.arrayBuffer();
+      return { data: Buffer.from(buf), status: res.status };
+    }
+    const data = await res.json();
+    return { data, status: res.status };
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new HttpError("Request timed out", 0);
+    }
+    throw new HttpError(error instanceof Error ? error.message : String(error), 0);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+function isHttpError(error) {
+  return error instanceof HttpError;
+}
+
 // src/lib/api.ts
-var import_axios = __toESM(require("axios"));
 var import_crypto3 = __toESM(require("crypto"));
 
 // src/lib/protobuf.ts
@@ -154762,7 +154817,7 @@ var FreeFireAPI = class {
     params.append("client_secret", GARENA_CLIENT.CLIENT_SECRET);
     params.append("client_id", GARENA_CLIENT.CLIENT_ID);
     try {
-      const response = await import_axios.default.post(URLS.GARENA_TOKEN, params, { headers: HEADERS.GARENA_AUTH, timeout: 3e4 });
+      const response = await httpPost(URLS.GARENA_TOKEN, params, { headers: HEADERS.GARENA_AUTH, timeout: 3e4 });
       return response.data;
     } catch (error) {
       throw new Error(`Garena Auth Request Failed: ${getErrorMessage(error)}`);
@@ -154772,7 +154827,7 @@ var FreeFireAPI = class {
     const payload = { openid: openId, logintoken: accessToken, platform: "4" };
     const encryptedBody = await protoHandler.encode("MajorLogin.proto", "request", payload, true);
     try {
-      const response = await import_axios.default.post(URLS.MAJOR_LOGIN, encryptedBody, {
+      const response = await httpPost(URLS.MAJOR_LOGIN, encryptedBody, {
         headers: {
           ...this._headers(obVersion),
           Authorization: "Bearer",
@@ -154800,7 +154855,7 @@ var FreeFireAPI = class {
     const encryptedBody = await protoHandler.encode("SearchAccountByName.proto", "SearchAccountByName.request", payload, true);
     const url = URLS.SEARCH(this.session.serverUrl);
     try {
-      const response = await import_axios.default.post(url, encryptedBody, {
+      const response = await httpPost(url, encryptedBody, {
         headers: {
           ...this._headers(obVersion),
           Authorization: `Bearer ${this.session.token}`,
@@ -154830,7 +154885,7 @@ var FreeFireAPI = class {
     const encryptedBody = await protoHandler.encode("PlayerPersonalShow.proto", "request", payload, true);
     const url = URLS.PERSONAL_SHOW(this.session.serverUrl);
     try {
-      const response = await import_axios.default.post(url, encryptedBody, {
+      const response = await httpPost(url, encryptedBody, {
         headers: { ...this._headers(obVersion), Authorization: `Bearer ${this.session.token}` },
         responseType: "arraybuffer",
         timeout: 3e4
@@ -154838,7 +154893,7 @@ var FreeFireAPI = class {
       const decoded = await protoHandler.decode("PlayerPersonalShow.proto", "response", response.data);
       return decoded;
     } catch (error) {
-      const status = import_axios.default.isAxiosError(error) ? error.response?.status : 0;
+      const status = isHttpError(error) ? error.status : 0;
       if (!isRetry && (status === 400 || status === 401)) {
         this.session.token = null;
         await this._checkSession(obVersion);
@@ -154890,7 +154945,7 @@ var FreeFireAPI = class {
     }
     const encryptedBody = await protoHandler.encode(protoFile, "request", payload, true);
     try {
-      const response = await import_axios.default.post(url, encryptedBody, {
+      const response = await httpPost(url, encryptedBody, {
         headers: { ...this._headers(obVersion), Authorization: `Bearer ${this.session.token}` },
         responseType: "arraybuffer",
         timeout: 3e4
@@ -154936,7 +154991,7 @@ var FreeFireAPI = class {
     params.append("app_id", GARENA_CLIENT.CLIENT_ID);
     const signature = import_crypto3.default.createHmac("sha256", GARENA_CLIENT.CLIENT_SECRET).update(params.toString()).digest("hex");
     try {
-      const response = await import_axios.default.post(URLS.GUEST_REGISTER, params, {
+      const response = await httpPost(URLS.GUEST_REGISTER, params, {
         headers: {
           ...HEADERS.GARENA_AUTH,
           Authorization: `Signature ${signature}`,
@@ -154958,7 +155013,7 @@ var FreeFireAPI = class {
     params.append("client_secret", GARENA_CLIENT.CLIENT_SECRET);
     params.append("client_id", GARENA_CLIENT.CLIENT_ID);
     try {
-      const response = await import_axios.default.post(URLS.GARENA_TOKEN, params, { headers: HEADERS.GARENA_AUTH, timeout: 3e4 });
+      const response = await httpPost(URLS.GARENA_TOKEN, params, { headers: HEADERS.GARENA_AUTH, timeout: 3e4 });
       return response.data;
     } catch (error) {
       throw new Error(`Token Grant Failed: ${getErrorMessage(error)}`);
@@ -155026,7 +155081,7 @@ var FreeFireAPI = class {
     const encryptedBody = encrypt2(protoBytes);
     const headers = this._headers(obVersion);
     try {
-      const response = await import_axios.default.post(URLS.MAJOR_REGISTER, encryptedBody, {
+      const response = await httpPost(URLS.MAJOR_REGISTER, encryptedBody, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "X-Unity-Version": headers["X-Unity-Version"] || "2018.4.11f1",
@@ -155097,7 +155152,6 @@ var FreeFireAPI = class {
 };
 
 // src/lib/like.ts
-var import_axios2 = __toESM(require("axios"));
 init_constants();
 function parseObArg2(arg) {
   if (arg === void 0 || arg === null) return null;
@@ -155152,14 +155206,14 @@ var LikeAPI = class {
       params.append("client_type", "2");
       params.append("client_secret", GARENA_CLIENT.CLIENT_SECRET);
       params.append("client_id", GARENA_CLIENT.CLIENT_ID);
-      const tokenResponse = await import_axios2.default.post(URLS.GARENA_TOKEN, params, { headers: HEADERS.GARENA_AUTH, timeout: 3e4 });
+      const tokenResponse = await httpPost(URLS.GARENA_TOKEN, params, { headers: HEADERS.GARENA_AUTH, timeout: 3e4 });
       if (!tokenResponse.data?.access_token) return null;
       const accessToken = tokenResponse.data.access_token;
       const openId = tokenResponse.data.open_id;
       const loginPayload = { openid: openId, logintoken: accessToken, platform: "4" };
       const encryptedBody = await protoHandler.encode("MajorLogin.proto", "request", loginPayload, true);
       const headers = this._headers(obVersion);
-      const loginResponse = await import_axios2.default.post(URLS.MAJOR_LOGIN, encryptedBody, {
+      const loginResponse = await httpPost(URLS.MAJOR_LOGIN, encryptedBody, {
         headers: {
           ...headers,
           Authorization: "Bearer",
@@ -155211,7 +155265,7 @@ var LikeAPI = class {
         "X-GA": base["X-GA"],
         ReleaseVersion: base["ReleaseVersion"]
       };
-      const response = await import_axios2.default.post(`${serverUrl}/LikeProfile`, payload, {
+      const response = await httpPost(`${serverUrl}/LikeProfile`, payload, {
         headers,
         timeout: 3e4,
         responseType: "arraybuffer"
