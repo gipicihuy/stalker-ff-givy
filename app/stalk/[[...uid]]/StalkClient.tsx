@@ -1010,15 +1010,15 @@ export default function StalkClient() {
       </div>
 
       <section style={{ width: '100%', maxWidth: 720 }}>
-        <div style={{ display: 'flex', flexDirection: 'row', gap: 24, marginBottom: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'row', gap: 8, marginBottom: 12 }}>
           <button
             type="button"
             onClick={() => switchSearchMode('uid')}
             style={{
-              padding: '10px 0', cursor: 'pointer', fontSize: 12.5,
-              fontWeight: 600, letterSpacing: '0.03em', transition: 'color 0.2s ease',
-              border: 'none', borderBottom: searchMode === 'uid' ? '2px solid var(--gold)' : '2px solid transparent',
-              background: 'transparent',
+              padding: '10px 14px', cursor: 'pointer', fontSize: 12.5, borderRadius: '8px 8px 0 0',
+              fontWeight: 600, letterSpacing: '0.03em', transition: 'color 0.2s ease, background 0.2s ease',
+              border: 'none', borderBottom: searchMode === 'uid' ? '3px solid var(--gold)' : '3px solid transparent',
+              background: searchMode === 'uid' ? 'var(--gold-soft)' : 'transparent',
               color: searchMode === 'uid' ? 'var(--gold)' : 'var(--muted-text)',
             }}
           >
@@ -1028,10 +1028,10 @@ export default function StalkClient() {
             type="button"
             onClick={() => switchSearchMode('nickname')}
             style={{
-              padding: '10px 0', cursor: 'pointer', fontSize: 12.5,
-              fontWeight: 600, letterSpacing: '0.03em', transition: 'color 0.2s ease',
-              border: 'none', borderBottom: searchMode === 'nickname' ? '2px solid var(--gold)' : '2px solid transparent',
-              background: 'transparent',
+              padding: '10px 14px', cursor: 'pointer', fontSize: 12.5, borderRadius: '8px 8px 0 0',
+              fontWeight: 600, letterSpacing: '0.03em', transition: 'color 0.2s ease, background 0.2s ease',
+              border: 'none', borderBottom: searchMode === 'nickname' ? '3px solid var(--gold)' : '3px solid transparent',
+              background: searchMode === 'nickname' ? 'var(--gold-soft)' : 'transparent',
               color: searchMode === 'nickname' ? 'var(--gold)' : 'var(--muted-text)',
             }}
           >
