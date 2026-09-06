@@ -1406,26 +1406,35 @@ function isHttpError(error) {
 var import_crypto3 = __toESM(require("crypto"));
 
 // src/lib/protobuf.ts
-var import_protobufjs = __toESM(require("protobufjs"));
+var protoStatic = require("./proto-static/index.cjs");
 init_crypto();
 init_embedded_data();
+function resolveProtoType(filename, messageName) {
+  const namespaceName = filename.replace(/\.proto$/, "");
+  const hasNamespace = Object.prototype.hasOwnProperty.call(protoStatic, namespaceName);
+  const ns = hasNamespace ? protoStatic[namespaceName] : protoStatic;
+  let parts = messageName.split(".");
+  if (hasNamespace && parts[0] === namespaceName) {
+    parts = parts.slice(1);
+  }
+  let cur = ns;
+  for (const part of parts) {
+    if (cur == null) break;
+    cur = cur[part];
+  }
+  if (!cur) {
+    throw new Error(`No statically generated proto type found for ${filename} / ${messageName}`);
+  }
+  return cur;
+}
 var ProtoHandler = class {
   constructor() {
-    this.roots = {};
   }
   async load(filename) {
-    if (!this.roots[filename]) {
-      const descriptor = protoDescriptors[filename];
-      if (!descriptor) {
-        throw new Error(`No embedded proto descriptor found for ${filename}`);
-      }
-      this.roots[filename] = import_protobufjs.default.Root.fromJSON(descriptor);
-    }
-    return this.roots[filename];
+    return null;
   }
   async encode(filename, messageName, payload, shouldEncrypt = true) {
-    const root = await this.load(filename);
-    const Type = root.lookupType(messageName);
+    const Type = resolveProtoType(filename, messageName);
     const errMsg = Type.verify(payload);
     if (errMsg) throw new Error(errMsg);
     const message = Type.create(payload);
@@ -1436,8 +1445,7 @@ var ProtoHandler = class {
     return Buffer.from(buffer);
   }
   async decode(filename, messageName, buffer) {
-    const root = await this.load(filename);
-    const Type = root.lookupType(messageName);
+    const Type = resolveProtoType(filename, messageName);
     const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
     const message = Type.decode(buf);
     return Type.toObject(message, {
