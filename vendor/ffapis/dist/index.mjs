@@ -153499,6 +153499,7 @@ var FreeFireAPI = class {
       const response = await httpPost(URLS.GARENA_TOKEN, params, { headers: HEADERS.GARENA_AUTH, timeout: 3e4 });
       return response.data;
     } catch (error) {
+      console.error("[ffapis DEBUG _getGarenaToken] raw error:", error, error instanceof Error ? error.stack : "(no stack)");
       throw new Error(`Garena Auth Request Failed: ${getErrorMessage(error)}`);
     }
   }
@@ -153518,6 +153519,7 @@ var FreeFireAPI = class {
       const decoded = await protoHandler.decode("MajorLogin.proto", "response", response.data);
       return decoded;
     } catch (error) {
+      console.error("[ffapis DEBUG _majorLogin] raw error:", error, error instanceof Error ? error.stack : "(no stack)");
       throw new Error(`Major Login Request Failed: ${getErrorMessage(error)}`);
     }
   }
@@ -153546,6 +153548,7 @@ var FreeFireAPI = class {
       const data = await protoHandler.decode("SearchAccountByName.proto", "SearchAccountByName.response", response.data);
       return data.infos || [];
     } catch (error) {
+      console.error("[ffapis DEBUG searchAccount] raw error:", error, error instanceof Error ? error.stack : "(no stack)");
       throw new Error(`Search Failed: ${getErrorMessage(error)}`);
     }
   }
