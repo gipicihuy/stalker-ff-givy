@@ -1310,15 +1310,32 @@ var crypto_exports = {};
 __export(crypto_exports, {
   encrypt: () => encrypt
 });
-function encrypt(buffer) {
-  const cipher = import_crypto.default.createCipheriv("aes-128-cbc", AE.MAIN_KEY, AE.MAIN_IV);
-  return Buffer.concat([cipher.update(buffer), cipher.final()]);
+var _aesKeyPromise = null;
+function getAesKey() {
+  if (!_aesKeyPromise) {
+    _aesKeyPromise = globalThis.crypto.subtle.importKey(
+      "raw",
+      AE.MAIN_KEY,
+      { name: "AES-CBC" },
+      false,
+      ["encrypt"]
+    );
+  }
+  return _aesKeyPromise;
 }
-var import_crypto;
+async function encrypt(buffer) {
+  const key = await getAesKey();
+  const encrypted = await globalThis.crypto.subtle.encrypt(
+    { name: "AES-CBC", iv: AE.MAIN_IV },
+    key,
+    buffer
+  );
+  return Buffer.from(encrypted);
+}
 var init_crypto = __esm({
   "src/lib/crypto.ts"() {
     "use strict";
-    import_crypto = __toESM(require("crypto"));
+
     init_constants();
   }
 });
