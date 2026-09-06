@@ -43,10 +43,8 @@ const protobuf_1 = require("./protobuf");
 const constants_1 = require("./constants");
 const utils_1 = require("./utils");
 const credential_manager_1 = require("./credential-manager");
-const fs_1 = __importDefault(require("fs"));
-const path_1 = __importDefault(require("path"));
 const types_1 = require("../types");
-const resolve_path_1 = require("./resolve-path");
+const embedded_data_1 = require("../embedded-data");
 function parseObArg(arg) {
     if (arg === undefined || arg === null)
         return null;
@@ -108,32 +106,9 @@ class FreeFireAPI {
         if (this.allCredentials)
             return this.allCredentials;
         const allCreds = [];
-        const credentialsDir = (0, resolve_path_1.resolveProjectDir)('config/credentials');
         try {
-            const files = fs_1.default.readdirSync(credentialsDir);
-            for (const file of files) {
-                if (file.endsWith('.yaml')) {
-                    const filePath = path_1.default.join(credentialsDir, file);
-                    const content = fs_1.default.readFileSync(filePath, 'utf8');
-                    const lines = content.split('\n');
-                    let currentAccount = null;
-                    for (const line of lines) {
-                        const trimmed = line.trim();
-                        if (trimmed.startsWith('- uid:')) {
-                            if (currentAccount)
-                                allCreds.push(currentAccount);
-                            const uidMatch = trimmed.match(/uid:\s*"([^"]+)"/);
-                            currentAccount = { uid: uidMatch ? uidMatch[1] : '', password: '' };
-                        }
-                        else if (trimmed.startsWith('password:') && currentAccount) {
-                            const pwdMatch = trimmed.match(/password:\s*"([^"]+)"/);
-                            if (pwdMatch)
-                                currentAccount.password = pwdMatch[1];
-                        }
-                    }
-                    if (currentAccount && currentAccount.password)
-                        allCreds.push(currentAccount);
-                }
+            for (const region of Object.keys(embedded_data_1.embeddedCredentials)) {
+                allCreds.push(...embedded_data_1.embeddedCredentials[region]);
             }
         }
         catch (error) {

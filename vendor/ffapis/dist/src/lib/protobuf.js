@@ -5,17 +5,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.protoHandler = void 0;
 const protobufjs_1 = __importDefault(require("protobufjs"));
-const path_1 = __importDefault(require("path"));
 const crypto_1 = require("./crypto");
-const resolve_path_1 = require("./resolve-path");
-const PROTO_DIR = (0, resolve_path_1.resolveProjectDir)('proto');
+const embedded_data_1 = require("../embedded-data");
 class ProtoHandler {
     constructor() {
         this.roots = {};
     }
     async load(filename) {
         if (!this.roots[filename]) {
-            this.roots[filename] = await protobufjs_1.default.load(path_1.default.join(PROTO_DIR, filename));
+            const descriptor = embedded_data_1.protoDescriptors[filename];
+            if (!descriptor) {
+                throw new Error(`No embedded proto descriptor found for ${filename}`);
+            }
+            this.roots[filename] = protobufjs_1.default.Root.fromJSON(descriptor);
         }
         return this.roots[filename];
     }

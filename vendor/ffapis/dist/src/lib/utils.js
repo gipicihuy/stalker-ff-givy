@@ -6,9 +6,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.loadItems = loadItems;
 exports.getItemDetails = getItemDetails;
 exports.processPlayerItems = processPlayerItems;
-const fs_1 = __importDefault(require("fs"));
 const types_1 = require("../types");
-const resolve_path_1 = require("./resolve-path");
+const items_json_1 = __importDefault(require("../embedded-data/items.json"));
 function coerceString(value, fallback = '') {
     if (typeof value === 'string')
         return value;
@@ -26,10 +25,8 @@ function loadItems() {
     if (itemsDb)
         return itemsDb;
     try {
-        const data = fs_1.default.readFileSync((0, resolve_path_1.resolveProjectFile)('data/items.json'), 'utf8');
-        const itemsList = JSON.parse(data);
         itemsDb = {};
-        for (const item of itemsList) {
+        for (const item of items_json_1.default) {
             const rawId = item.id ?? item.itemID;
             const id = typeof rawId === 'string' || typeof rawId === 'number' ? rawId : undefined;
             if (id !== undefined)

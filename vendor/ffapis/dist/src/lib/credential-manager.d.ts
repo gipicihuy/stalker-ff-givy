@@ -9,7 +9,7 @@ export declare class CredentialManager {
     private currentIndex;
     private usageData;
     /**
-     * @param region - Region code whose credential YAML file will be loaded.
+     * @param region - Region code whose embedded credential pool will be loaded.
      */
     constructor(region: string);
     private _loadPool;

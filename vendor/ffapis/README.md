@@ -1,24 +1,48 @@
-# Vendored ffapis
+# Vendored ffapis (patched for Cloudflare Workers)
 
-The published `ffapis@1.6.0` npm package has a packaging bug: its `package.json`
-`files` field only whitelists `dist/index.*`, but the ESM build (via tsup)
-splits shared code into separate chunk files (e.g. `chunk-XXXX.mjs`,
-`crypto-XXXX.mjs`). Those chunk files get excluded from the published npm
-tarball, so `dist/index.mjs` ends up importing files that don't exist,
-breaking any ESM bundler (including the esbuild step in
-`@opennextjs/cloudflare build`).
+The published `ffapis@1.6.0` npm package had two problems that don't show up
+on a normal Node.js server but break it on Cloudflare Workers:
 
-This folder is a full local build of ffapis@1.6.0 straight from
-https://github.com/rifancorteza/ffapis (commit at time of build), including
-the chunk files, so it can be used as a `file:` dependency instead of the
-broken npm package.
+1. **Broken npm packaging.** `package.json`'s `files` field only whitelisted
+   `dist/index.*`, but the ESM build (via tsup) splits shared code into
+   separate chunk files (e.g. `chunk-XXXX.mjs`, `crypto-XXXX.mjs`). Those
+   chunk files were excluded from the published npm tarball, so
+   `dist/index.mjs` ended up importing files that don't exist. This broke
+   `opennextjs-cloudflare build` (esbuild "Could not resolve ./chunk-....mjs").
 
-To update: clone the ffapis repo, `npm install && npm run build`, then copy
-`dist/`, `proto/`, `config/`, `data/` here again.
+2. **Runtime filesystem reads.** The library loaded its `.proto` schemas,
+   `config/settings.yaml`, and `config/credentials/*.yaml` guest-login pools
+   via `fs.readFileSync` at runtime, relative to the installed package's own
+   folder. That works fine on a normal Node server, but Cloudflare Workers
+   has no real filesystem (even with the `nodejs_compat` flag), so every
+   ffapis call failed at runtime with a 500 once deployed (`/api/search`
+   etc.), even though the build itself succeeded.
 
-Note: ffapis reads `proto/`, `config/`, `data/` files via `fs.readFileSync`
-relative to its own package root at runtime. On Cloudflare Workers this only
-works for files actually bundled/deployed alongside the worker - if the
-`/api/search` (or other ffapis-backed) endpoint throws a file-not-found error
-after deploy, that's the next thing to fix (likely needs those files copied
-into the Workers assets, or the relevant data inlined).
+## What's in this folder
+
+This is a patched build of `ffapis@1.6.0`, built from
+https://github.com/rifancorteza/ffapis with source changes so that:
+
+- `.proto` files are pre-compiled to JSON descriptors (`protobuf.Root.fromJSON`)
+  and imported as normal JS/JSON modules instead of read from disk
+  (`protobuf.load(path)`).
+- `config/settings.yaml` and `config/credentials/*.yaml` are pre-converted to
+  JSON and imported directly (embedded at build time) instead of read via `fs`.
+- `data/items.json` (~4.5MB, ~430KB gzipped) is imported as a JSON module
+  instead of read via `fs`.
+
+No code path in this build calls `fs` anymore, so it works the same on a
+normal Node server and on Cloudflare Workers / other edge runtimes.
+
+## Updating
+
+If you need to pull in a newer ffapis release:
+
+1. Clone https://github.com/rifancorteza/ffapis and apply the same pattern:
+   remove all `fs.readFileSync`/`resolveProjectFile`/`resolveProjectDir`
+   usage in `src/lib/*.ts`, replacing each with a static import of
+   pre-generated JSON (proto descriptors via
+   `(await protobuf.load(protoPath)).toJSON()`, yaml files converted to
+   `.json` once at build time).
+2. `npm install && npm run build`.
+3. Copy the resulting `dist/` folder into `vendor/ffapis/dist` here.
