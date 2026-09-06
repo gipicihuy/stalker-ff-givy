@@ -47,14 +47,48 @@ async function searchOnce(api: FreeFireAPI, keyword: string) {
   }
 }
 
-async function searchWithRetry(keyword: string, attempts = 3) {
+// Skor relevansi nickname hasil pencarian terhadap keyword yang diketik user.
+// Makin kecil = makin cocok/diprioritaskan. Dipakai buat sorting, bukan filter
+// (semua hasil dari API tetap ditampilkan, cuma urutannya yang diatur ulang).
+function relevanceScore(nickname: string, keyword: string): number {
+  const n = (nickname || '').toLowerCase();
+  const k = keyword.toLowerCase();
+  if (n === k) return 0; // exact match persis
+  if (n.startsWith(k)) return 1; // diawali keyword
+  if (n.includes(k)) return 2; // mengandung keyword di tengah/akhir
+  return 3; // cuma nyangkut dari fuzzy match API, gak match langsung
+}
+
+function sortByRelevance<T extends { nickname?: string }>(results: T[], keyword: string): T[] {
+  return [...results].sort((a, b) => {
+    const scoreA = relevanceScore(a.nickname || '', keyword);
+    const scoreB = relevanceScore(b.nickname || '', keyword);
+    if (scoreA !== scoreB) return scoreA - scoreB;
+    // Tie-breaker: nickname yang panjangnya lebih deket ke keyword dianggap
+    // lebih relevan (mis. "givy." lebih related ke "givy." drpd "givy.123").
+    const lenDiffA = Math.abs((a.nickname || '').length - keyword.length);
+    const lenDiffB = Math.abs((b.nickname || '').length - keyword.length);
+    return lenDiffA - lenDiffB;
+  });
+}
+
+async function searchWithRetry(keyword: string, attempts = 5) {
   // Pakai 1 instance/session buat semua percobaan. Sebelumnya tiap percobaan
   // bikin FreeFireAPI() baru -> login guest baru ke server Garena tiap kali,
   // yang boros dan gampang kena limit/gagal auth di sisi Garena.
+  //
+  // Kenapa attempts > 1 & di-merge: endpoint FuzzySearchAccountByName di
+  // server Garena keliatannya cuma balikin subset acak dari kandidat yang
+  // cocok tiap kali di-hit (bukan hasil lengkap & deterministik), makanya
+  // hasilnya beda-beda tiap request walau query sama persis. Beberapa kali
+  // percobaan digabung (dedupe by accountid) biar cakupannya lebih lengkap
+  // & konsisten, dengan early-stop kalau udah dapet cukup banyak biar gak
+  // buang-buang waktu/quota kalau hasilnya emang udah lengkap dari awal.
   const api = new FreeFireAPI();
   const merged = new Map();
   let lastErrorMessage: string | null = null;
   let anySucceeded = false;
+  const EARLY_STOP_AT = 12;
 
   for (let i = 0; i < attempts; i++) {
     const attempt = await searchOnce(api, keyword);
@@ -64,10 +98,11 @@ async function searchWithRetry(keyword: string, attempts = 3) {
     }
     anySucceeded = true;
     for (const p of attempt.results) merged.set(p.accountid, p);
+    if (merged.size >= EARLY_STOP_AT) break;
   }
 
   return {
-    results: Array.from(merged.values()),
+    results: sortByRelevance(Array.from(merged.values()), keyword),
     // Cuma dianggap "gagal total" kalau semua percobaan error, bukan cuma
     // hasilnya kosong (kosong = memang gak ketemu akunnya).
     failed: !anySucceeded && lastErrorMessage !== null,
