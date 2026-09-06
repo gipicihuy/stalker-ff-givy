@@ -1010,15 +1010,15 @@ export default function StalkClient() {
       </div>
 
       <section style={{ width: '100%', maxWidth: 720 }}>
-        <div style={{ display: 'flex', flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'row', gap: 24, marginBottom: 12 }}>
           <button
             type="button"
             onClick={() => switchSearchMode('uid')}
             style={{
-              flex: 1, padding: '10px 0', borderRadius: 10, cursor: 'pointer', fontSize: 12.5,
-              fontWeight: 600, letterSpacing: '0.03em', transition: 'all 0.2s ease',
-              border: searchMode === 'uid' ? '1px solid var(--gold)' : '1px solid var(--panel-border)',
-              background: searchMode === 'uid' ? 'var(--gold-soft)' : 'var(--panel-bg)',
+              padding: '10px 0', cursor: 'pointer', fontSize: 12.5,
+              fontWeight: 600, letterSpacing: '0.03em', transition: 'color 0.2s ease',
+              border: 'none', borderBottom: searchMode === 'uid' ? '2px solid var(--gold)' : '2px solid transparent',
+              background: 'transparent',
               color: searchMode === 'uid' ? 'var(--gold)' : 'var(--muted-text)',
             }}
           >
@@ -1028,10 +1028,10 @@ export default function StalkClient() {
             type="button"
             onClick={() => switchSearchMode('nickname')}
             style={{
-              flex: 1, padding: '10px 0', borderRadius: 10, cursor: 'pointer', fontSize: 12.5,
-              fontWeight: 600, letterSpacing: '0.03em', transition: 'all 0.2s ease',
-              border: searchMode === 'nickname' ? '1px solid var(--gold)' : '1px solid var(--panel-border)',
-              background: searchMode === 'nickname' ? 'var(--gold-soft)' : 'var(--panel-bg)',
+              padding: '10px 0', cursor: 'pointer', fontSize: 12.5,
+              fontWeight: 600, letterSpacing: '0.03em', transition: 'color 0.2s ease',
+              border: 'none', borderBottom: searchMode === 'nickname' ? '2px solid var(--gold)' : '2px solid transparent',
+              background: 'transparent',
               color: searchMode === 'nickname' ? 'var(--gold)' : 'var(--muted-text)',
             }}
           >
