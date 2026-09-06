@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint, Send, User, Shirt, ChevronDown, Trophy } from 'lucide-react';
+import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint, Send, User, Shirt, ChevronDown, Trophy, Hash } from 'lucide-react';
 
 type PrimeInfo = { primeLevel?: number };
 type ResolvedItem = { id: number; name: string; icon: string | null; type: string | null };
@@ -970,6 +970,15 @@ export default function StalkClient() {
     basic?.equippedPin,
   ].filter((item): item is ResolvedItem => Boolean(item));
 
+  // Clip-path notches for the tag/flag-style containers (referensi desain).
+  // N = ukuran potongan sudut dalam px.
+  const notchTag = (n: number) =>
+    `polygon(0 0, calc(100% - ${n}px) 0, 100% ${n}px, 100% 100%, ${n}px 100%, 0 calc(100% - ${n}px))`;
+  const notchBL = (n: number) =>
+    `polygon(0 0, 100% 0, 100% 100%, ${n}px 100%, 0 calc(100% - ${n}px))`;
+  const notchTR = (n: number) =>
+    `polygon(0 0, calc(100% - ${n}px) 0, 100% ${n}px, 100% 100%, 0 100%)`;
+
   return (
     <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 16px 0' }}>
       {loading ? <LoadingOverlay /> : null}
@@ -1010,53 +1019,61 @@ export default function StalkClient() {
       </div>
 
       <section style={{ width: '100%', maxWidth: 720 }}>
-        <div style={{ display: 'flex', flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'row', gap: 10, marginBottom: 14 }}>
           <button
             type="button"
             onClick={() => switchSearchMode('uid')}
             style={{
-              padding: '10px 14px', cursor: 'pointer', fontSize: 12.5, borderRadius: '8px 8px 0 0',
-              fontWeight: 600, letterSpacing: '0.03em', transition: 'color 0.2s ease, background 0.2s ease',
-              border: 'none', borderBottom: searchMode === 'uid' ? '3px solid var(--gold)' : '3px solid transparent',
-              background: searchMode === 'uid' ? 'var(--gold-soft)' : 'transparent',
-              color: searchMode === 'uid' ? 'var(--gold)' : 'var(--muted-text)',
+              display: 'flex', alignItems: 'center', gap: 8, padding: '11px 18px', cursor: 'pointer', fontSize: 12.5,
+              fontWeight: 700, letterSpacing: '0.03em', transition: 'color 0.15s ease, background 0.15s ease',
+              border: searchMode === 'uid' ? 'none' : '1px solid var(--panel-border)',
+              background: searchMode === 'uid' ? 'var(--gold)' : 'transparent',
+              color: searchMode === 'uid' ? '#14161b' : 'var(--muted-text)',
+              clipPath: searchMode === 'uid' ? notchTag(9) : 'none',
+              borderRadius: searchMode === 'uid' ? 0 : 6,
             }}
           >
+            <Hash size={14} />
             By UID
           </button>
           <button
             type="button"
             onClick={() => switchSearchMode('nickname')}
             style={{
-              padding: '10px 14px', cursor: 'pointer', fontSize: 12.5, borderRadius: '8px 8px 0 0',
-              fontWeight: 600, letterSpacing: '0.03em', transition: 'color 0.2s ease, background 0.2s ease',
-              border: 'none', borderBottom: searchMode === 'nickname' ? '3px solid var(--gold)' : '3px solid transparent',
-              background: searchMode === 'nickname' ? 'var(--gold-soft)' : 'transparent',
-              color: searchMode === 'nickname' ? 'var(--gold)' : 'var(--muted-text)',
+              display: 'flex', alignItems: 'center', gap: 8, padding: '11px 18px', cursor: 'pointer', fontSize: 12.5,
+              fontWeight: 700, letterSpacing: '0.03em', transition: 'color 0.15s ease, background 0.15s ease',
+              border: searchMode === 'nickname' ? 'none' : '1px solid var(--panel-border)',
+              background: searchMode === 'nickname' ? 'var(--gold)' : 'transparent',
+              color: searchMode === 'nickname' ? '#14161b' : 'var(--muted-text)',
+              clipPath: searchMode === 'nickname' ? notchTag(9) : 'none',
+              borderRadius: searchMode === 'nickname' ? 0 : 6,
             }}
           >
+            <Search size={14} />
             By Nickname
           </button>
         </div>
 
         <SectionLabel>{searchMode === 'uid' ? 'Masukkan UID' : 'Masukkan Nickname'}</SectionLabel>
-        <div style={{ position: 'relative', width: '100%' }}>
-          <input
-            type="text"
-            inputMode={searchMode === 'uid' ? 'numeric' : 'text'}
-            maxLength={searchMode === 'uid' ? 12 : 20}
-            placeholder={searchMode === 'uid' ? 'Contoh: 903474122' : 'Contoh: Givy'}
-            value={searchMode === 'uid' ? uid : nickname}
-            onChange={(e) => {
-              if (searchMode === 'uid') setUid(e.target.value.replace(/[^0-9]/g, ''));
-              else setNickname(e.target.value);
-            }}
-            onKeyDown={onKeyDown}
-            style={{
-              width: '100%', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)',
-              borderRadius: 12, padding: '13px 84px 13px 16px', fontSize: 15, color: 'var(--white)', outline: 'none',
-            }}
-          />
+        <div style={{ position: 'relative', width: '100%', clipPath: notchBL(10), background: 'var(--panel-border)', padding: 1 }}>
+          <div style={{ clipPath: notchBL(9), background: 'var(--panel-bg)' }}>
+            <input
+              type="text"
+              inputMode={searchMode === 'uid' ? 'numeric' : 'text'}
+              maxLength={searchMode === 'uid' ? 12 : 20}
+              placeholder={searchMode === 'uid' ? 'Contoh: 903474122' : 'Contoh: Givy'}
+              value={searchMode === 'uid' ? uid : nickname}
+              onChange={(e) => {
+                if (searchMode === 'uid') setUid(e.target.value.replace(/[^0-9]/g, ''));
+                else setNickname(e.target.value);
+              }}
+              onKeyDown={onKeyDown}
+              style={{
+                width: '100%', background: 'transparent', border: 'none',
+                padding: '13px 84px 13px 16px', fontSize: 15, color: 'var(--white)', outline: 'none',
+              }}
+            />
+          </div>
           <div style={{ position: 'absolute', right: 6, top: 6, bottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
             {(searchMode === 'uid' ? uid : nickname) ? (
               <button
@@ -1092,7 +1109,7 @@ export default function StalkClient() {
               style={{
                 width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: (searchMode === 'uid' ? loading : nicknameLoading) ? 'var(--gold-hover)' : 'var(--gold)',
-                border: 'none', borderRadius: 9,
+                border: 'none', clipPath: notchTR(6),
                 color: '#14161b', opacity: (searchMode === 'uid' ? loading : nicknameLoading) ? 0.85 : 1,
               }}
             >
