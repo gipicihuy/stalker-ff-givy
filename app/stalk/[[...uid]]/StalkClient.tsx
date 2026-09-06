@@ -63,6 +63,12 @@ type FfResponse = {
   banInfo?: BanInfo | null;
   petInfo?: PetInfo;
 };
+type NicknameSearchItem = {
+  accountid: string;
+  nickname: string;
+  level?: number;
+  region?: string;
+};
 
 // API /api/ff mengembalikan schema milik Free Fire Stalk sendiri (player,
 // guild, social, credit, ban, pet). Adapter ini memetakan ke bentuk internal
@@ -761,6 +767,11 @@ export default function StalkClient() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<FfResponse | null>(null);
   const [copied, setCopied] = useState(false);
+  const [searchMode, setSearchMode] = useState<'uid' | 'nickname'>('uid');
+  const [nickname, setNickname] = useState('');
+  const [nicknameResults, setNicknameResults] = useState<NicknameSearchItem[]>([]);
+  const [nicknameLoading, setNicknameLoading] = useState(false);
+  const [nicknameError, setNicknameError] = useState<string | null>(null);
   const lastCheckRef = useRef(0);
   const didInitRef = useRef(false);
 
@@ -789,8 +800,8 @@ export default function StalkClient() {
     };
   }, [loading]);
 
-  const cekID = useCallback(async () => {
-    const trimmed = uid.trim();
+  const cekID = useCallback(async (overrideUid?: string) => {
+    const trimmed = (overrideUid ?? uid).trim();
     if (!/^\d{6,15}$/.test(trimmed)) {
       setError('Masukkan UID Free Fire yang valid (angka, minimal 6 digit).');
       setResult(null);
@@ -828,8 +839,59 @@ export default function StalkClient() {
     }
   }, [uid, initialUid, router]);
 
+  const searchNickname = useCallback(async () => {
+    const trimmed = nickname.trim();
+    if (trimmed.length < 3) {
+      setNicknameError('Masukkan nickname minimal 3 karakter.');
+      setNicknameResults([]);
+      return;
+    }
+
+    setNicknameLoading(true);
+    setNicknameError(null);
+    setNicknameResults([]);
+
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        setNicknameError(data?.error || 'Gagal mencari akun.');
+        return;
+      }
+      if (!data.results || data.results.length === 0) {
+        setNicknameError('Tidak ada akun ditemukan.');
+        return;
+      }
+      setNicknameResults(data.results);
+    } catch {
+      setNicknameError('Gagal terhubung ke server. Coba lagi.');
+    } finally {
+      setNicknameLoading(false);
+    }
+  }, [nickname]);
+
+  const selectNicknameResult = useCallback((accountid: string) => {
+    setSearchMode('uid');
+    setUid(accountid);
+    setNickname('');
+    setNicknameResults([]);
+    setNicknameError(null);
+    cekID(accountid);
+  }, [cekID]);
+
+  const switchSearchMode = (mode: 'uid' | 'nickname') => {
+    if (mode === searchMode) return;
+    setSearchMode(mode);
+    setError(null);
+    setNicknameError(null);
+    setNicknameResults([]);
+  };
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') cekID();
+    if (e.key !== 'Enter') return;
+    if (searchMode === 'uid') cekID();
+    else searchNickname();
   };
 
   useEffect(() => {
@@ -906,15 +968,47 @@ export default function StalkClient() {
       </div>
 
       <section style={{ width: '100%', maxWidth: 720 }}>
-        <SectionLabel>Masukkan UID</SectionLabel>
+        <div style={{ display: 'flex', flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+          <button
+            type="button"
+            onClick={() => switchSearchMode('uid')}
+            style={{
+              flex: 1, padding: '10px 0', borderRadius: 10, cursor: 'pointer', fontSize: 12.5,
+              fontWeight: 600, letterSpacing: '0.03em', transition: 'all 0.2s ease',
+              border: searchMode === 'uid' ? '1px solid var(--gold)' : '1px solid var(--panel-border)',
+              background: searchMode === 'uid' ? 'var(--gold-soft)' : 'var(--panel-bg)',
+              color: searchMode === 'uid' ? 'var(--gold)' : 'var(--muted-text)',
+            }}
+          >
+            By UID
+          </button>
+          <button
+            type="button"
+            onClick={() => switchSearchMode('nickname')}
+            style={{
+              flex: 1, padding: '10px 0', borderRadius: 10, cursor: 'pointer', fontSize: 12.5,
+              fontWeight: 600, letterSpacing: '0.03em', transition: 'all 0.2s ease',
+              border: searchMode === 'nickname' ? '1px solid var(--gold)' : '1px solid var(--panel-border)',
+              background: searchMode === 'nickname' ? 'var(--gold-soft)' : 'var(--panel-bg)',
+              color: searchMode === 'nickname' ? 'var(--gold)' : 'var(--muted-text)',
+            }}
+          >
+            By Nickname
+          </button>
+        </div>
+
+        <SectionLabel>{searchMode === 'uid' ? 'Masukkan UID' : 'Masukkan Nickname'}</SectionLabel>
         <div style={{ position: 'relative', width: '100%' }}>
           <input
             type="text"
-            inputMode="numeric"
-            maxLength={12}
-            placeholder="Contoh: 903474122"
-            value={uid}
-            onChange={(e) => setUid(e.target.value.replace(/[^0-9]/g, ''))}
+            inputMode={searchMode === 'uid' ? 'numeric' : 'text'}
+            maxLength={searchMode === 'uid' ? 12 : 20}
+            placeholder={searchMode === 'uid' ? 'Contoh: 903474122' : 'Contoh: Givy'}
+            value={searchMode === 'uid' ? uid : nickname}
+            onChange={(e) => {
+              if (searchMode === 'uid') setUid(e.target.value.replace(/[^0-9]/g, ''));
+              else setNickname(e.target.value);
+            }}
             onKeyDown={onKeyDown}
             style={{
               width: '100%', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)',
@@ -922,15 +1016,21 @@ export default function StalkClient() {
             }}
           />
           <div style={{ position: 'absolute', right: 6, top: 6, bottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-            {uid ? (
+            {(searchMode === 'uid' ? uid : nickname) ? (
               <button
                 type="button"
                 aria-label="Bersihkan"
                 onClick={() => {
-                  setUid('');
-                  setError(null);
-                  setResult(null);
-                  if (initialUid) router.push('/stalk', { scroll: false });
+                  if (searchMode === 'uid') {
+                    setUid('');
+                    setError(null);
+                    setResult(null);
+                    if (initialUid) router.push('/stalk', { scroll: false });
+                  } else {
+                    setNickname('');
+                    setNicknameError(null);
+                    setNicknameResults([]);
+                  }
                 }}
                 className="icon-btn"
                 style={{
@@ -943,27 +1043,73 @@ export default function StalkClient() {
             ) : null}
             <button
               type="button"
-              aria-label="Cek ID"
-              onClick={cekID}
-              disabled={loading}
+              aria-label={searchMode === 'uid' ? 'Cek ID' : 'Cari Nickname'}
+              onClick={() => (searchMode === 'uid' ? cekID() : searchNickname())}
+              disabled={searchMode === 'uid' ? loading : nicknameLoading}
               className="icon-btn"
               style={{
                 width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: loading ? 'var(--gold-hover)' : 'var(--gold)', border: 'none', borderRadius: 9,
-                color: '#14161b', opacity: loading ? 0.85 : 1,
+                background: (searchMode === 'uid' ? loading : nicknameLoading) ? 'var(--gold-hover)' : 'var(--gold)',
+                border: 'none', borderRadius: 9,
+                color: '#14161b', opacity: (searchMode === 'uid' ? loading : nicknameLoading) ? 0.85 : 1,
               }}
             >
-              {loading ? <Spinner /> : <Search size={16} />}
+              {(searchMode === 'uid' ? loading : nicknameLoading) ? <Spinner /> : <Search size={16} />}
             </button>
           </div>
         </div>
 
-        {error ? (
+        {searchMode === 'uid' && error ? (
           <div style={{
             marginTop: 14, background: 'var(--error-bg)', border: '1px solid var(--error-border)',
             color: 'var(--error-text)', borderRadius: 10, padding: '12px 14px', fontSize: 14,
           }}>
             {error}
+          </div>
+        ) : null}
+
+        {searchMode === 'nickname' && nicknameError ? (
+          <div style={{
+            marginTop: 14, background: 'var(--error-bg)', border: '1px solid var(--error-border)',
+            color: 'var(--error-text)', borderRadius: 10, padding: '12px 14px', fontSize: 14,
+          }}>
+            {nicknameError}
+          </div>
+        ) : null}
+
+        {searchMode === 'nickname' && nicknameResults.length > 0 ? (
+          <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {nicknameResults.map((p) => (
+              <button
+                key={p.accountid}
+                type="button"
+                onClick={() => selectNicknameResult(p.accountid)}
+                className="icon-btn"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
+                  textAlign: 'left', background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)',
+                  borderRadius: 12, padding: '11px 14px', cursor: 'pointer',
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+                  <span style={{
+                    fontSize: 13.5, fontWeight: 600, color: 'var(--white)', overflow: 'hidden',
+                    textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {p.nickname}
+                  </span>
+                  <span style={{ fontSize: 11, color: 'var(--muted-text)' }}>
+                    UID {p.accountid} • {getRegionName(p.region)}
+                  </span>
+                </div>
+                <span style={{
+                  fontSize: 11, fontWeight: 600, color: 'var(--gold)', background: 'var(--gold-soft)',
+                  borderRadius: 8, padding: '4px 9px', flexShrink: 0, marginLeft: 10,
+                }}>
+                  Lv.{p.level ?? '-'}
+                </span>
+              </button>
+            ))}
           </div>
         ) : null}
       </section>
@@ -983,7 +1129,7 @@ export default function StalkClient() {
           <button
             type="button"
             aria-label="Refresh data"
-            onClick={cekID}
+            onClick={() => cekID()}
             disabled={loading}
             className="icon-btn"
             style={{
