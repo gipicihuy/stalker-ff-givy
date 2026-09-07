@@ -168,6 +168,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       nickname: p.nickname,
       level: p.level,
       region: p.region,
+      // Eksperimental: headpic (avatar id) sekarang dicoba di-decode dari
+      // response search (lihat decodeWithFallback di vendor/ffapis). Kalau
+      // decode-nya jatuh ke skema fallback (gagal), field ini bakal absen/0
+      // - makanya di-treat sebagai optional & falsy-safe di frontend.
+      headpic: p.headpic || null,
     }));
     // JANGAN di-cache. Endpoint ini sengaja didesain buat ngasih hasil yang
     // paling lengkap/bervariasi tiap kali dipanggil (lihat komentar di
