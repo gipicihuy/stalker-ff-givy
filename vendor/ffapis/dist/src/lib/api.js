@@ -233,7 +233,7 @@ class FreeFireAPI {
                 responseType: 'arraybuffer',
                 timeout: 30000
             });
-            const data = await protobuf_1.protoHandler.decodeWithFallback('SearchAccountByName.proto', 'SearchAccountByNameSafe.proto', 'SearchAccountByName.response', response.data);
+            const data = await protobuf_1.protoHandler.decode('SearchAccountByName.proto', 'SearchAccountByName.response', response.data);
             return data.infos || [];
         }
         catch (error) {
