@@ -38,6 +38,19 @@ type BasicInfo = {
   equippedAvatar?: ResolvedItem | null;
 };
 type OutfitItem = { id: number; name: string; icon: string | null };
+
+// Clip-path notches buat kontainer bergaya "tag/flag" (identitas visual
+// Stalker: tab, tombol search, avatar list, dst). N = ukuran potongan sudut
+// dalam px. Ditaruh di module scope biar bisa dipake bareng-bareng sama
+// komponen apapun (OutfitGrid, modal detail item, dll), gak cuma di dalam
+// StalkClient.
+const notchTag = (n: number) =>
+  `polygon(0 0, calc(100% - ${n}px) 0, 100% ${n}px, 100% 100%, ${n}px 100%, 0 calc(100% - ${n}px))`;
+const notchBL = (n: number) =>
+  `polygon(0 0, 100% 0, 100% 100%, ${n}px 100%, 0 calc(100% - ${n}px))`;
+const notchTR = (n: number) =>
+  `polygon(0 0, calc(100% - ${n}px) 0, 100% ${n}px, 100% 100%, 0 100%)`;
+
 type GuildInfo = { guildName?: string; guildLevel?: number; memberNum?: number; capacity?: number };
 type SocialInfo = { signature?: string };
 type CreditInfo = { creditScore?: number };
@@ -68,6 +81,10 @@ type NicknameSearchItem = {
   nickname: string;
   level?: number;
   region?: string;
+  // Eksperimental: cuma keisi kalau server berhasil decode field headpic
+  // dari response search (lihat catatan di pages/api/search.ts). Kalau
+  // absen/null, frontend fallback ke avatar inisial.
+  headpic?: number | null;
 };
 
 // API /api/ff mengembalikan schema milik Free Fire Stalk sendiri (player,
@@ -691,7 +708,15 @@ function FaqSection() {
   );
 }
 
-function OutfitGrid({ items }: { items: OutfitItem[] }) {
+function OutfitGrid({
+  items,
+  category,
+  onSelect,
+}: {
+  items: (OutfitItem & { _cat?: string })[];
+  category: string;
+  onSelect: (item: OutfitItem, category: string) => void;
+}) {
   const [brokenIds, setBrokenIds] = useState<Set<number>>(new Set());
 
   if (!items || items.length === 0) return null;
@@ -702,12 +727,16 @@ function OutfitGrid({ items }: { items: OutfitItem[] }) {
         const isBroken = brokenIds.has(item.id);
         const showImage = Boolean(item.icon) && !isBroken;
         return (
-          <div
+          <button
             key={item.id}
+            type="button"
             title={item.name}
+            onClick={() => onSelect(item, item._cat ?? category)}
+            className="icon-btn"
             style={{
               background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12,
               padding: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+              cursor: 'pointer', textAlign: 'center', width: '100%',
             }}
           >
             {showImage ? (
@@ -737,7 +766,7 @@ function OutfitGrid({ items }: { items: OutfitItem[] }) {
             }}>
               {item.name}
             </p>
-          </div>
+          </button>
         );
       })}
     </div>
@@ -758,6 +787,140 @@ function InfoRow({ icon, children }: { icon: React.ReactNode; children: React.Re
   );
 }
 
+// Modal detail item - dipicu klik kartu di OutfitGrid manapun (Character,
+// Outfit, Weapon, Look Changer, Arrival Animation, Profile Item, dst).
+// Desainnya ngikutin visual language Stalker sendiri (notch/flag shape,
+// gold accent, dark panel) - bukan niru style referensi manapun.
+function ItemDetailModal({
+  item,
+  category,
+  onClose,
+}: {
+  item: OutfitItem | null;
+  category: string | null;
+  onClose: () => void;
+}) {
+  const [imgBroken, setImgBroken] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    setImgBroken(false);
+    setCopied(false);
+  }, [item?.id]);
+
+  // Kunci scroll body + tutup pake Escape selama modal kebuka, sama kayak
+  // pola yang udah dipake buat overlay loading.
+  useEffect(() => {
+    if (!item) return;
+    const prevOverflow = document.body.style.overflow;
+    const prevPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = 'hidden';
+    if (scrollbarWidth > 0) document.body.style.paddingRight = `${scrollbarWidth}px`;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.body.style.paddingRight = prevPaddingRight;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [item, onClose]);
+
+  if (!item) return null;
+
+  const copyId = () => {
+    navigator.clipboard?.writeText(String(item.id)).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 1000,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: 'relative', width: '100%', maxWidth: 300, background: 'var(--panel-bg)',
+          border: '1px solid var(--panel-border)', clipPath: notchTag(16), padding: '24px 18px 18px',
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+        }}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Tutup"
+          className="icon-btn"
+          style={{
+            position: 'absolute', top: 8, right: 8, width: 30, height: 30, display: 'flex',
+            alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none',
+            borderRadius: 8, color: 'var(--muted-text)', cursor: 'pointer',
+          }}
+        >
+          <X size={16} />
+        </button>
+
+        <div style={{
+          width: 108, height: 108, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'var(--panel-bg-alt)', clipPath: notchTag(10), marginBottom: 12,
+        }}>
+          {item.icon && !imgBroken ? (
+            <img
+              src={item.icon}
+              alt={item.name}
+              style={{ width: '80%', height: '80%', objectFit: 'contain' }}
+              onError={() => setImgBroken(true)}
+            />
+          ) : (
+            <span style={{ fontSize: 11, color: 'var(--muted-text)' }}>N/A</span>
+          )}
+        </div>
+
+        <p style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--white)', textAlign: 'center', margin: 0, lineHeight: 1.35 }}>
+          {item.name}
+        </p>
+        {category ? (
+          <span style={{
+            fontSize: 10, fontWeight: 700, color: 'var(--gold)', background: 'var(--gold-soft)',
+            padding: '3px 10px', marginTop: 8, textTransform: 'uppercase', letterSpacing: '0.05em',
+            clipPath: notchTR(4),
+          }}>
+            {category}
+          </span>
+        ) : null}
+
+        <div style={{ width: '100%', height: 1, background: 'var(--panel-border)', margin: '16px 0 4px' }} />
+
+        <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 2px' }}>
+          <span style={{ fontSize: 11.5, color: 'var(--muted-text)' }}>Item ID</span>
+          <button
+            type="button"
+            onClick={copyId}
+            className="icon-btn"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none',
+              borderRadius: 6, padding: '4px 6px', cursor: 'pointer',
+              color: copied ? 'var(--success)' : 'var(--light-text)', fontSize: 12.5, fontWeight: 600,
+            }}
+          >
+            {item.id}
+            {copied ? <Check size={13} /> : <Copy size={13} />}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function StalkClient() {
   const params = useParams<{ uid?: string | string[] }>();
   const router = useRouter();
@@ -767,6 +930,7 @@ export default function StalkClient() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<FfResponse | null>(null);
   const [copied, setCopied] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<{ item: OutfitItem; category: string } | null>(null);
   const [searchMode, setSearchMode] = useState<'uid' | 'nickname'>('uid');
   const [nickname, setNickname] = useState('');
   const [nicknameResults, setNicknameResults] = useState<NicknameSearchItem[]>([]);
@@ -970,14 +1134,6 @@ export default function StalkClient() {
     basic?.equippedPin,
   ].filter((item): item is ResolvedItem => Boolean(item));
 
-  // Clip-path notches for the tag/flag-style containers (referensi desain).
-  // N = ukuran potongan sudut dalam px.
-  const notchTag = (n: number) =>
-    `polygon(0 0, calc(100% - ${n}px) 0, 100% ${n}px, 100% 100%, ${n}px 100%, 0 calc(100% - ${n}px))`;
-  const notchBL = (n: number) =>
-    `polygon(0 0, 100% 0, 100% 100%, ${n}px 100%, 0 calc(100% - ${n}px))`;
-  const notchTR = (n: number) =>
-    `polygon(0 0, calc(100% - ${n}px) 0, 100% ${n}px, 100% 100%, 0 100%)`;
   // Avatar inisial nickname (bukan avatar dari FF) - warnanya gantian antara
   // gold/biru (dua-duanya udah ada di palet Stalker) berdasarkan accountid,
   // biar list hasil search ada ritme visualnya, gak monoton satu warna terus.
@@ -1169,12 +1325,27 @@ export default function StalkClient() {
                   <span
                     aria-hidden="true"
                     style={{
-                      width: 36, height: 36, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      position: 'relative', width: 36, height: 36, flexShrink: 0, display: 'flex',
+                      alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
                       background: avatar.bg, color: avatar.fg, fontSize: 14.5, fontWeight: 700,
                       clipPath: notchTag(6),
                     }}
                   >
                     {initial}
+                    {p.headpic ? (
+                      <img
+                        src={`https://ff.garena.com/avatar/${p.headpic}.png`}
+                        alt=""
+                        loading="lazy"
+                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => {
+                          // Eksperimental & belum 100% ke-cover di semua akun -
+                          // kalau gagal load, sembunyiin img-nya aja, avatar
+                          // inisial di belakangnya udah otomatis kelihatan lagi.
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    ) : null}
                   </span>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0, flex: 1 }}>
                     <span style={{
@@ -1471,7 +1642,7 @@ export default function StalkClient() {
               <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
               <div>
                 <SectionDividerLabel>Character</SectionDividerLabel>
-                <OutfitGrid items={characterItems} />
+                <OutfitGrid items={characterItems} category="Character" onSelect={(item, cat) => setSelectedItem({ item, category: cat })} />
               </div>
             </>
           ) : null}
@@ -1481,7 +1652,7 @@ export default function StalkClient() {
               <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
               <div>
                 <SectionDividerLabel>Profile Items</SectionDividerLabel>
-                <OutfitGrid items={profileItems} />
+                <OutfitGrid items={profileItems} category="Profile Item" onSelect={(item, cat) => setSelectedItem({ item, category: cat })} />
               </div>
             </>
           ) : null}
@@ -1491,7 +1662,7 @@ export default function StalkClient() {
               <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
               <div>
                 <SectionDividerLabel>Outfit</SectionDividerLabel>
-                <OutfitGrid items={basic.equippedOutfitItems} />
+                <OutfitGrid items={basic.equippedOutfitItems} category="Outfit" onSelect={(item, cat) => setSelectedItem({ item, category: cat })} />
               </div>
             </>
           ) : null}
@@ -1513,10 +1684,12 @@ export default function StalkClient() {
                 </SectionDividerLabel>
                 <OutfitGrid
                   items={[
-                    ...(basic?.equippedWeaponOutfitItems ?? []),
-                    ...(basic?.equippedLookChangerItems ?? []),
-                    ...(basic?.equippedArrivalAnimationItems ?? []),
+                    ...(basic?.equippedWeaponOutfitItems ?? []).map((i) => ({ ...i, _cat: 'Weapon' })),
+                    ...(basic?.equippedLookChangerItems ?? []).map((i) => ({ ...i, _cat: 'Look Changer' })),
+                    ...(basic?.equippedArrivalAnimationItems ?? []).map((i) => ({ ...i, _cat: 'Arrival Animation' })),
                   ]}
+                  category="Weapon"
+                  onSelect={(item, cat) => setSelectedItem({ item, category: cat })}
                 />
               </div>
             </>
@@ -1662,6 +1835,12 @@ export default function StalkClient() {
           </div>
         </div>
       </footer>
+
+      <ItemDetailModal
+        item={selectedItem?.item ?? null}
+        category={selectedItem?.category ?? null}
+        onClose={() => setSelectedItem(null)}
+      />
     </main>
   );
 }
