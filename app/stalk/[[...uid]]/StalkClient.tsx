@@ -81,10 +81,6 @@ type NicknameSearchItem = {
   nickname: string;
   level?: number;
   region?: string;
-  // Eksperimental: cuma keisi kalau server berhasil decode field headpic
-  // dari response search (lihat catatan di pages/api/search.ts). Kalau
-  // absen/null, frontend fallback ke avatar inisial.
-  headpic?: number | null;
 };
 
 // API /api/ff mengembalikan schema milik Free Fire Stalk sendiri (player,
@@ -1325,27 +1321,12 @@ export default function StalkClient() {
                   <span
                     aria-hidden="true"
                     style={{
-                      position: 'relative', width: 36, height: 36, flexShrink: 0, display: 'flex',
-                      alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+                      width: 36, height: 36, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
                       background: avatar.bg, color: avatar.fg, fontSize: 14.5, fontWeight: 700,
                       clipPath: notchTag(6),
                     }}
                   >
                     {initial}
-                    {p.headpic ? (
-                      <img
-                        src={`https://ff.garena.com/avatar/${p.headpic}.png`}
-                        alt=""
-                        loading="lazy"
-                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-                        onError={(e) => {
-                          // Eksperimental & belum 100% ke-cover di semua akun -
-                          // kalau gagal load, sembunyiin img-nya aja, avatar
-                          // inisial di belakangnya udah otomatis kelihatan lagi.
-                          e.currentTarget.style.display = 'none';
-                        }}
-                      />
-                    ) : null}
                   </span>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0, flex: 1 }}>
                     <span style={{
