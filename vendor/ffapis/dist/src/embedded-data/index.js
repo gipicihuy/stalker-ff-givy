@@ -15,6 +15,7 @@ const PlayerCSStats_json_1 = __importDefault(require("./PlayerCSStats.json"));
 const PlayerPersonalShow_json_1 = __importDefault(require("./PlayerPersonalShow.json"));
 const PlayerStats_json_1 = __importDefault(require("./PlayerStats.json"));
 const SearchAccountByName_json_1 = __importDefault(require("./SearchAccountByName.json"));
+const SearchAccountByNameSafe_json_1 = __importDefault(require("./SearchAccountByNameSafe.json"));
 const SetPlayerGalleryShowInfo_json_1 = __importDefault(require("./SetPlayerGalleryShowInfo.json"));
 const settings_json_1 = __importDefault(require("./settings.json"));
 const credentials_json_1 = __importDefault(require("./credentials.json"));
@@ -25,6 +26,11 @@ exports.protoDescriptors = {
     'PlayerPersonalShow.proto': PlayerPersonalShow_json_1.default,
     'PlayerStats.proto': PlayerStats_json_1.default,
     'SearchAccountByName.proto': SearchAccountByName_json_1.default,
+    // Salinan "aman" dari skema SearchAccountByName SEBELUM ditambahin field
+    // headpic (avatar) - dipake sebagai fallback kalau decode pake skema yang
+    // udah ditambahin headpic ternyata gagal (invalid wire type dsb). Lihat
+    // decodeWithFallback() di protobuf.js.
+    'SearchAccountByNameSafe.proto': SearchAccountByNameSafe_json_1.default,
     'SetPlayerGalleryShowInfo.proto': SetPlayerGalleryShowInfo_json_1.default,
 };
 exports.embeddedSettings = settings_json_1.default;
