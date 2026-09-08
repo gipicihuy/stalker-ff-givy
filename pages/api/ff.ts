@@ -683,90 +683,6 @@ function resolveSingleItem(id: any): { id: number; name: string; icon: string | 
   };
 }
 
-// Deskripsi item di itemData.json bawaannya bahasa Inggris. Daripada
-// nerjemahin di frontend (nambah dependency di client), diterjemahin di
-// sini dan di-cache per-teks unik di memory Worker - deskripsi yang sama
-// dipakai berkali-kali sama banyak item (terutama item bundle) jadi cuma
-// kena translate sekali selama isolate-nya masih hidup.
-//
-// Provider utama: endpoint "gtx" Google Translate yang gak resmi (dipakai
-// ekstensi Chrome-nya Google sendiri, gak butuh API key, dan ini yang
-// dipakai kebanyakan library translate gratisan seperti
-// google-translate-api-x / translate-google). MyMemory dipasang sebagai
-// cadangan kalau Google lagi nolak/limit. Kalau dua-duanya gagal, fallback
-// ke teks Inggris aslinya - dan hasil fallback itu juga di-cache biar
-// request berikutnya nggak nyoba translate ulang teks yang sama terus.
-const descriptionTranslationCache: Map<string, string> = new Map();
-
-async function translateViaGoogle(text: string): Promise<string | null> {
-  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=id&dt=t&q=${encodeURIComponent(text)}`;
-  const res = await fetch(url, {
-    signal: AbortSignal.timeout(4000),
-    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-  });
-  if (!res.ok) throw new Error(`translate_google_http_${res.status}`);
-  const data: any = await res.json();
-  const segments = Array.isArray(data) ? data[0] : null;
-  if (!Array.isArray(segments)) return null;
-  const translated = segments.map((seg: any) => (Array.isArray(seg) ? seg[0] : '')).join('');
-  return translated.trim() || null;
-}
-
-async function translateViaMyMemory(text: string): Promise<string | null> {
-  const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|id`;
-  const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
-  if (!res.ok) throw new Error(`translate_mymemory_http_${res.status}`);
-  const data: any = await res.json();
-  const translated = data?.responseData?.translatedText;
-  if (typeof translated === 'string' && translated.trim() && data?.responseStatus === 200) {
-    return translated;
-  }
-  return null;
-}
-
-async function translateToIndonesian(text: string): Promise<string> {
-  const cached = descriptionTranslationCache.get(text);
-  if (cached !== undefined) return cached;
-
-  for (const provider of [translateViaGoogle, translateViaMyMemory]) {
-    try {
-      const result = await provider(text);
-      if (result) {
-        descriptionTranslationCache.set(text, result);
-        return result;
-      }
-    } catch {
-      // coba provider berikutnya
-    }
-  }
-
-  descriptionTranslationCache.set(text, text);
-  return text;
-}
-
-// Nerjemahin field "description" di sekumpulan item (array outfit + item
-// tunggal seperti banner/title/pin/character/avatar) sekaligus, in-place.
-// Teks unik di-translate cuma sekali walau dipakai di banyak item.
-async function translateItemDescriptions(items: Array<{ description?: string | null } | null | undefined>): Promise<void> {
-  const uniqueTexts = Array.from(
-    new Set(
-      items
-        .map((item) => item?.description)
-        .filter((desc): desc is string => Boolean(desc))
-    )
-  );
-  if (uniqueTexts.length === 0) return;
-
-  const translations = await Promise.all(uniqueTexts.map((text) => translateToIndonesian(text)));
-  const textMap = new Map(uniqueTexts.map((text, idx) => [text, translations[idx]]));
-
-  for (const item of items) {
-    if (item?.description) {
-      item.description = textMap.get(item.description) ?? item.description;
-    }
-  }
-}
-
 async function fetchOutfitLookup(): Promise<Map<string, OutfitLookupEntry>> {
   const itemRes = await fetch(`${ITEMID2_BASE}/itemData.json`, { cache: 'no-store' });
   const itemList = itemRes.ok ? await itemRes.json() : [];
@@ -1110,20 +1026,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const equippedPin = resolveSingleItem(merged.pinId);
   const equippedCharacter = resolveSingleItem(merged.equippedCharacterId);
   const equippedAvatar = resolveSingleItem(merged.headPic);
-
-  // Terjemahin semua description item (yang punya) ke Bahasa Indonesia
-  // sebelum dikirim ke client, sekali jalan buat seluruh list + item tunggal.
-  await translateItemDescriptions([
-    ...equippedOutfitItems,
-    ...equippedWeaponOutfitItems,
-    ...equippedLookChangerItems,
-    ...equippedArrivalAnimationItems,
-    equippedBanner,
-    equippedTitle,
-    equippedPin,
-    equippedCharacter,
-    equippedAvatar,
-  ]);
 
   const requestOrigin = getRequestOrigin(req);
 
