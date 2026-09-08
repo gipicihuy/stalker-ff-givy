@@ -685,32 +685,63 @@ function resolveSingleItem(id: any): { id: number; name: string; icon: string | 
 
 // Deskripsi item di itemData.json bawaannya bahasa Inggris. Daripada
 // nerjemahin di frontend (nambah dependency di client), diterjemahin di
-// sini pakai MyMemory (API gratis, gak butuh API key) dan di-cache
-// per-teks unik di memory Worker - deskripsi yang sama dipakai berkali-kali
-// sama banyak item (terutama item bundle) jadi cuma kena translate sekali
-// selama isolate-nya masih hidup. Kalau translate gagal (network/limit),
-// fallback ke teks Inggris aslinya, dan hasil fallback itu juga di-cache
-// biar request berikutnya nggak nyoba translate ulang teks yang sama.
+// sini dan di-cache per-teks unik di memory Worker - deskripsi yang sama
+// dipakai berkali-kali sama banyak item (terutama item bundle) jadi cuma
+// kena translate sekali selama isolate-nya masih hidup.
+//
+// Provider utama: endpoint "gtx" Google Translate yang gak resmi (dipakai
+// ekstensi Chrome-nya Google sendiri, gak butuh API key, dan ini yang
+// dipakai kebanyakan library translate gratisan seperti
+// google-translate-api-x / translate-google). MyMemory dipasang sebagai
+// cadangan kalau Google lagi nolak/limit. Kalau dua-duanya gagal, fallback
+// ke teks Inggris aslinya - dan hasil fallback itu juga di-cache biar
+// request berikutnya nggak nyoba translate ulang teks yang sama terus.
 const descriptionTranslationCache: Map<string, string> = new Map();
+
+async function translateViaGoogle(text: string): Promise<string | null> {
+  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=id&dt=t&q=${encodeURIComponent(text)}`;
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(4000),
+    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+  });
+  if (!res.ok) throw new Error(`translate_google_http_${res.status}`);
+  const data: any = await res.json();
+  const segments = Array.isArray(data) ? data[0] : null;
+  if (!Array.isArray(segments)) return null;
+  const translated = segments.map((seg: any) => (Array.isArray(seg) ? seg[0] : '')).join('');
+  return translated.trim() || null;
+}
+
+async function translateViaMyMemory(text: string): Promise<string | null> {
+  const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|id`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+  if (!res.ok) throw new Error(`translate_mymemory_http_${res.status}`);
+  const data: any = await res.json();
+  const translated = data?.responseData?.translatedText;
+  if (typeof translated === 'string' && translated.trim() && data?.responseStatus === 200) {
+    return translated;
+  }
+  return null;
+}
 
 async function translateToIndonesian(text: string): Promise<string> {
   const cached = descriptionTranslationCache.get(text);
   if (cached !== undefined) return cached;
-  try {
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|id`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
-    if (!res.ok) throw new Error(`translate_http_${res.status}`);
-    const data: any = await res.json();
-    const translated = data?.responseData?.translatedText;
-    if (typeof translated === 'string' && translated.trim() && data?.responseStatus === 200) {
-      descriptionTranslationCache.set(text, translated);
-      return translated;
+
+  for (const provider of [translateViaGoogle, translateViaMyMemory]) {
+    try {
+      const result = await provider(text);
+      if (result) {
+        descriptionTranslationCache.set(text, result);
+        return result;
+      }
+    } catch {
+      // coba provider berikutnya
     }
-    throw new Error('translate_empty_result');
-  } catch {
-    descriptionTranslationCache.set(text, text);
-    return text;
   }
+
+  descriptionTranslationCache.set(text, text);
+  return text;
 }
 
 // Nerjemahin field "description" di sekumpulan item (array outfit + item
