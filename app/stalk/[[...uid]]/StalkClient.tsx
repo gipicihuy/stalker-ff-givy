@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint, Send, User, Shirt, ChevronDown, ChevronRight, Trophy, Hash } from 'lucide-react';
 
 type PrimeInfo = { primeLevel?: number };
-type ResolvedItem = { id: number; name: string; icon: string | null; type: string | null };
+type ResolvedItem = { id: number; name: string; icon: string | null; type: string | null; rarity?: string | null };
 type BasicInfo = {
   accountId: string;
   nickname: string;
@@ -37,7 +37,25 @@ type BasicInfo = {
   equippedCharacter?: ResolvedItem | null;
   equippedAvatar?: ResolvedItem | null;
 };
-type OutfitItem = { id: number; name: string; icon: string | null };
+type OutfitItem = { id: number; name: string; icon: string | null; type?: string | null; rarity?: string | null };
+
+// Mapping rarity mentah dari itemData.json ("Rare" field) ke label + warna
+// tampilan. Urutan sesuai tingkatan rarity Free Fire (putih -> merah).
+const RARITY_META: Record<string, { label: string; color: string }> = {
+  WHITE: { label: 'Common', color: '#c9ccd1' },
+  GREEN: { label: 'Uncommon', color: '#4ade80' },
+  BLUE: { label: 'Rare', color: '#60a5fa' },
+  PURPLE: { label: 'Epic', color: '#c084fc' },
+  PURPLE_PLUS: { label: 'Epic+', color: '#a855f7' },
+  ORANGE: { label: 'Legendary', color: '#fb923c' },
+  ORANGE_PLUS: { label: 'Legendary+', color: '#f97316' },
+  RED: { label: 'Special', color: '#f87171' },
+};
+
+function getRarityMeta(rarity?: string | null): { label: string; color: string } | null {
+  if (!rarity) return null;
+  return RARITY_META[rarity] ?? null;
+}
 
 // Clip-path notches buat kontainer bergaya "tag/flag" (identitas visual
 // Stalker: tab, tombol search, avatar list, dst). N = ukuran potongan sudut
@@ -884,15 +902,38 @@ function ItemDetailModal({
         <p style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--white)', textAlign: 'center', margin: 0, lineHeight: 1.35 }}>
           {item.name}
         </p>
-        {category ? (
-          <span style={{
-            fontSize: 10, fontWeight: 700, color: 'var(--gold)', background: 'var(--gold-soft)',
-            padding: '3px 10px', marginTop: 8, textTransform: 'uppercase', letterSpacing: '0.05em',
-            clipPath: notchTR(4),
-          }}>
-            {category}
-          </span>
-        ) : null}
+        {(() => {
+          // Label section di bawah nama item lebih berguna kalau nunjukin
+          // tipe spesifik item itu sendiri (Head, Top, Bottom, Shoe, dst -
+          // datang dari field "type" di itemData.json), bukan cuma nama
+          // kategori grid-nya yang generik ("Outfit"). Kalau item nggak
+          // punya type terdeteksi, tetap fallback ke category lama.
+          const displayLabel = item.type || category;
+          const rarityMeta = getRarityMeta(item.rarity);
+          if (!displayLabel && !rarityMeta) return null;
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+              {displayLabel ? (
+                <span style={{
+                  fontSize: 10, fontWeight: 700, color: 'var(--gold)', background: 'var(--gold-soft)',
+                  padding: '3px 10px', textTransform: 'uppercase', letterSpacing: '0.05em',
+                  clipPath: notchTR(4),
+                }}>
+                  {displayLabel}
+                </span>
+              ) : null}
+              {rarityMeta ? (
+                <span style={{
+                  fontSize: 10, fontWeight: 700, color: rarityMeta.color, background: `${rarityMeta.color}22`,
+                  padding: '3px 10px', textTransform: 'uppercase', letterSpacing: '0.05em',
+                  clipPath: notchTR(4),
+                }}>
+                  {rarityMeta.label}
+                </span>
+              ) : null}
+            </div>
+          );
+        })()}
 
         <div style={{ width: '100%', height: 1, background: 'var(--panel-border)', margin: '16px 0 4px' }} />
 
