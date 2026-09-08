@@ -375,7 +375,7 @@ function toIconList(ids: any) {
 const ITEMID2_BASE = 'https://raw.githubusercontent.com/0xMe/ItemID2/main/assets';
 const OUTFIT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
-type OutfitItem = { id: number; name: string; icon: string | null; type?: string | null; rarity?: string | null };
+type OutfitItem = { id: number; name: string; icon: string | null; type?: string | null; description?: string | null };
 type OutfitLookupEntry = { name: string; icon: string | null; inCdn: boolean };
 
 const OUTFIT_TYPES = ['Head', 'Mask', 'Facepaint', 'Top', 'Bottom', 'Shoe', 'Bag Skins'];
@@ -578,7 +578,7 @@ const LOCAL_ITEM_DATA_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
 let localItemMap: Map<string, OutfitLookupEntry> = new Map();
 let localItemTypeMap: Map<string, string> = new Map();
-let localItemRareMap: Map<string, string> = new Map();
+let localItemDescMap: Map<string, string> = new Map();
 let localItemDataCache: { ts: number } | null = null;
 let localItemDataPromise: Promise<void> | null = null;
 
@@ -606,15 +606,24 @@ async function fetchLocalItemData(): Promise<void> {
       .map((item) => [String(item.itemID), item.type as string])
   );
 
-  const rareMap: Map<string, string> = new Map(
+  // Deskripsi item cuma dianggap valid kalau bukan placeholder kosong
+  // ("NONE") dan bukan sekadar nama item itu sendiri diulang ("Default"
+  // dsb) - biar nggak nampilin teks yang gak nambah info apa-apa di modal.
+  const descMap: Map<string, string> = new Map(
     list
-      .filter((item) => item && item.itemID !== undefined && item.itemID !== null && item.Rare && item.Rare !== 'NONE')
-      .map((item) => [String(item.itemID), item.Rare as string])
+      .filter((item) => {
+        if (!item || item.itemID === undefined || item.itemID === null) return false;
+        const desc = item.description;
+        if (!desc || desc === 'NONE') return false;
+        if (item.name && desc.trim().toLowerCase() === item.name.trim().toLowerCase()) return false;
+        return true;
+      })
+      .map((item) => [String(item.itemID), item.description as string])
   );
 
   localItemMap = itemMap;
   localItemTypeMap = typeMap;
-  localItemRareMap = rareMap;
+  localItemDescMap = descMap;
 }
 
 // Load (dan refresh berkala) data item lokal dari URL eksternal. Kalau gagal
@@ -658,19 +667,19 @@ function typeSortIndex(id: any, allowedTypes?: string[]): number {
   return idx === -1 ? allowedTypes.length : idx;
 }
 
-function resolveSingleItem(id: any): { id: number; name: string; icon: string | null; type: string | null; rarity: string | null } | null {
+function resolveSingleItem(id: any): { id: number; name: string; icon: string | null; type: string | null; description: string | null } | null {
   if (id === undefined || id === null || id === 0) return null;
   const key = String(id);
   const local = getLocalEntry(key);
   const type = localItemTypeMap.get(key) || null;
-  const rarity = localItemRareMap.get(key) || null;
+  const description = localItemDescMap.get(key) || null;
   const name = local?.name || fallbackItemName(id);
   return {
     id: Number(id),
     name,
     icon: buildOutfitIconUrl(id),
     type,
-    rarity,
+    description,
   };
 }
 
@@ -797,7 +806,7 @@ async function toOutfitItems(ids: any, allowedTypes?: string[]): Promise<OutfitI
       name,
       icon: buildOutfitIconUrl(id),
       type: localItemTypeMap.get(key) || null,
-      rarity: localItemRareMap.get(key) || null,
+      description: localItemDescMap.get(key) || null,
     };
   });
 }
