@@ -60,6 +60,33 @@ const RATE_LIMIT_STALE_MS = RATE_LIMIT_WINDOW_MS * 6;
 type RateBucket = { count: number; windowStart: number };
 const rateBuckets = new Map<string, RateBucket>();
 
+// Dedup notif Telegram: kalau UID yang sama dari IP yang sama baru aja
+// notif dalam beberapa detik terakhir (double-click tombol search, double
+// effect trigger, retry, dll - beda-beda kemungkinan penyebabnya, tapi
+// efeknya sama: 2+ request valid buat "stalk" yang sama dalam waktu
+// berdekatan), notif keduanya di-skip. Data yang dibalikin ke user TETAP
+// normal, cuma notif Telegram-nya yang dianggap 1 event yang sama.
+const NOTIF_DEDUP_WINDOW_MS = 20_000;
+const NOTIF_DEDUP_STALE_MS = NOTIF_DEDUP_WINDOW_MS * 6;
+const recentNotifs = new Map<string, number>();
+
+function shouldSkipNotif(ip: string, accountId: string): boolean {
+  const now = Date.now();
+
+  if (Math.random() < 0.01) {
+    for (const [key, ts] of recentNotifs) {
+      if (now - ts > NOTIF_DEDUP_STALE_MS) recentNotifs.delete(key);
+    }
+  }
+
+  const key = `${ip}:${accountId}`;
+  const lastSentAt = recentNotifs.get(key);
+  if (lastSentAt && now - lastSentAt < NOTIF_DEDUP_WINDOW_MS) return true;
+
+  recentNotifs.set(key, now);
+  return false;
+}
+
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
 
@@ -1113,7 +1140,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // param yang bisa keliatan di Network tab browser), supaya nggak ikut
   // ngirim notif duplikat.
   const isInternalSsrRequest = req.headers['x-internal-ssr'] === '1';
-  if (!isInternalSsrRequest) {
+  // Selain internal-SSR, cek juga dedup: kalau IP yang sama baru aja dapet
+  // notif buat accountId yang sama dalam NOTIF_DEDUP_WINDOW_MS terakhir
+  // (misal user gak sengaja double-click tombol search), skip biar gak
+  // dobel kirim. Request/response ke user tetap jalan normal.
+  const isDuplicateNotif = !isInternalSsrRequest && shouldSkipNotif(ip, String(merged.accountId));
+  if (!isInternalSsrRequest && !isDuplicateNotif) {
     waitUntil(
       sendTelegramNotif(req, merged, banCheckData, petInfoData, profileWinner?.source ?? null, uidStr, {
         outfit: equippedOutfitItems,
