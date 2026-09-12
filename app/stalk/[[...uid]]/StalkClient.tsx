@@ -963,8 +963,10 @@ export default function StalkClient() {
 
   // Kunci scroll body selama overlay loading tampil, biar nggak keliatan
   // aneh (overlay fixed tapi konten di belakangnya masih bisa digeser).
+  // Dipicu oleh loading UID ATAU loading nickname, karena overlay-nya sama
+  // buat kedua mode pencarian.
   useEffect(() => {
-    if (!loading) return;
+    if (!loading && !nicknameLoading) return;
     const prevOverflow = document.body.style.overflow;
     const prevPaddingRight = document.body.style.paddingRight;
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
@@ -976,7 +978,7 @@ export default function StalkClient() {
       document.body.style.overflow = prevOverflow;
       document.body.style.paddingRight = prevPaddingRight;
     };
-  }, [loading]);
+  }, [loading, nicknameLoading]);
 
   const cekID = useCallback(async (overrideUid?: string) => {
     const trimmed = (overrideUid ?? uid).trim();
@@ -1162,7 +1164,7 @@ export default function StalkClient() {
 
   return (
     <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 16px 0' }}>
-      {loading ? <LoadingOverlay /> : null}
+      {(loading || nicknameLoading) ? <LoadingOverlay /> : null}
       <header style={{
         position: 'relative', width: '100%', maxWidth: 720,
         padding: '22px 20px 18px',
