@@ -170,3 +170,33 @@ a {
 .faq-item summary:hover .faq-question {
   color: var(--gold);
 }
+
+/* Vault (Grid View) collection grid - 4 kolom di mobile, makin lebar makin
+   banyak kolom secara proporsional. Card-nya CSS grid biasa (bukan
+   inline-style) supaya bisa pakai media query buat responsivitas kolom. */
+.vault-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 9px;
+}
+
+@media (min-width: 460px) {
+  .vault-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+  }
+}
+
+@media (min-width: 640px) {
+  .vault-grid {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 11px;
+  }
+}
+
+@media (min-width: 900px) {
+  .vault-grid {
+    grid-template-columns: repeat(7, 1fr);
+    gap: 12px;
+  }
+}
