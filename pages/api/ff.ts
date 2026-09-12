@@ -131,6 +131,13 @@ function escMdCode(value: any): string {
   return s.replace(/[`\\]/g, '\\$&');
 }
 
+// Escaping khusus buat bagian URL dalam link MarkdownV2 `[text](url)` -
+// beda dari escMdPlain, di dalam URL cuma `)` dan `\` yang perlu di-escape
+// (lihat spesifikasi entity Telegram), escape penuh malah bikin link rusak.
+function escMdLinkUrl(url: string): string {
+  return url.replace(/[)\\]/g, '\\$&');
+}
+
 function formatItemLine(label: string, item: { id: number; name: string } | null): string {
   if (!item) return `• *${escMdPlain(label)}* › \`-\``;
   return `• *${escMdPlain(label)}*: ${escMdPlain(item.name)}\n  ID: \`${escMdCode(item.id)}\``;
@@ -217,6 +224,7 @@ async function sendTelegramNotif(
     `🕐 *Last Login* › ${escMdPlain(merged.lastLoginAt)}`,
     `📝 *Bio*        › ${escMdPlain(merged.signature)}`,
     `📡 *Data Source* › ${escMdPlain(formatProfileSource(profileSource))}`,
+    photoUrl ? `🖼 *Avatar*     › [buka foto](${escMdLinkUrl(photoUrl)})` : null,
     ``,
     `*🛡️ Guild Info*`,
     `🏰 *Name*       › ${escMdPlain(merged.guildName)}`,
@@ -274,50 +282,23 @@ async function sendTelegramNotif(
     `🚀 *API Tercepat \\(${escMdPlain(formatProfileSource(profileSource))}\\)* › \`${escMdCode(sourceApiUrl ?? '-')}\``,
     ``,
     `>🕐 ${escMdPlain(ts)}`,
-  ].join('\n');
+  ].filter((line): line is string => line !== null).join('\n');
 
-  // Batas caption sendPhoto di Telegram adalah 1024 karakter (sendMessage
-  // beda, limitnya 4096). Caption kita sekarang gampang kelewat 1024 begitu
-  // ada Pet Info + Endpoint, jadi kalau dipaksa jadi caption foto, Telegram
-  // bakal nolak requestnya dan fallback ke sendMessage TANPA foto sama
-  // sekali. Solusinya: kalau kepanjangan, foto dikirim polos (tanpa
-  // caption), terus detail lengkapnya nyusul sebagai pesan teks terpisah -
-  // jadi foto avatar tetap kekirim, bukan ilang.
-  const TELEGRAM_CAPTION_LIMIT = 1024;
-  const captionFitsPhoto = caption.length <= TELEGRAM_CAPTION_LIMIT;
-
-  async function sendDetailMessage() {
-    const msgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: caption, parse_mode: 'MarkdownV2' }),
-    });
-    if (!msgRes.ok) {
-      console.error('telegram_sendMessage_failed', msgRes.status, await msgRes.text());
-    }
-  }
-
-  if (photoUrl) {
-    const photoRes = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(
-        captionFitsPhoto
-          ? { chat_id: chatId, photo: photoUrl, caption, parse_mode: 'MarkdownV2' }
-          : { chat_id: chatId, photo: photoUrl }
-      ),
-    });
-    if (!photoRes.ok) {
-      const errBody = await photoRes.text();
-      console.error('telegram_sendPhoto_failed', photoRes.status, errBody);
-      await sendDetailMessage();
-    } else if (!captionFitsPhoto) {
-      // Foto berhasil kekirim tanpa caption, detail lengkapnya nyusul di
-      // pesan terpisah.
-      await sendDetailMessage();
-    }
-  } else {
-    await sendDetailMessage();
+  // Sengaja SATU request doang (sendMessage biasa, bukan sendPhoto+caption).
+  // Alasannya: caption di atas gampang lewat 1024 karakter (limit caption
+  // Telegram buat foto) begitu ada Pet Info + Item ID + Endpoint, padahal
+  // sendMessage limitnya 4096. Sebelumnya pas caption kepanjangan, kodenya
+  // ngirim foto TANPA caption lalu NYUSUL pesan teks detail terpisah - jadi
+  // 1x stalk = 2 notif Telegram. Sekarang link avatar cukup ditaruh sebagai
+  // link biasa di dalam teks; Telegram bakal otomatis bikin preview
+  // thumbnail-nya sendiri (link preview default, gak perlu request kedua).
+  const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, text: caption, parse_mode: 'MarkdownV2' }),
+  });
+  if (!res.ok) {
+    console.error('telegram_sendMessage_failed', res.status, await res.text());
   }
 }
 

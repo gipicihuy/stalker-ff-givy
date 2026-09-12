@@ -1,5 +1,100 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { FreeFireAPI } from 'ffapis';
+
+// Sama persis pola waitUntil di pages/api/ff.ts: kirim notif Telegram di
+// background tanpa nge-block response ke user, lewat ctx.waitUntil kalau
+// jalan di Cloudflare Workers, fallback ke fire-and-forget biasa kalau
+// nggak kedetect (mis. lokal via `next dev`).
+function waitUntil(promise: Promise<unknown>) {
+  try {
+    getCloudflareContext().ctx.waitUntil(promise);
+  } catch {
+    promise.catch(() => {});
+  }
+}
+
+function getBrowser(ua: string): string {
+  if (/Edg\//i.test(ua)) return 'Microsoft Edge';
+  if (/OPR\/|Opera/i.test(ua)) return 'Opera';
+  if (/SamsungBrowser/i.test(ua)) return 'Samsung Browser';
+  if (/UCBrowser/i.test(ua)) return 'UC Browser';
+  if (/YaBrowser/i.test(ua)) return 'Yandex Browser';
+  if (/Firefox\//i.test(ua)) return 'Firefox';
+  if (/Chrome\//i.test(ua)) return 'Chrome';
+  if (/Safari\//i.test(ua)) return 'Safari';
+  if (/MSIE|Trident/i.test(ua)) return 'Internet Explorer';
+  return 'Unknown Browser';
+}
+
+function getDevice(ua: string): string {
+  if (/iPad/i.test(ua)) return 'iPad (iOS)';
+  if (/iPhone/i.test(ua)) return 'iPhone (iOS)';
+  if (/Android/i.test(ua) && /Mobile/i.test(ua)) return 'Android Phone';
+  if (/Android/i.test(ua)) return 'Android Tablet';
+  if (/Windows NT/i.test(ua)) return 'Windows PC';
+  if (/Macintosh|Mac OS X/i.test(ua)) return 'Mac';
+  if (/Linux/i.test(ua)) return 'Linux';
+  return 'Unknown Device';
+}
+
+function escMdPlain(value: any): string {
+  const s = value === null || value === undefined || value === '' ? '-' : String(value);
+  return s.replace(/[_*\[\]()~`>#+\-=|{}.!\\]/g, '\\$&');
+}
+
+function escMdCode(value: any): string {
+  const s = value === null || value === undefined || value === '' ? '-' : String(value);
+  return s.replace(/[`\\]/g, '\\$&');
+}
+
+// Satu pesan Telegram per pencarian nickname - dikirim di background (lewat
+// waitUntil), gak nge-block response ke user. Nunjukin keyword yang dicari,
+// berapa hasil yang ketemu, sama info visitor (IP/device/browser) biar
+// setara sama notif "FF Stalker Hit" pas orang stalk by UID.
+async function sendNicknameSearchNotif(
+  req: NextApiRequest,
+  keyword: string,
+  resultCount: number,
+  origin: string
+) {
+  const botToken = process.env.TG_BOT_TOKEN;
+  const chatId = process.env.TG_CHAT_ID;
+  if (!botToken || !chatId) return;
+
+  const ip = getIP(req);
+  const ua = String(req.headers['user-agent'] || '');
+  const browser = getBrowser(ua);
+  const device = getDevice(ua);
+  const ts = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
+  const apiUrl = `${origin}/api/search?q=${encodeURIComponent(keyword)}`;
+
+  const text = [
+    `>🔎 *FF Nickname Search Hit*`,
+    ``,
+    `📛 *Keyword* › ${escMdPlain(keyword)}`,
+    `📊 *Hasil*   › ${escMdPlain(resultCount)} akun`,
+    ``,
+    `*🌐 Visitor Info*`,
+    `🔌 *IP*      › \`${escMdCode(ip)}\``,
+    `🖥 *Device*  › ${escMdPlain(device)}`,
+    `🌏 *Browser* › ${escMdPlain(browser)}`,
+    ``,
+    `*🔗 Endpoint*`,
+    `⚙️ *API Kita* › \`${escMdCode(apiUrl)}\``,
+    ``,
+    `>🕐 ${escMdPlain(ts)}`,
+  ].join('\n');
+
+  const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'MarkdownV2' }),
+  });
+  if (!res.ok) {
+    console.error('telegram_sendMessage_failed', res.status, await res.text());
+  }
+}
 
 function getIP(req: NextApiRequest): string {
   const fwd = req.headers['x-forwarded-for'];
@@ -177,6 +272,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // semua perbaikan di retry logic jadi sia-sia karena origin gak
     // ke-hit ulang.
     res.setHeader('Cache-Control', 'no-store');
+
+    const proto = (req.headers['x-forwarded-proto'] as string) || 'https';
+    const hostHeader = req.headers['x-forwarded-host'] || req.headers.host;
+    const host = Array.isArray(hostHeader) ? hostHeader[0] : hostHeader;
+    const origin = `${proto}://${host}`;
+    waitUntil(
+      sendNicknameSearchNotif(req, keyword, mapped.length, origin).catch((err) => {
+        console.error('telegram_notif_error', err);
+      })
+    );
+
     return res.status(200).json({ status: 'ok', results: mapped });
   } catch (error) {
     console.error('[api/search] unexpected failure:', error instanceof Error ? error.message : error);
