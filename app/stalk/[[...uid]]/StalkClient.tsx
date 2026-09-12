@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint, Send, User, Shirt, ChevronDown, ChevronRight, Trophy, Hash } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint, Send, User, Shirt, ChevronDown, ChevronRight, Trophy, Hash, LayoutGrid, Swords, Sparkles, Wind, type LucideIcon } from 'lucide-react';
 
 type PrimeInfo = { primeLevel?: number };
 type ResolvedItem = { id: number; name: string; icon: string | null; type: string | null; description?: string | null };
@@ -769,6 +770,210 @@ function OutfitGrid({
   );
 }
 
+// --- Grid View khusus section CHARACTER ---
+// Fitur ini nambahin cara pandang alternatif buat item-item yang udah ada
+// (Character, Profile Items, Outfit, Weapon, dst) TANPA ngubah section
+// masing-masing yang udah ada di bawahnya (itu semua tetep dirender apa
+// adanya lewat OutfitGrid biasa). Grid View di sini murni nambah, bukan
+// gantiin.
+type GridCategoryDef = {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  items: (OutfitItem & { _cat?: string })[];
+};
+
+// Kartu compact di Grid View. Pake framer-motion `layout` + AnimatePresence
+// biar pas ganti kategori, item lama animasi keluar dan item baru animasi
+// masuk sambil "settle" ke posisi grid masing-masing (bukan cuma ganti
+// konten secara instan) - ini pattern standar framer-motion buat
+// "animated filterable grid".
+function CompactGridItem({
+  item,
+  onSelect,
+}: {
+  item: OutfitItem & { _cat?: string };
+  onSelect: () => void;
+}) {
+  const [imgBroken, setImgBroken] = useState(false);
+  const showImage = Boolean(item.icon) && !imgBroken;
+
+  return (
+    <motion.button
+      layout
+      initial={{ opacity: 0, scale: 0.82, y: 10 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.82, y: -10 }}
+      transition={{ type: 'spring', stiffness: 480, damping: 32, mass: 0.6 }}
+      type="button"
+      title={item.name}
+      onClick={onSelect}
+      className="icon-btn"
+      style={{
+        background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 9,
+        padding: '6px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+        cursor: 'pointer', textAlign: 'center', width: '100%',
+      }}
+    >
+      {showImage ? (
+        <img
+          src={item.icon as string}
+          alt={item.name}
+          style={{ width: 42, height: 42, objectFit: 'contain' }}
+          onError={() => setImgBroken(true)}
+        />
+      ) : (
+        <span style={{
+          width: 42, height: 42, borderRadius: 6, background: 'var(--gold-soft)', color: 'var(--gold)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8.5,
+        }}>
+          N/A
+        </span>
+      )}
+      <p style={{
+        fontSize: 8, fontWeight: 600, color: 'var(--light-text)', textAlign: 'center', margin: 0, lineHeight: 1.15,
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%',
+      }}>
+        {item.name}
+      </p>
+      {item.type ? (
+        <span style={{
+          fontSize: 6.5, fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase',
+          letterSpacing: '0.04em', lineHeight: 1,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%',
+        }}>
+          {item.type}
+        </span>
+      ) : null}
+    </motion.button>
+  );
+}
+
+// Grid rapat (kolom lebih kecil dari OutfitGrid biasa) biar banyak item
+// keliatan sekaligus di satu layar - sesuai request "nyaman buat
+// screenshot/jedag-jedug".
+function CompactCollectionGrid({
+  items,
+  onSelectItem,
+}: {
+  items: (OutfitItem & { _cat?: string })[];
+  onSelectItem: (item: OutfitItem, category: string) => void;
+}) {
+  if (items.length === 0) {
+    return <p style={{ fontSize: 11.5, color: 'var(--muted-text)', margin: '8px 0' }}>Kosong.</p>;
+  }
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(54px, 1fr))', gap: 6 }}>
+      <AnimatePresence mode="popLayout" initial={false}>
+        {items.map((item) => (
+          <CompactGridItem
+            key={`${item._cat ?? ''}-${item.id}`}
+            item={item}
+            onSelect={() => onSelectItem(item, item._cat || 'Item')}
+          />
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// Section CHARACTER - default-nya identik sama sebelumnya (cuma
+// <OutfitGrid items={characterItems} .../>). Yang baru: tombol Grid View di
+// pojok kanan judul section, dan kalau diaktifin, muncul selector kategori
+// (chip ber-icon) buat lompat lihat koleksi Profile Items/Outfit/Weapon/dst
+// dalam bentuk grid compact TANPA pindah section/reload halaman.
+function CharacterSection({
+  characterItems,
+  gridCategories,
+  onSelectItem,
+}: {
+  characterItems: ResolvedItem[];
+  gridCategories: GridCategoryDef[];
+  onSelectItem: (item: OutfitItem, category: string) => void;
+}) {
+  const [gridViewOn, setGridViewOn] = useState(false);
+  const [activeCatKey, setActiveCatKey] = useState<string | null>(gridCategories[0]?.key ?? null);
+
+  useEffect(() => {
+    if (gridCategories.length === 0) return;
+    if (!gridCategories.some((c) => c.key === activeCatKey)) {
+      setActiveCatKey(gridCategories[0].key);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gridCategories.map((c) => c.key).join('|')]);
+
+  if (characterItems.length === 0) return null;
+
+  const activeCategory = gridCategories.find((c) => c.key === activeCatKey) ?? gridCategories[0] ?? null;
+
+  return (
+    <>
+      <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+      <div>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+          <SectionDividerLabel>Character</SectionDividerLabel>
+          {gridCategories.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => setGridViewOn((v) => !v)}
+              title={gridViewOn ? 'Kembali ke tampilan biasa' : 'Grid View'}
+              aria-pressed={gridViewOn}
+              className="icon-btn"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', width: 27, height: 27,
+                borderRadius: 8, cursor: 'pointer', flexShrink: 0,
+                background: gridViewOn ? 'var(--gold-soft)' : 'var(--panel-bg-alt)',
+                border: `1px solid ${gridViewOn ? 'var(--gold)' : 'var(--panel-border)'}`,
+                color: gridViewOn ? 'var(--gold)' : 'var(--muted-text)',
+              }}
+            >
+              <LayoutGrid size={13} />
+            </button>
+          ) : null}
+        </div>
+
+        {!gridViewOn ? (
+          <OutfitGrid items={characterItems} category="Character" onSelect={onSelectItem} />
+        ) : (
+          <div>
+            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8 }}>
+              {gridCategories.map((cat) => {
+                const Icon = cat.icon;
+                const active = cat.key === activeCatKey;
+                return (
+                  <button
+                    key={cat.key}
+                    type="button"
+                    onClick={() => setActiveCatKey(cat.key)}
+                    title={cat.label}
+                    aria-pressed={active}
+                    className="icon-btn"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
+                      padding: '6px 10px', borderRadius: 999, fontSize: 10.5, fontWeight: 700,
+                      cursor: 'pointer', whiteSpace: 'nowrap',
+                      background: active ? 'var(--gold-soft)' : 'var(--panel-bg-alt)',
+                      border: `1px solid ${active ? 'var(--gold)' : 'var(--panel-border)'}`,
+                      color: active ? 'var(--gold)' : 'var(--muted-text)',
+                    }}
+                  >
+                    <Icon size={12} />
+                    {cat.label}
+                    <span style={{ opacity: 0.65, fontWeight: 600 }}>({cat.items.length})</span>
+                  </button>
+                );
+              })}
+            </div>
+            {activeCategory ? (
+              <CompactCollectionGrid items={activeCategory.items} onSelectItem={onSelectItem} />
+            ) : null}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 function InfoRow({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="info-row" style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 2px' }}>
@@ -1148,6 +1353,30 @@ export default function StalkClient() {
     basic?.equippedTitle,
     basic?.equippedPin,
   ].filter((item): item is ResolvedItem => Boolean(item));
+
+  // Kategori buat Grid View di section Character - murni nyusun ulang data
+  // yang udah ada (characterItems/profileItems/basic.equipped*/pet) jadi
+  // satu daftar yang bisa dipilih dari selector kategori, gak nambah field
+  // baru dari backend. Cuma kategori yang beneran punya item yang muncul.
+  const petGridItems: (OutfitItem & { _cat?: string })[] =
+    pet && pet.skinIconUrl
+      ? [{
+          id: pet.skinId ?? pet.id ?? -1,
+          name: pet.name || pet.speciesName || 'Pet',
+          icon: pet.skinIconUrl,
+          type: 'Pet Skin',
+          _cat: 'Pet',
+        }]
+      : [];
+  const gridCategories: GridCategoryDef[] = [
+    { key: 'character', label: 'Character', icon: User, items: characterItems.map((i) => ({ ...i, _cat: 'Character' })) },
+    { key: 'profile', label: 'Profile Items', icon: Tag, items: profileItems.map((i) => ({ ...i, _cat: 'Profile Item' })) },
+    { key: 'outfit', label: 'Outfit', icon: Shirt, items: (basic?.equippedOutfitItems ?? []).map((i) => ({ ...i, _cat: 'Outfit' })) },
+    { key: 'weapon', label: 'Weapon', icon: Swords, items: (basic?.equippedWeaponOutfitItems ?? []).map((i) => ({ ...i, _cat: 'Weapon' })) },
+    { key: 'lookchanger', label: 'Look Changer', icon: Sparkles, items: (basic?.equippedLookChangerItems ?? []).map((i) => ({ ...i, _cat: 'Look Changer' })) },
+    { key: 'arrival', label: 'Arrival Animation', icon: Wind, items: (basic?.equippedArrivalAnimationItems ?? []).map((i) => ({ ...i, _cat: 'Arrival Animation' })) },
+    { key: 'pet', label: 'Pet', icon: PawPrint, items: petGridItems },
+  ].filter((cat) => cat.items.length > 0);
 
   // Avatar inisial nickname (bukan avatar dari FF) - warnanya gantian antara
   // gold/biru (dua-duanya udah ada di palet Stalker) berdasarkan accountid,
@@ -1637,15 +1866,12 @@ export default function StalkClient() {
             )}
           </div>
 
-          {characterItems.length > 0 ? (
-            <>
-              <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
-              <div>
-                <SectionDividerLabel>Character</SectionDividerLabel>
-                <OutfitGrid items={characterItems} category="Character" onSelect={(item, cat) => setSelectedItem({ item, category: cat })} />
-              </div>
-            </>
-          ) : null}
+          <CharacterSection
+            key={basic?.accountId ?? 'none'}
+            characterItems={characterItems}
+            gridCategories={gridCategories}
+            onSelectItem={(item, cat) => setSelectedItem({ item, category: cat })}
+          />
 
           {profileItems.length > 0 ? (
             <>
