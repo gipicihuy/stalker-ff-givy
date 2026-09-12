@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "ffapis": "file:./vendor/ffapis",
+    "framer-motion": "^13.2.0",
     "lucide-react": "^0.396.0",
     "next": "14.2.35",
     "react": "^18",
