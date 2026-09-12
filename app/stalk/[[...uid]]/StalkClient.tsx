@@ -858,6 +858,13 @@ function CompactGridItem({
       }}>
         {item.name}
       </p>
+      <span style={{
+        fontSize: 7.5, fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase',
+        letterSpacing: '0.03em', lineHeight: 1, minHeight: 9,
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%',
+      }}>
+        {item.type || '\u00A0'}
+      </span>
     </motion.button>
   );
 }
@@ -901,29 +908,20 @@ function CharacterSection({
   gridCategories,
   gridViewOn,
   setGridViewOn,
-  activeCatKey,
-  setActiveCatKey,
   onSelectItem,
 }: {
   characterItems: ResolvedItem[];
   gridCategories: GridCategoryDef[];
   gridViewOn: boolean;
   setGridViewOn: (updater: boolean | ((prev: boolean) => boolean)) => void;
-  activeCatKey: string | null;
-  setActiveCatKey: (key: string) => void;
   onSelectItem: (item: OutfitItem, category: string) => void;
 }) {
-  useEffect(() => {
-    if (gridCategories.length === 0) return;
-    if (!gridCategories.some((c) => c.key === activeCatKey)) {
-      setActiveCatKey(gridCategories[0].key);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gridCategories.map((c) => c.key).join('|')]);
-
   if (characterItems.length === 0) return null;
 
-  const activeCategory = gridCategories.find((c) => c.key === activeCatKey) ?? gridCategories[0] ?? null;
+  // Selector kategori (Character/Profile Items/Outfit/Weapon/dst) dihapus -
+  // Vault sekarang selalu nampilin SEMUA item digabung. "All" cuma
+  // ditinggalin sebagai indikator total jumlah item, bukan tombol filter.
+  const allCategory = gridCategories.find((c) => c.key === 'all') ?? null;
 
   return (
     <>
@@ -952,7 +950,7 @@ function CharacterSection({
         </div>
 
         {/* `layout` di wrapper ini bikin PERUBAHAN TINGGI section (OutfitGrid
-            biasa <-> chip selector + grid Vault) ikut dianimasikan secara
+            biasa <-> label All + grid Vault) ikut dianimasikan secara
             smooth juga, bukan snap instan - konten di dalamnya beda total
             tiap toggle, tapi tinggi kontainernya tetep transisi halus. */}
         <motion.div layout transition={{ layout: gridItemLayoutTransition }}>
@@ -960,37 +958,22 @@ function CharacterSection({
             <OutfitGrid items={characterItems} category="Character" onSelect={onSelectItem} />
           ) : (
             <div>
-              <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8 }}>
-                {gridCategories.map((cat) => {
-                  const Icon = cat.icon;
-                  const active = cat.key === activeCatKey;
-                  return (
-                    <button
-                      key={cat.key}
-                      type="button"
-                      onClick={() => setActiveCatKey(cat.key)}
-                      title={cat.label}
-                      aria-pressed={active}
-                      className="icon-btn"
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
-                        padding: '6px 10px', borderRadius: 999, fontSize: 10.5, fontWeight: 700,
-                        cursor: 'pointer', whiteSpace: 'nowrap',
-                        background: active ? 'var(--gold-soft)' : 'var(--panel-bg-alt)',
-                        border: `1px solid ${active ? 'var(--gold)' : 'var(--panel-border)'}`,
-                        color: active ? 'var(--gold)' : 'var(--muted-text)',
-                      }}
-                    >
-                      <Icon size={12} />
-                      {cat.label}
-                      <span style={{ opacity: 0.65, fontWeight: 600 }}>({cat.items.length})</span>
-                    </button>
-                  );
-                })}
-              </div>
-              {activeCategory ? (
-                <CompactCollectionGrid items={activeCategory.items} onSelectItem={onSelectItem} />
+              {allCategory ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <span
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      padding: '6px 10px', borderRadius: 999, fontSize: 10.5, fontWeight: 700,
+                      background: 'var(--gold-soft)', border: '1px solid var(--gold)', color: 'var(--gold)',
+                    }}
+                  >
+                    <LayoutGrid size={12} />
+                    All
+                    <span style={{ opacity: 0.65, fontWeight: 600 }}>({allCategory.items.length})</span>
+                  </span>
+                </div>
               ) : null}
+              <CompactCollectionGrid items={allCategory?.items ?? []} onSelectItem={onSelectItem} />
             </div>
           )}
         </motion.div>
@@ -1178,7 +1161,6 @@ export default function StalkClient() {
   // CharacterSection, karena begitu aktif, section lain (Profile Items,
   // Outfit, Weapon, Pet Info) di bawahnya perlu ikut disembunyikan.
   const [gridViewOn, setGridViewOn] = useState(false);
-  const [activeCatKey, setActiveCatKey] = useState<string | null>(null);
   const [searchMode, setSearchMode] = useState<'uid' | 'nickname'>('uid');
   const [nickname, setNickname] = useState('');
   const [nicknameResults, setNicknameResults] = useState<NicknameSearchItem[]>([]);
@@ -1365,7 +1347,6 @@ export default function StalkClient() {
   // pas pindah ke profil lain.
   useEffect(() => {
     setGridViewOn(false);
-    setActiveCatKey(null);
   }, [basic?.accountId]);
 
   const social = result?.socialInfo;
@@ -1925,8 +1906,6 @@ export default function StalkClient() {
               gridCategories={gridCategories}
               gridViewOn={gridViewOn}
               setGridViewOn={setGridViewOn}
-              activeCatKey={activeCatKey}
-              setActiveCatKey={setActiveCatKey}
               onSelectItem={(item, cat) => setSelectedItem({ item, category: cat })}
             />
 
