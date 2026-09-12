@@ -59,6 +59,13 @@ const notchTR = (n: number) =>
 // dan sebaliknya - bukan sekadar fade.
 const gridItemLayoutId = (category: string, id: number) => `stalk-item::${category}::${id}`;
 
+// Konfigurasi spring yang sama persis dipakai di kartu versi normal
+// (OutfitGrid) maupun versi Vault/grid (CompactGridItem), supaya kecepatan
+// & "feel" animasi geraknya identik dari dua arah (ON->OFF dan
+// OFF->ON) - bukan cuma soal layoutId yang sama, transition-nya juga harus
+// sama biar gak ada "loncatan" kecepatan.
+const gridItemLayoutTransition = { type: 'spring' as const, stiffness: 340, damping: 34, mass: 0.75 };
+
 type GuildInfo = { guildName?: string; guildLevel?: number; memberNum?: number; capacity?: number };
 type SocialInfo = { signature?: string };
 type CreditInfo = { creditScore?: number };
@@ -735,7 +742,7 @@ function OutfitGrid({
             key={item.id}
             layout
             layoutId={gridItemLayoutId(item._cat ?? category, item.id)}
-            transition={{ type: 'spring', stiffness: 480, damping: 32, mass: 0.6 }}
+            transition={{ layout: gridItemLayoutTransition }}
             type="button"
             title={item.name}
             onClick={() => onSelect(item, item._cat ?? category)}
@@ -814,45 +821,47 @@ function CompactGridItem({
     <motion.button
       layout
       layoutId={layoutId}
-      initial={{ opacity: 0, scale: 0.82, y: 10 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.82, y: -10 }}
-      transition={{ type: 'spring', stiffness: 480, damping: 32, mass: 0.6 }}
+      initial={{ opacity: 0, scale: 0.85 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.85 }}
+      transition={{ layout: gridItemLayoutTransition, opacity: { duration: 0.18 }, scale: { duration: 0.18 } }}
       type="button"
       title={item.name}
       onClick={onSelect}
       className="icon-btn"
       style={{
-        background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 9,
-        padding: '6px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+        background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 14,
+        padding: '9px 6px 7px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
         cursor: 'pointer', textAlign: 'center', width: '100%',
       }}
     >
-      {showImage ? (
-        <img
-          src={item.icon as string}
-          alt={item.name}
-          style={{ width: 42, height: 42, objectFit: 'contain' }}
-          onError={() => setImgBroken(true)}
-        />
-      ) : (
-        <span style={{
-          width: 42, height: 42, borderRadius: 6, background: 'var(--gold-soft)', color: 'var(--gold)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8.5,
-        }}>
-          N/A
-        </span>
-      )}
+      <div style={{ width: '100%', aspectRatio: '1 / 1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {showImage ? (
+          <img
+            src={item.icon as string}
+            alt={item.name}
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            onError={() => setImgBroken(true)}
+          />
+        ) : (
+          <span style={{
+            width: '68%', aspectRatio: '1 / 1', borderRadius: 8, background: 'var(--gold-soft)', color: 'var(--gold)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9,
+          }}>
+            N/A
+          </span>
+        )}
+      </div>
       <p style={{
-        fontSize: 8, fontWeight: 600, color: 'var(--light-text)', textAlign: 'center', margin: 0, lineHeight: 1.15,
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%',
+        fontSize: 10, fontWeight: 600, color: 'var(--light-text)', textAlign: 'center', margin: 0, lineHeight: 1.25,
+        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', width: '100%',
       }}>
         {item.name}
       </p>
       {item.type ? (
         <span style={{
-          fontSize: 6.5, fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase',
-          letterSpacing: '0.04em', lineHeight: 1,
+          fontSize: 7.5, fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase',
+          letterSpacing: '0.03em', lineHeight: 1,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%',
         }}>
           {item.type}
@@ -862,9 +871,9 @@ function CompactGridItem({
   );
 }
 
-// Grid rapat (kolom lebih kecil dari OutfitGrid biasa) biar banyak item
-// keliatan sekaligus di satu layar - sesuai request "nyaman buat
-// screenshot/jedag-jedug".
+// Grid collection Vault - 4 kolom di mobile (naik proporsional di layar
+// lebih lebar lewat class .vault-grid di globals.css), card lebih besar &
+// gambar lebih menonjol dibanding versi sebelumnya, tapi tetap compact.
 function CompactCollectionGrid({
   items,
   onSelectItem,
@@ -876,7 +885,7 @@ function CompactCollectionGrid({
     return <p style={{ fontSize: 11.5, color: 'var(--muted-text)', margin: '8px 0' }}>Kosong.</p>;
   }
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(54px, 1fr))', gap: 6 }}>
+    <motion.div layout transition={{ layout: gridItemLayoutTransition }} className="vault-grid">
       <AnimatePresence mode="popLayout" initial={false}>
         {items.map((item) => (
           <CompactGridItem
@@ -887,7 +896,7 @@ function CompactCollectionGrid({
           />
         ))}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }
 
@@ -930,12 +939,12 @@ function CharacterSection({
       <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
       <div>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-          <SectionDividerLabel>Character</SectionDividerLabel>
+          <SectionDividerLabel>{gridViewOn ? 'Vault' : 'Character'}</SectionDividerLabel>
           {gridCategories.length > 0 ? (
             <button
               type="button"
               onClick={() => setGridViewOn((v) => !v)}
-              title={gridViewOn ? 'Kembali ke tampilan biasa' : 'Grid View'}
+              title={gridViewOn ? 'Kembali ke tampilan Character' : 'Buka Vault (Grid View)'}
               aria-pressed={gridViewOn}
               className="icon-btn"
               style={{
@@ -951,43 +960,49 @@ function CharacterSection({
           ) : null}
         </div>
 
-        {!gridViewOn ? (
-          <OutfitGrid items={characterItems} category="Character" onSelect={onSelectItem} />
-        ) : (
-          <div>
-            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8 }}>
-              {gridCategories.map((cat) => {
-                const Icon = cat.icon;
-                const active = cat.key === activeCatKey;
-                return (
-                  <button
-                    key={cat.key}
-                    type="button"
-                    onClick={() => setActiveCatKey(cat.key)}
-                    title={cat.label}
-                    aria-pressed={active}
-                    className="icon-btn"
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
-                      padding: '6px 10px', borderRadius: 999, fontSize: 10.5, fontWeight: 700,
-                      cursor: 'pointer', whiteSpace: 'nowrap',
-                      background: active ? 'var(--gold-soft)' : 'var(--panel-bg-alt)',
-                      border: `1px solid ${active ? 'var(--gold)' : 'var(--panel-border)'}`,
-                      color: active ? 'var(--gold)' : 'var(--muted-text)',
-                    }}
-                  >
-                    <Icon size={12} />
-                    {cat.label}
-                    <span style={{ opacity: 0.65, fontWeight: 600 }}>({cat.items.length})</span>
-                  </button>
-                );
-              })}
+        {/* `layout` di wrapper ini bikin PERUBAHAN TINGGI section (OutfitGrid
+            biasa <-> chip selector + grid Vault) ikut dianimasikan secara
+            smooth juga, bukan snap instan - konten di dalamnya beda total
+            tiap toggle, tapi tinggi kontainernya tetep transisi halus. */}
+        <motion.div layout transition={{ layout: gridItemLayoutTransition }}>
+          {!gridViewOn ? (
+            <OutfitGrid items={characterItems} category="Character" onSelect={onSelectItem} />
+          ) : (
+            <div>
+              <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8 }}>
+                {gridCategories.map((cat) => {
+                  const Icon = cat.icon;
+                  const active = cat.key === activeCatKey;
+                  return (
+                    <button
+                      key={cat.key}
+                      type="button"
+                      onClick={() => setActiveCatKey(cat.key)}
+                      title={cat.label}
+                      aria-pressed={active}
+                      className="icon-btn"
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
+                        padding: '6px 10px', borderRadius: 999, fontSize: 10.5, fontWeight: 700,
+                        cursor: 'pointer', whiteSpace: 'nowrap',
+                        background: active ? 'var(--gold-soft)' : 'var(--panel-bg-alt)',
+                        border: `1px solid ${active ? 'var(--gold)' : 'var(--panel-border)'}`,
+                        color: active ? 'var(--gold)' : 'var(--muted-text)',
+                      }}
+                    >
+                      <Icon size={12} />
+                      {cat.label}
+                      <span style={{ opacity: 0.65, fontWeight: 600 }}>({cat.items.length})</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {activeCategory ? (
+                <CompactCollectionGrid items={activeCategory.items} onSelectItem={onSelectItem} />
+              ) : null}
             </div>
-            {activeCategory ? (
-              <CompactCollectionGrid items={activeCategory.items} onSelectItem={onSelectItem} />
-            ) : null}
-          </div>
-        )}
+          )}
+        </motion.div>
       </div>
     </>
   );
