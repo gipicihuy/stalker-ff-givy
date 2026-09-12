@@ -852,20 +852,34 @@ function CompactGridItem({
           </span>
         )}
       </div>
-      <p style={{
-        fontSize: 10, fontWeight: 600, color: 'var(--light-text)', textAlign: 'center', margin: 0, lineHeight: 1.25,
-        height: 25, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', width: '100%',
-        flexShrink: 0,
+      {/* Wrapper nama: tinggi FIXED (bukan min-height) buat pas 2 baris teks,
+          dipisah dari elemen line-clamp-nya sendiri. -webkit-box (buat
+          -webkit-line-clamp) itu kadang gak konsisten soal height/min-height
+          across browser/webview kalau isinya cuma 1 baris - jadi tinggi yang
+          "beneran" dijamin di sini, bukan di elemen <p>-nya. */}
+      <div style={{
+        width: '100%', height: 25, flexShrink: 0,
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
       }}>
-        {item.name}
-      </p>
-      <span style={{
-        fontSize: 7.5, fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase',
-        letterSpacing: '0.03em', lineHeight: 1, height: 9, flexShrink: 0,
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%',
-      }}>
-        {item.type || '\u00A0'}
-      </span>
+        <p style={{
+          fontSize: 10, fontWeight: 600, color: 'var(--light-text)', textAlign: 'center', margin: 0, lineHeight: 1.25,
+          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', width: '100%',
+        }}>
+          {item.name}
+        </p>
+      </div>
+      {/* Wrapper type/category: sama, tinggi fixed sendiri supaya badge
+          selalu duduk di posisi yang sama persis di semua card, gak
+          peduli nama itemnya 1 atau 2 baris. */}
+      <div style={{ width: '100%', height: 10, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{
+          fontSize: 7.5, fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase',
+          letterSpacing: '0.03em', lineHeight: 1,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%',
+        }}>
+          {item.type || '\u00A0'}
+        </span>
+      </div>
     </motion.button>
   );
 }
