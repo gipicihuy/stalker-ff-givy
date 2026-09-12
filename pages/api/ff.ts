@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
+import { FreeFireAPI } from 'ffapis';
 
 // Pengganti waitUntil dari '@vercel/functions'. Di Cloudflare Workers,
 // background task (kirim notif Telegram tanpa nge-block response) harus
@@ -104,13 +105,19 @@ function getDevice(ua: string): string {
 
 function formatProfileSource(source: string | null): string {
   if (source === 'ahmyth') return 'Ahmyth';
+  if (source === 'ffapis') return 'FFApis (self-hosted)';
   return '-';
 }
 
-// URL mentah upstream (Ahmyth) yang beneran dipanggil, dipakai buat notif
-// Telegram biar kelihatan API mana yang kepanggil.
+// URL/identifier upstream yang beneran dipanggil, dipakai buat notif
+// Telegram biar kelihatan API mana yang kepanggil dan menang balapannya.
+// Ahmyth punya URL asli beneran; ffapis nggak manggil HTTP endpoint pihak
+// ketiga (dia login+query langsung ke server Free Fire pakai guest account
+// yang di-embed di library), jadi dikasih pseudo-URL biar tetap informatif
+// di notif tanpa bikin caller mengira itu link yang bisa dibuka.
 function buildSourceApiUrl(source: string | null, uid: string): string | null {
   if (source === 'ahmyth') return `${AHMYTH_URL}?uid=${encodeURIComponent(uid)}`;
+  if (source === 'ffapis') return `ffapis://getPlayerProfile?uid=${encodeURIComponent(uid)}`;
   return null;
 }
 
@@ -825,14 +832,38 @@ async function fetchAhmyth(uid: string) {
   return data;
 }
 
-// Adenpedia dilepas (sering ngembaliin data basi/salah akun). Sekarang
-// cuma Ahmyth yang dipakai; nama fungsi tetap "fetchFastestProfile" biar
-// pemanggilnya di tempat lain nggak perlu ikut berubah.
-type ProfileSource = 'ahmyth';
+// Instance FreeFireAPI disimpan di module scope (bukan dibuat baru tiap
+// request) supaya session/token guest account yang udah login bisa dipakai
+// ulang selama isolate/lambda-nya masih warm - login (Garena auth + Major
+// Login) itu 2 round-trip HTTP yang lumayan makan waktu, jadi kalau harus
+// login ulang tiap request, ffapis nyaris pasti kalah balapan lawan Ahmyth.
+// Kredensial guest-nya sendiri udah di-embed di dalam library (lihat
+// vendor/ffapis/dist/src/embedded-data), jadi nggak butuh file config
+// tambahan sama sekali - aman dipanggil langsung di Cloudflare Workers.
+let ffapisClient: FreeFireAPI | null = null;
+function getFfapisClient(): FreeFireAPI {
+  if (!ffapisClient) ffapisClient = new FreeFireAPI();
+  return ffapisClient;
+}
 
+async function fetchFfapis(uid: string) {
+  const api = getFfapisClient();
+  const data = await api.getPlayerProfile(uid);
+  if (!(data as any)?.basicinfo?.accountid) throw new NotFoundError('ffapis_empty');
+  return data;
+}
+
+type ProfileSource = 'ahmyth' | 'ffapis';
+
+// Balapan dua sumber sekaligus lewat Promise.any: yang pertama BERHASIL
+// (bukan sekadar pertama selesai) yang menang dan dipakai. Kalau salah satu
+// error/timeout, yang lain otomatis jadi fallback tanpa nunggu - Promise.any
+// cuma reject kalau SEMUA sumber gagal (dilempar sebagai AggregateError).
 async function fetchFastestProfile(uid: string): Promise<{ source: ProfileSource; data: any }> {
-  const data = await fetchAhmyth(uid);
-  return { source: 'ahmyth', data };
+  return Promise.any([
+    fetchAhmyth(uid).then((data) => ({ source: 'ahmyth' as const, data })),
+    fetchFfapis(uid).then((data) => ({ source: 'ffapis' as const, data })),
+  ]);
 }
 
 async function fetchMultipurposeBanCheck(uid: string) {
@@ -877,40 +908,38 @@ function normalizePetInfo(data: any) {
   };
 }
 
-// Bentuk JSON profil dari Ahmyth: basicInfo/profileInfo/clanBasicInfo/
-// socialInfo/creditScoreInfo, semua camelCase.
 function normalizeProfileData(data: any) {
-  const info = data?.basicInfo || {};
-  const guild = data?.clanBasicInfo || {};
-  const social = data?.socialInfo || {};
-  const credit = data?.creditScoreInfo || {};
-  const profile = data?.profileInfo || {};
+  const info = getCI(data, 'basicInfo') || {};
+  const guild = getCI(data, 'clanBasicInfo') || {};
+  const social = getCI(data, 'socialInfo') || {};
+  const credit = getCI(data, 'creditScoreInfo') || {};
+  const profile = getCI(data, 'profileInfo') || {};
 
-  const equippedSkinIds = profile.clothes || [];
-  const weaponSkinIds = info.weaponSkinShows || [];
-  const characterId = profile.avatarId;
-  const bannerId = info.bannerId;
-  const pinId = info.pinId;
-  const titleId = info.title;
+  const equippedSkinIds = getCI(profile, 'clothes') || [];
+  const weaponSkinIds = getCI(info, 'weaponSkinShows') || [];
+  const characterId = getCI(profile, 'avatarId');
+  const bannerId = getCI(info, 'bannerId');
+  const pinId = getCI(info, 'pinId');
+  const titleId = getCI(info, 'title');
 
   return {
-    accountId: info.accountId,
-    nickname: info.nickname,
-    level: info.level,
-    exp: info.exp,
-    liked: info.liked,
-    region: info.region,
-    createAt: info.createAt,
-    lastLoginAt: info.lastLoginAt,
-    headPic: info.headPic,
-    rank: info.rank,
-    rankingPoints: info.rankingPoints,
-    csRank: info.csRank,
-    csRankingPoints: info.csRankingPoints,
-    badgeCnt: info.badgeCnt,
-    hasElitePass: info.hasElitePass === true,
-    primeInfo: info.primeInfo,
-    avatarUrl: buildIconUrl(info.headPic),
+    accountId: getCI(info, 'accountId'),
+    nickname: getCI(info, 'nickname'),
+    level: getCI(info, 'level'),
+    exp: getCI(info, 'exp'),
+    liked: getCI(info, 'liked'),
+    region: getCI(info, 'region'),
+    createAt: getCI(info, 'createAt'),
+    lastLoginAt: getCI(info, 'lastLoginAt'),
+    headPic: getCI(info, 'headPic'),
+    rank: getCI(info, 'rank'),
+    rankingPoints: getCI(info, 'rankingPoints'),
+    csRank: getCI(info, 'csRank'),
+    csRankingPoints: getCI(info, 'csRankingPoints'),
+    badgeCnt: getCI(info, 'badgeCnt'),
+    hasElitePass: getCI(info, 'hasElitePass') === true,
+    primeInfo: getCI(info, 'primeInfo'),
+    avatarUrl: buildIconUrl(getCI(info, 'headPic')),
     titleId,
     titleIconUrl: buildIconUrl(titleId),
     bannerId,
@@ -921,12 +950,12 @@ function normalizeProfileData(data: any) {
     weaponSkinIds,
     equippedSkinIconUrls: toIconList(equippedSkinIds),
     equippedWeaponSkinIconUrls: toIconList(weaponSkinIds),
-    signature: social.signature,
-    creditScore: credit.creditScore,
-    guildName: guild.clanName,
-    guildLevel: guild.clanLevel,
-    memberNum: guild.memberNum,
-    capacity: guild.capacity,
+    signature: getCI(social, 'signature'),
+    creditScore: getCI(credit, 'creditScore'),
+    guildName: getCI(guild, 'clanName'),
+    guildLevel: getCI(guild, 'clanLevel'),
+    memberNum: getCI(guild, 'memberNum'),
+    capacity: getCI(guild, 'capacity'),
   };
 }
 
