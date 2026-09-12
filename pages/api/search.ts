@@ -128,6 +128,31 @@ function isRateLimited(ip: string): boolean {
   return bucket.count > RATE_LIMIT_MAX_REQUESTS;
 }
 
+// Dedup notif Telegram, sama polanya kayak di pages/api/ff.ts: kalau IP
+// yang sama baru aja notif buat keyword yang sama dalam beberapa detik
+// terakhir (double-click, dsb), skip notif keduanya. Response ke user
+// tetap jalan normal.
+const NOTIF_DEDUP_WINDOW_MS = 20_000;
+const NOTIF_DEDUP_STALE_MS = NOTIF_DEDUP_WINDOW_MS * 6;
+const recentNotifs = new Map<string, number>();
+
+function shouldSkipNotif(ip: string, keyword: string): boolean {
+  const now = Date.now();
+
+  if (Math.random() < 0.01) {
+    for (const [key, ts] of recentNotifs) {
+      if (now - ts > NOTIF_DEDUP_STALE_MS) recentNotifs.delete(key);
+    }
+  }
+
+  const key = `${ip}:${keyword.toLowerCase()}`;
+  const lastSentAt = recentNotifs.get(key);
+  if (lastSentAt && now - lastSentAt < NOTIF_DEDUP_WINDOW_MS) return true;
+
+  recentNotifs.set(key, now);
+  return false;
+}
+
 async function searchOnce(api: FreeFireAPI, keyword: string) {
   try {
     return { ok: true as const, results: await api.searchAccount(keyword) };
@@ -277,11 +302,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const hostHeader = req.headers['x-forwarded-host'] || req.headers.host;
     const host = Array.isArray(hostHeader) ? hostHeader[0] : hostHeader;
     const origin = `${proto}://${host}`;
-    waitUntil(
-      sendNicknameSearchNotif(req, keyword, mapped.length, origin).catch((err) => {
-        console.error('telegram_notif_error', err);
-      })
-    );
+    if (!shouldSkipNotif(ip, keyword)) {
+      waitUntil(
+        sendNicknameSearchNotif(req, keyword, mapped.length, origin).catch((err) => {
+          console.error('telegram_notif_error', err);
+        })
+      );
+    }
 
     return res.status(200).json({ status: 'ok', results: mapped });
   } catch (error) {
