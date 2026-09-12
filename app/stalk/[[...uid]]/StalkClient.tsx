@@ -835,7 +835,7 @@ function CompactGridItem({
         cursor: 'pointer', textAlign: 'center', width: '100%',
       }}
     >
-      <div style={{ width: '100%', aspectRatio: '1 / 1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: '100%', aspectRatio: '1 / 1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
         {showImage ? (
           <img
             src={item.icon as string}
@@ -854,13 +854,14 @@ function CompactGridItem({
       </div>
       <p style={{
         fontSize: 10, fontWeight: 600, color: 'var(--light-text)', textAlign: 'center', margin: 0, lineHeight: 1.25,
-        minHeight: 25, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', width: '100%',
+        height: 25, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', width: '100%',
+        flexShrink: 0,
       }}>
         {item.name}
       </p>
       <span style={{
         fontSize: 7.5, fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase',
-        letterSpacing: '0.03em', lineHeight: 1, minHeight: 9,
+        letterSpacing: '0.03em', lineHeight: 1, height: 9, flexShrink: 0,
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%',
       }}>
         {item.type || '\u00A0'}
