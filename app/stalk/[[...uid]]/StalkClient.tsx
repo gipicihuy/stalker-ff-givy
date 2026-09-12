@@ -835,16 +835,36 @@ function CompactGridItem({
         cursor: 'pointer', textAlign: 'center', width: '100%',
       }}
     >
-      {/* "Card" beneran: cuma bungkus image + nama. Border/background di
-          sini doang, jadi tingginya cuma ditentuin sama 2 elemen ini -
-          nama tetap dikasih tinggi fixed (bukan min-height) biar box card
-          antar kolom selalu sama tinggi walau nama 1 vs 2 baris. */}
+      {/* "Card" beneran: bungkus badge type + image + nama. Border/background
+          di sini, extra padding-top biar ada ruang buat badge yang nimpa
+          ke gambar tanpa kepotong border card. Nama tetap dikasih tinggi
+          fixed (bukan min-height) biar box card antar kolom selalu sama
+          tinggi walau nama 1 vs 2 baris. */}
       <div style={{
         background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 14,
-        padding: '9px 6px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+        padding: '13px 6px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
         width: '100%',
       }}>
-        <div style={{ width: '100%', aspectRatio: '1 / 1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        {/* Badge type/category: nempel di ATAS gambar, sengaja numpuk
+            (overlap) dikit ke gambarnya lewat marginBottom negatif -
+            bukan section terpisah yang makan tempat sendiri. Ukurannya
+            (font-size + padding) selalu tetap, jadi otomatis sejajar
+            antar card tanpa perlu trik fixed-height kayak elemen nama. */}
+        <span
+          style={{
+            position: 'relative', zIndex: 2, marginBottom: -12, flexShrink: 0,
+            padding: '3px 8px', borderRadius: 999, fontSize: 7.5, fontWeight: 700,
+            color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.03em',
+            background: 'var(--panel-bg-alt)', border: '1px solid var(--gold)',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '92%',
+          }}
+        >
+          {item.type || '\u00A0'}
+        </span>
+        <div style={{
+          position: 'relative', zIndex: 1,
+          width: '100%', aspectRatio: '1 / 1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}>
           {showImage ? (
             <img
               src={item.icon as string}
@@ -873,17 +893,6 @@ function CompactGridItem({
           </p>
         </div>
       </div>
-      {/* Type/category SEKARANG DI LUAR card, nempel di bawahnya. Karena
-          setiap card di atas udah dijamin tinggi sama (lewat wrapper nama
-          fixed-height), badge ini otomatis nempel di ketinggian yang sama
-          persis di seluruh baris grid - gak perlu diatur lagi dari dalam. */}
-      <span style={{
-        fontSize: 7.5, fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase',
-        letterSpacing: '0.03em', lineHeight: 1, minHeight: 10,
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%',
-      }}>
-        {item.type || '\u00A0'}
-      </span>
     </motion.button>
   );
 }
@@ -977,21 +986,6 @@ function CharacterSection({
             <OutfitGrid items={characterItems} category="Character" onSelect={onSelectItem} />
           ) : (
             <div>
-              {allCategory ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                  <span
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 5,
-                      padding: '6px 10px', borderRadius: 999, fontSize: 10.5, fontWeight: 700,
-                      background: 'var(--gold-soft)', border: '1px solid var(--gold)', color: 'var(--gold)',
-                    }}
-                  >
-                    <LayoutGrid size={12} />
-                    All
-                    <span style={{ opacity: 0.65, fontWeight: 600 }}>({allCategory.items.length})</span>
-                  </span>
-                </div>
-              ) : null}
               <CompactCollectionGrid items={allCategory?.items ?? []} onSelectItem={onSelectItem} />
             </div>
           )}
