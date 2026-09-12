@@ -843,22 +843,93 @@ async function fetchAhmyth(uid: string) {
 // Instance FreeFireAPI disimpan di module scope (bukan dibuat baru tiap
 // request) supaya session/token guest account yang udah login bisa dipakai
 // ulang selama isolate/lambda-nya masih warm - login (Garena auth + Major
-// Login) itu 2 round-trip HTTP yang lumayan makan waktu, jadi kalau harus
-// login ulang tiap request, ffapis nyaris pasti kalah balapan lawan Ahmyth.
-// Kredensial guest-nya sendiri udah di-embed di dalam library (lihat
-// vendor/ffapis/dist/src/embedded-data), jadi nggak butuh file config
-// tambahan sama sekali - aman dipanggil langsung di Cloudflare Workers.
+// Login) itu beberapa round-trip HTTP yang lumayan makan waktu, jadi kalau
+// harus login ulang tiap request, ffapis nyaris pasti kalah balapan lawan
+// Ahmyth. Akun guest yang dipake buat login sendiri di-manage manual di
+// bawah (lihat OwnGuestAccount), bukan pake pool bawaan library.
 let ffapisClient: FreeFireAPI | null = null;
 function getFfapisClient(): FreeFireAPI {
   if (!ffapisClient) ffapisClient = new FreeFireAPI();
   return ffapisClient;
 }
 
+// --- Akun guest self-managed, bukan gantungan ke pool bawaan `ffapis` ---
+//
+// `getPlayerProfile()` normalnya login pake pool guest account BAWAAN
+// LIBRARY yang udah di-embed (lihat vendor/ffapis/dist/src/embedded-data/
+// credentials.json - ~260 akun IND/SG/RU) dan DIBAGI SAMA SEMUA ORANG yang
+// install package `ffapis`, bukan cuma situs kita doang. Biar situs kita
+// nggak ikut-ikutan gampang kena rate-limit/flag Garena gara-gara akun yang
+// dipake situs LAIN, kita `register()` akun guest MILIK SENDIRI dan login
+// pake itu secara eksplisit, jadi getPlayerProfile nggak perlu nyentuh pool
+// bawaan sama sekali di jalur normal.
+//
+// CAVEAT yang jujur perlu diomongin: kalau akun kita sendiri gagal (401)
+// PAS di dalam satu panggilan getPlayerProfile, library-nya punya retry
+// internal SATU KALI yang otomatis balik ke pool bawaan (lihat
+// `_requestProfile` di dist/src/lib/api.js) - itu behavior bawaan yang gak
+// bisa dimatiin dari luar tanpa nge-fork library-nya. Yang kita bisa
+// lakuin: DETEKSI kalau itu kejadian (token session berubah beda dari
+// token akun kita), lalu proaktif re-login pake akun sendiri lagi abis
+// itu, jadi swap ke pool bawaan itu paling lama cuma numpang buat 1
+// request yang lagi error, bukan nempel permanen di request-request
+// berikutnya.
+type OwnGuestAccount = { uid: string; password: string; lastToken: string | null };
+let ownGuestAccount: OwnGuestAccount | null = null;
+let ownGuestRegisteredAt = 0;
+// Rotasi akun tiap 30 menit (bukan cuma pas error) biar 1 akun guest gak
+// dipakein query berkali-kali tanpa henti - ngurangin kemungkinan
+// ke-flag Garena karena pola pemakaian yang mencolok.
+const OWN_GUEST_MAX_AGE_MS = 30 * 60 * 1000;
+// Region 'IND' dipilih asal (semua region guest bisa query profil siapa aja,
+// query profil gak region-locked) - yang penting BUKAN 'ID'/'PK' karena
+// dua itu gak support guest registration (lihat docs/configuration.md
+// ffapis).
+const OWN_GUEST_REGION = 'IND';
+
+async function registerOwnGuestAccount(api: FreeFireAPI): Promise<OwnGuestAccount> {
+  const result = await api.register(OWN_GUEST_REGION);
+  const account: OwnGuestAccount = { uid: result.uid, password: result.password, lastToken: null };
+  const session = await api.login(result.uid, result.password);
+  account.lastToken = session.token;
+  ownGuestAccount = account;
+  ownGuestRegisteredAt = Date.now();
+  return account;
+}
+
+async function ensureOwnGuestSession(api: FreeFireAPI): Promise<void> {
+  const isStale = !ownGuestAccount || Date.now() - ownGuestRegisteredAt > OWN_GUEST_MAX_AGE_MS;
+  if (isStale) {
+    await registerOwnGuestAccount(api);
+    return;
+  }
+  // Kalau token sesi sekarang beda dari token akun kita yang terakhir kita
+  // set, artinya di request SEBELUMNYA sempat kejadian retry internal
+  // library yang diam-diam swap ke akun dari pool bawaan (lihat catatan di
+  // atas). Klaim balik kendalinya dengan login ulang pake akun kita sendiri.
+  if (api.session?.token !== ownGuestAccount!.lastToken) {
+    const session = await api.login(ownGuestAccount!.uid, ownGuestAccount!.password);
+    ownGuestAccount!.lastToken = session.token;
+  }
+}
+
 async function fetchFfapis(uid: string) {
   const api = getFfapisClient();
-  const data = await api.getPlayerProfile(uid);
-  if (!(data as any)?.basicinfo?.accountid) throw new NotFoundError('ffapis_empty');
-  return data;
+  await ensureOwnGuestSession(api);
+  try {
+    const data = await api.getPlayerProfile(uid);
+    if (!(data as any)?.basicinfo?.accountid) throw new NotFoundError('ffapis_empty');
+    return data;
+  } catch (err) {
+    if (err instanceof NotFoundError) throw err;
+    // Akun kita sendiri kemungkinan lagi bermasalah (expired/soft-limited)
+    // DAN retry internal library ke pool bawaan juga ikut gagal. Daftar
+    // akun baru yang bener-bener fresh, terus coba sekali lagi.
+    await registerOwnGuestAccount(api);
+    const data = await api.getPlayerProfile(uid);
+    if (!(data as any)?.basicinfo?.accountid) throw new NotFoundError('ffapis_empty');
+    return data;
+  }
 }
 
 type ProfileSource = 'ahmyth' | 'ffapis';
