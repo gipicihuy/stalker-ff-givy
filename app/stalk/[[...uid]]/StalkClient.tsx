@@ -832,7 +832,7 @@ function CompactGridItem({
       style={{
         background: 'transparent', border: 'none', padding: 0,
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-        cursor: 'pointer', textAlign: 'center', width: '100%',
+        cursor: 'pointer', textAlign: 'center', width: '100%', minWidth: 0,
       }}
     >
       {/* "Card" beneran: cuma bungkus image + nama. Border/background di
