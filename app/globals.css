@@ -173,10 +173,13 @@ a {
 
 /* Vault (Grid View) collection grid - 4 kolom di mobile, makin lebar makin
    banyak kolom secara proporsional. Card-nya CSS grid biasa (bukan
-   inline-style) supaya bisa pakai media query buat responsivitas kolom. */
+   inline-style) supaya bisa pakai media query buat responsivitas kolom.
+   align-items: stretch dipasang eksplisit supaya semua card dalam satu
+   baris selalu sama tinggi walau isi teksnya beda panjang. */
 .vault-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
+  align-items: stretch;
   gap: 9px;
 }
 
