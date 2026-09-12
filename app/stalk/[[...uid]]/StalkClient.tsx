@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint, Send, User, Shirt, ChevronDown, ChevronRight, Trophy, Hash, LayoutGrid, Swords, Sparkles, Wind, type LucideIcon } from 'lucide-react';
 
 type PrimeInfo = { primeLevel?: number };
@@ -51,6 +51,13 @@ const notchBL = (n: number) =>
   `polygon(0 0, 100% 0, 100% 100%, ${n}px 100%, 0 calc(100% - ${n}px))`;
 const notchTR = (n: number) =>
   `polygon(0 0, calc(100% - ${n}px) 0, 100% ${n}px, 100% 100%, 0 100%)`;
+
+// ID unik & stabil per item, dipakai sebagai `layoutId` di kartu item mana
+// pun item itu dirender (section normal ATAU Grid View collection). Selama
+// ID-nya sama, framer-motion otomatis bikin animasi "magic move" (FLIP) pas
+// kartu itu pindah dari posisi di section normal ke posisi barunya di grid,
+// dan sebaliknya - bukan sekadar fade.
+const gridItemLayoutId = (category: string, id: number) => `stalk-item::${category}::${id}`;
 
 type GuildInfo = { guildName?: string; guildLevel?: number; memberNum?: number; capacity?: number };
 type SocialInfo = { signature?: string };
@@ -724,8 +731,11 @@ function OutfitGrid({
         const isBroken = brokenIds.has(item.id);
         const showImage = Boolean(item.icon) && !isBroken;
         return (
-          <button
+          <motion.button
             key={item.id}
+            layout
+            layoutId={gridItemLayoutId(item._cat ?? category, item.id)}
+            transition={{ type: 'spring', stiffness: 480, damping: 32, mass: 0.6 }}
             type="button"
             title={item.name}
             onClick={() => onSelect(item, item._cat ?? category)}
@@ -763,7 +773,7 @@ function OutfitGrid({
             }}>
               {item.name}
             </p>
-          </button>
+          </motion.button>
         );
       })}
     </div>
@@ -790,9 +800,11 @@ type GridCategoryDef = {
 // "animated filterable grid".
 function CompactGridItem({
   item,
+  layoutId,
   onSelect,
 }: {
   item: OutfitItem & { _cat?: string };
+  layoutId: string;
   onSelect: () => void;
 }) {
   const [imgBroken, setImgBroken] = useState(false);
@@ -801,6 +813,7 @@ function CompactGridItem({
   return (
     <motion.button
       layout
+      layoutId={layoutId}
       initial={{ opacity: 0, scale: 0.82, y: 10 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.82, y: -10 }}
@@ -869,6 +882,7 @@ function CompactCollectionGrid({
           <CompactGridItem
             key={`${item._cat ?? ''}-${item.id}`}
             item={item}
+            layoutId={gridItemLayoutId(item._cat || 'Item', item.id)}
             onSelect={() => onSelectItem(item, item._cat || 'Item')}
           />
         ))}
@@ -885,15 +899,20 @@ function CompactCollectionGrid({
 function CharacterSection({
   characterItems,
   gridCategories,
+  gridViewOn,
+  setGridViewOn,
+  activeCatKey,
+  setActiveCatKey,
   onSelectItem,
 }: {
   characterItems: ResolvedItem[];
   gridCategories: GridCategoryDef[];
+  gridViewOn: boolean;
+  setGridViewOn: (updater: boolean | ((prev: boolean) => boolean)) => void;
+  activeCatKey: string | null;
+  setActiveCatKey: (key: string) => void;
   onSelectItem: (item: OutfitItem, category: string) => void;
 }) {
-  const [gridViewOn, setGridViewOn] = useState(false);
-  const [activeCatKey, setActiveCatKey] = useState<string | null>(gridCategories[0]?.key ?? null);
-
   useEffect(() => {
     if (gridCategories.length === 0) return;
     if (!gridCategories.some((c) => c.key === activeCatKey)) {
@@ -1149,6 +1168,11 @@ export default function StalkClient() {
   const [result, setResult] = useState<FfResponse | null>(null);
   const [copied, setCopied] = useState(false);
   const [selectedItem, setSelectedItem] = useState<{ item: OutfitItem; category: string } | null>(null);
+  // Grid View: state-nya dipegang di sini (parent), bukan di dalam
+  // CharacterSection, karena begitu aktif, section lain (Profile Items,
+  // Outfit, Weapon, Pet Info) di bawahnya perlu ikut disembunyikan.
+  const [gridViewOn, setGridViewOn] = useState(false);
+  const [activeCatKey, setActiveCatKey] = useState<string | null>(null);
   const [searchMode, setSearchMode] = useState<'uid' | 'nickname'>('uid');
   const [nickname, setNickname] = useState('');
   const [nicknameResults, setNicknameResults] = useState<NicknameSearchItem[]>([]);
@@ -1330,6 +1354,14 @@ export default function StalkClient() {
   }, [initialUid]);
 
   const basic = result?.basicInfo;
+
+  // Reset Grid View tiap ganti akun yang dilihat, biar gak "nyangkut" aktif
+  // pas pindah ke profil lain.
+  useEffect(() => {
+    setGridViewOn(false);
+    setActiveCatKey(null);
+  }, [basic?.accountId]);
+
   const social = result?.socialInfo;
   const guild = result?.guildBasicInfo;
   const credit = result?.creditScoreInfo;
@@ -1880,70 +1912,76 @@ export default function StalkClient() {
             )}
           </div>
 
-          <CharacterSection
-            key={basic?.accountId ?? 'none'}
-            characterItems={characterItems}
-            gridCategories={gridCategories}
-            onSelectItem={(item, cat) => setSelectedItem({ item, category: cat })}
-          />
+          <LayoutGroup id="stalk-collection">
+            <CharacterSection
+              key={basic?.accountId ?? 'none'}
+              characterItems={characterItems}
+              gridCategories={gridCategories}
+              gridViewOn={gridViewOn}
+              setGridViewOn={setGridViewOn}
+              activeCatKey={activeCatKey}
+              setActiveCatKey={setActiveCatKey}
+              onSelectItem={(item, cat) => setSelectedItem({ item, category: cat })}
+            />
 
-          {profileItems.length > 0 ? (
-            <>
-              <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
-              <div>
-                <SectionDividerLabel>Profile Items</SectionDividerLabel>
-                <OutfitGrid items={profileItems} category="Profile Item" onSelect={(item, cat) => setSelectedItem({ item, category: cat })} />
-              </div>
-            </>
-          ) : null}
+            {!gridViewOn && profileItems.length > 0 ? (
+              <>
+                <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+                <div>
+                  <SectionDividerLabel>Profile Items</SectionDividerLabel>
+                  <OutfitGrid items={profileItems} category="Profile Item" onSelect={(item, cat) => setSelectedItem({ item, category: cat })} />
+                </div>
+              </>
+            ) : null}
 
-          {basic?.equippedOutfitItems && basic.equippedOutfitItems.length > 0 ? (
-            <>
-              <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
-              <div>
-                <SectionDividerLabel>Outfit</SectionDividerLabel>
-                <OutfitGrid items={basic.equippedOutfitItems} category="Outfit" onSelect={(item, cat) => setSelectedItem({ item, category: cat })} />
-              </div>
-            </>
-          ) : null}
+            {!gridViewOn && basic?.equippedOutfitItems && basic.equippedOutfitItems.length > 0 ? (
+              <>
+                <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+                <div>
+                  <SectionDividerLabel>Outfit</SectionDividerLabel>
+                  <OutfitGrid items={basic.equippedOutfitItems} category="Outfit" onSelect={(item, cat) => setSelectedItem({ item, category: cat })} />
+                </div>
+              </>
+            ) : null}
 
-          {(basic?.equippedWeaponOutfitItems && basic.equippedWeaponOutfitItems.length > 0) ||
-          (basic?.equippedLookChangerItems && basic.equippedLookChangerItems.length > 0) ||
-          (basic?.equippedArrivalAnimationItems && basic.equippedArrivalAnimationItems.length > 0) ? (
-            <>
-              <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
-              <div>
-                <SectionDividerLabel>
-                  {[
-                    basic?.equippedWeaponOutfitItems && basic.equippedWeaponOutfitItems.length > 0 ? 'Weapon' : null,
-                    basic?.equippedLookChangerItems && basic.equippedLookChangerItems.length > 0 ? 'Look Changer' : null,
-                    basic?.equippedArrivalAnimationItems && basic.equippedArrivalAnimationItems.length > 0 ? 'Arrival Animation' : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' • ')}
-                </SectionDividerLabel>
-                <OutfitGrid
-                  items={[
-                    ...(basic?.equippedWeaponOutfitItems ?? []).map((i) => ({ ...i, _cat: 'Weapon' })),
-                    ...(basic?.equippedLookChangerItems ?? []).map((i) => ({ ...i, _cat: 'Look Changer' })),
-                    ...(basic?.equippedArrivalAnimationItems ?? []).map((i) => ({ ...i, _cat: 'Arrival Animation' })),
-                  ]}
-                  category="Weapon"
-                  onSelect={(item, cat) => setSelectedItem({ item, category: cat })}
-                />
-              </div>
-            </>
-          ) : null}
+            {!gridViewOn && ((basic?.equippedWeaponOutfitItems && basic.equippedWeaponOutfitItems.length > 0) ||
+            (basic?.equippedLookChangerItems && basic.equippedLookChangerItems.length > 0) ||
+            (basic?.equippedArrivalAnimationItems && basic.equippedArrivalAnimationItems.length > 0)) ? (
+              <>
+                <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+                <div>
+                  <SectionDividerLabel>
+                    {[
+                      basic?.equippedWeaponOutfitItems && basic.equippedWeaponOutfitItems.length > 0 ? 'Weapon' : null,
+                      basic?.equippedLookChangerItems && basic.equippedLookChangerItems.length > 0 ? 'Look Changer' : null,
+                      basic?.equippedArrivalAnimationItems && basic.equippedArrivalAnimationItems.length > 0 ? 'Arrival Animation' : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' • ')}
+                  </SectionDividerLabel>
+                  <OutfitGrid
+                    items={[
+                      ...(basic?.equippedWeaponOutfitItems ?? []).map((i) => ({ ...i, _cat: 'Weapon' })),
+                      ...(basic?.equippedLookChangerItems ?? []).map((i) => ({ ...i, _cat: 'Look Changer' })),
+                      ...(basic?.equippedArrivalAnimationItems ?? []).map((i) => ({ ...i, _cat: 'Arrival Animation' })),
+                    ]}
+                    category="Weapon"
+                    onSelect={(item, cat) => setSelectedItem({ item, category: cat })}
+                  />
+                </div>
+              </>
+            ) : null}
 
-          {pet ? (
-            <>
-              <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
-              <div>
-                <SectionDividerLabel>Pet Info</SectionDividerLabel>
-                <PetInfoCard data={pet} />
-              </div>
-            </>
-          ) : null}
+            {!gridViewOn && pet ? (
+              <>
+                <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+                <div>
+                  <SectionDividerLabel>Pet Info</SectionDividerLabel>
+                  <PetInfoCard data={pet} />
+                </div>
+              </>
+            ) : null}
+          </LayoutGroup>
         </section>
       ) : null}
 
