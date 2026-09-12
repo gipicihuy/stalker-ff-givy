@@ -1368,7 +1368,7 @@ export default function StalkClient() {
           _cat: 'Pet',
         }]
       : [];
-  const gridCategories: GridCategoryDef[] = [
+  const specificGridCategories: GridCategoryDef[] = [
     { key: 'character', label: 'Character', icon: User, items: characterItems.map((i) => ({ ...i, _cat: 'Character' })) },
     { key: 'profile', label: 'Profile Items', icon: Tag, items: profileItems.map((i) => ({ ...i, _cat: 'Profile Item' })) },
     { key: 'outfit', label: 'Outfit', icon: Shirt, items: (basic?.equippedOutfitItems ?? []).map((i) => ({ ...i, _cat: 'Outfit' })) },
@@ -1377,6 +1377,20 @@ export default function StalkClient() {
     { key: 'arrival', label: 'Arrival Animation', icon: Wind, items: (basic?.equippedArrivalAnimationItems ?? []).map((i) => ({ ...i, _cat: 'Arrival Animation' })) },
     { key: 'pet', label: 'Pet', icon: PawPrint, items: petGridItems },
   ].filter((cat) => cat.items.length > 0);
+
+  // "All" digabung dari semua kategori yang ada & ditaruh PALING DEPAN biar
+  // jadi kategori aktif default begitu Grid View ditoggle - jadi begitu
+  // diklik langsung berdempetan nampilin semua item sekaligus (kayak
+  // referensi Adenpedia yang dikasih), bukan nunggu pilih kategori dulu.
+  // Chip kategori spesifik di baris selector tetap ada buat filter kalau
+  // mau fokus lihat satu jenis item aja.
+  const gridCategories: GridCategoryDef[] =
+    specificGridCategories.length > 0
+      ? [
+          { key: 'all', label: 'All', icon: LayoutGrid, items: specificGridCategories.flatMap((c) => c.items) },
+          ...specificGridCategories,
+        ]
+      : [];
 
   // Avatar inisial nickname (bukan avatar dari FF) - warnanya gantian antara
   // gold/biru (dua-duanya udah ada di palet Stalker) berdasarkan accountid,
