@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
-import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint, Send, User, Shirt, ChevronDown, ChevronRight, Trophy, Hash, LayoutGrid, Swords, Sparkles, Wind, type LucideIcon } from 'lucide-react';
+import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint, Send, User, Shirt, ChevronDown, ChevronRight, Trophy, Hash, LayoutGrid, Swords, Sparkles, Wind, Star, type LucideIcon } from 'lucide-react';
 
 type PrimeInfo = { primeLevel?: number };
 type ResolvedItem = { id: number; name: string; icon: string | null; type: string | null; description?: string | null };
@@ -1869,15 +1869,17 @@ export default function StalkClient() {
                 }}>
                   <Trophy size={12} /> BR Rank
                 </p>
-                <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)' }}>
-                  {brRankInfo.label}
-                </p>
-              </div>
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)' }}>
-                  {formatNumber(brRankInfo.points)}
-                </p>
-                <p style={{ fontSize: 10, color: 'var(--muted-text)' }}>Points</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)' }}>
+                    {brRankInfo.label}
+                  </p>
+                  <span style={{
+                    fontSize: 11.5, fontWeight: 700, color: 'var(--gold-hover)', background: 'var(--gold-soft)',
+                    padding: '3px 9px', lineHeight: 1, clipPath: notchTR(6),
+                  }}>
+                    {formatNumber(brRankInfo.points)} points
+                  </span>
+                </div>
               </div>
             </div>
           ) : null}
@@ -1900,15 +1902,19 @@ export default function StalkClient() {
                 }}>
                   <Swords size={12} /> CS Rank
                 </p>
-                <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)' }}>
-                  {csRankInfo.label}
-                </p>
-              </div>
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)' }}>
-                  {formatNumber(csRankInfo.star)}
-                </p>
-                <p style={{ fontSize: 10, color: 'var(--muted-text)' }}>Bintang</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)' }}>
+                    {csRankInfo.label}
+                  </p>
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    fontSize: 11.5, fontWeight: 700, color: 'var(--gold-hover)', background: 'var(--gold-soft)',
+                    padding: '3px 9px 3px 7px', lineHeight: 1, clipPath: notchTR(6),
+                  }}>
+                    <Star size={11} fill="var(--gold)" stroke="var(--gold)" />
+                    {formatNumber(csRankInfo.star)}
+                  </span>
+                </div>
               </div>
             </div>
           ) : null}
