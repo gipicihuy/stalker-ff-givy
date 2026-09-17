@@ -17,6 +17,7 @@ type BasicInfo = {
   rank?: number;
   rankingPoints?: number;
   csRank?: number;
+  csRankingPoints?: number;
   badgeCnt?: number;
   hasElitePass?: boolean;
   liked?: number;
@@ -482,6 +483,74 @@ function getBrRankInfo(points?: number): { icon: string; label: string; points: 
     else break;
   }
   return { icon: `${BR_RANK_ICON_BASE}/${best[1]}`, label: best[2], points: p };
+}
+
+// ============================================================
+// CS (Clash Squad) Rank — sama seperti proxy BR rank, cuma
+// filenya beda. Rumusnya diadaptasi dari adenpedia.my.id/script.js:
+//
+// - rankId (csRank) >= 320  => tier tinggi (Heroic ke atas), bintang
+//   yang ditampilkan = csRankingPoints - 90 (bukan csRankingPoints
+//   mentah / rankId, itu yang bikin salah baca +3).
+// - rankId < 320             => tier awal (Bronze..Diamond), dan
+//   csRankingPoints dipakai LANGSUNG sebagai index ke tabel rank
+//   (bukan hasil pengurangan apa pun).
+// Kuirk asli adenpedia dipertahankan: point 0 → Bronze I bintang 0
+// (bukan entry index-0 di tabel, itu sengaja diloncatin / dead code
+// di source aslinya).
+const CS_RANK_ORDER: Array<{ file: string; label: string; star: number }> = (() => {
+  const out: Array<{ file: string; label: string; star: number }> = [];
+  const push = (file: string, label: string, count: number) => {
+    for (let star = 1; star <= count; star++) out.push({ file, label, star });
+  };
+  push('Bronze1.png', 'Bronze', 3);
+  push('Bronze2.png', 'Bronze', 3);
+  push('Bronze3.png', 'Bronze', 3);
+  push('Silver1.png', 'Silver', 4);
+  push('Silver2.png', 'Silver', 4);
+  push('Silver3.png', 'Silver', 4);
+  push('Gold1.png', 'Gold', 4);
+  push('Gold2.png', 'Gold', 4);
+  push('Gold3.png', 'Gold', 4);
+  push('Gold4.png', 'Gold', 4);
+  push('Platinum1.png', 'Platinum', 5);
+  push('Platinum2.png', 'Platinum', 5);
+  push('Platinum3.png', 'Platinum', 5);
+  push('Platinum4.png', 'Platinum', 5);
+  push('Platinum5.png', 'Platinum', 5);
+  push('Diamond1.png', 'Diamond', 5);
+  push('Diamond2.png', 'Diamond', 5);
+  push('Diamond3.png', 'Diamond', 5);
+  push('Diamond4.png', 'Diamond', 5);
+  push('Diamond5.png', 'Diamond', 5);
+  return out;
+})();
+
+function getCsHighTierInfo(displayStars: number): { icon: string; label: string; star: number } {
+  if (displayStars >= 100) return { icon: `${BR_RANK_ICON_BASE}/Master2.png`, label: 'Elite Master', star: displayStars };
+  if (displayStars >= 50) return { icon: `${BR_RANK_ICON_BASE}/br-master1.png`, label: 'Master', star: displayStars };
+  if (displayStars >= 24) return { icon: `${BR_RANK_ICON_BASE}/Heroic2.png`, label: 'Elite Heroic', star: displayStars };
+  return { icon: `${BR_RANK_ICON_BASE}/br-heroic1.png`, label: 'Heroic', star: displayStars };
+}
+
+function getCsRankInfo(csRank?: number, csRankingPoints?: number): { icon: string; label: string; star: number } {
+  const rankId = Math.max(0, csRank ?? 0);
+  const raw = Math.max(0, csRankingPoints ?? 0);
+  const isHighTier = rankId >= 320;
+
+  if (isHighTier) {
+    return getCsHighTierInfo(Math.max(0, raw - 90));
+  }
+
+  if (raw <= 0) {
+    return { icon: `${BR_RANK_ICON_BASE}/Bronze1.png`, label: 'Bronze', star: 0 };
+  }
+  if (raw < CS_RANK_ORDER.length) {
+    const entry = CS_RANK_ORDER[raw];
+    return { icon: `${BR_RANK_ICON_BASE}/${entry.file}`, label: entry.label, star: entry.star };
+  }
+  // Fallback: index sudah lewat tabel tapi rankId belum nyampe 320 → anggap Heroic.
+  return getCsHighTierInfo(Math.max(0, raw - 90));
 }
 
 function StatCard({ icon, label, value, sub, accent }: { icon?: string; label?: string; value: React.ReactNode; sub?: string; accent?: string }) {
@@ -1367,6 +1436,7 @@ export default function StalkClient() {
   const ageBreakdown = basic ? calculateAgeBreakdown(basic.createAt) : null;
   const estimatedTopup = basic ? estimateTopupPrice(basic) : 0;
   const brRankInfo = basic ? getBrRankInfo(basic.rankingPoints) : null;
+  const csRankInfo = basic ? getCsRankInfo(basic.csRank, basic.csRankingPoints) : null;
   const avatarSrc =
     basic?.avatarUrl ||
     (basic?.headPic ? `https://ff.garena.com/avatar/${basic.headPic}.png` : null) ||
@@ -1808,6 +1878,37 @@ export default function StalkClient() {
                   {formatNumber(brRankInfo.points)}
                 </p>
                 <p style={{ fontSize: 10, color: 'var(--muted-text)' }}>Points</p>
+              </div>
+            </div>
+          ) : null}
+
+          {csRankInfo ? (
+            <div style={{
+              marginTop: 10, background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)',
+              borderRadius: 14, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12,
+            }}>
+              <img
+                src={csRankInfo.icon}
+                alt={csRankInfo.label}
+                style={{ width: 42, height: 42, objectFit: 'contain', flexShrink: 0 }}
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{
+                  fontSize: 10, fontWeight: 600, color: 'var(--blue)', textTransform: 'uppercase',
+                  letterSpacing: '0.05em', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 5,
+                }}>
+                  <Swords size={12} /> CS Rank
+                </p>
+                <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)' }}>
+                  {csRankInfo.label}
+                </p>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)' }}>
+                  {formatNumber(csRankInfo.star)}
+                </p>
+                <p style={{ fontSize: 10, color: 'var(--muted-text)' }}>Bintang</p>
               </div>
             </div>
           ) : null}
