@@ -553,7 +553,7 @@ function getCsRankInfo(csRank?: number, csRankingPoints?: number): { icon: strin
   return getCsHighTierInfo(Math.max(0, raw - 90));
 }
 
-function StatCard({ icon, label, value, sub, accent }: { icon?: string; label?: string; value: React.ReactNode; sub?: string; accent?: string }) {
+function StatCard({ icon, label, value, sub, accent, valueSize }: { icon?: string; label?: string; value: React.ReactNode; sub?: string; accent?: string; valueSize?: number }) {
   return (
     <div style={{ background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12, padding: '13px 10px', textAlign: 'center' }}>
       {icon ? (
@@ -561,7 +561,7 @@ function StatCard({ icon, label, value, sub, accent }: { icon?: string; label?: 
           onError={(e) => { e.currentTarget.style.display = 'none'; }} />
       ) : null}
       {label ? <p style={{ fontSize: 10.5, color: 'var(--muted-text)', marginBottom: 4 }}>{label}</p> : null}
-      <p style={{ fontSize: 15, fontWeight: 700, color: accent || 'var(--white)', fontFamily: 'var(--font-display)' }}>{value}</p>
+      <p style={{ fontSize: valueSize || 15, fontWeight: 700, color: accent || 'var(--white)', fontFamily: 'var(--font-display)' }}>{value}</p>
       {sub ? <p style={{ fontSize: 10.5, color: 'var(--light-text)', marginTop: 3 }}>{sub}</p> : null}
     </div>
   );
@@ -1875,9 +1875,9 @@ export default function StalkClient() {
                   </p>
                   <span style={{
                     fontSize: 11.5, fontWeight: 700, color: 'var(--gold-hover)', background: 'var(--gold-soft)',
-                    padding: '3px 9px', lineHeight: 1, clipPath: notchTR(6),
+                    padding: '3px 9px', lineHeight: 1, borderRadius: 6,
                   }}>
-                    {formatNumber(brRankInfo.points)} points
+                    {formatNumber(brRankInfo.points)}
                   </span>
                 </div>
               </div>
@@ -1909,7 +1909,7 @@ export default function StalkClient() {
                   <span style={{
                     display: 'inline-flex', alignItems: 'center', gap: 4,
                     fontSize: 11.5, fontWeight: 700, color: 'var(--gold-hover)', background: 'var(--gold-soft)',
-                    padding: '3px 9px 3px 7px', lineHeight: 1, clipPath: notchTR(6),
+                    padding: '3px 9px 3px 7px', lineHeight: 1, borderRadius: 6,
                   }}>
                     <Star size={11} fill="var(--gold)" stroke="var(--gold)" />
                     {formatNumber(csRankInfo.star)}
@@ -1979,8 +1979,8 @@ export default function StalkClient() {
               <StatCard
                 icon={`/image/prime${basic.primeInfo?.primeLevel || 1}.png`}
                 label="Prime Level"
-                value={basic.primeInfo?.primeLevel ? `Prime ${basic.primeInfo.primeLevel}` : '—'}
-                accent="var(--blue)"
+                value={basic.primeInfo?.primeLevel ?? '—'}
+                valueSize={22}
               />
               <StatCard icon="/image/exp.png" label="Exp Level" value={formatNumber(basic.exp)} />
               <StatCard icon="/image/skor.png" label="Credit Score" value={credit?.creditScore ?? '—'} accent="var(--success)" />
