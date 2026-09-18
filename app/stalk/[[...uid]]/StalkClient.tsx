@@ -1854,7 +1854,7 @@ export default function StalkClient() {
           {brRankInfo ? (
             <div style={{
               marginTop: 10, background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)',
-              borderRadius: 14, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12,
+              borderRadius: 14, padding: '12px 14px', display: 'flex', alignItems: 'flex-start', gap: 12,
             }}>
               <img
                 src={brRankInfo.icon}
@@ -1869,17 +1869,15 @@ export default function StalkClient() {
                 }}>
                   <Trophy size={12} /> BR Rank
                 </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)' }}>
-                    {brRankInfo.label}
-                  </p>
-                  <span style={{
-                    fontSize: 11.5, fontWeight: 700, color: 'var(--gold-hover)', background: 'var(--gold-soft)',
-                    padding: '3px 9px', lineHeight: 1, borderRadius: 6,
-                  }}>
-                    {formatNumber(brRankInfo.points)}
-                  </span>
-                </div>
+                <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)', marginBottom: 6 }}>
+                  {brRankInfo.label}
+                </p>
+                <span style={{
+                  display: 'inline-flex', fontSize: 11.5, fontWeight: 700, color: 'var(--gold-hover)',
+                  background: 'var(--gold-soft)', padding: '3px 9px', lineHeight: 1, borderRadius: 6,
+                }}>
+                  {formatNumber(brRankInfo.points)}
+                </span>
               </div>
             </div>
           ) : null}
@@ -1887,7 +1885,7 @@ export default function StalkClient() {
           {csRankInfo ? (
             <div style={{
               marginTop: 10, background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)',
-              borderRadius: 14, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12,
+              borderRadius: 14, padding: '12px 14px', display: 'flex', alignItems: 'flex-start', gap: 12,
             }}>
               <img
                 src={csRankInfo.icon}
@@ -1902,19 +1900,17 @@ export default function StalkClient() {
                 }}>
                   <Swords size={12} /> CS Rank
                 </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)' }}>
-                    {csRankInfo.label}
-                  </p>
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 4,
-                    fontSize: 11.5, fontWeight: 700, color: 'var(--gold-hover)', background: 'var(--gold-soft)',
-                    padding: '3px 9px 3px 7px', lineHeight: 1, borderRadius: 6,
-                  }}>
-                    <Star size={11} fill="var(--gold)" stroke="var(--gold)" />
-                    {formatNumber(csRankInfo.star)}
-                  </span>
-                </div>
+                <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-display)', marginBottom: 6 }}>
+                  {csRankInfo.label}
+                </p>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  fontSize: 11.5, fontWeight: 700, color: 'var(--gold-hover)', background: 'var(--gold-soft)',
+                  padding: '3px 9px 3px 7px', lineHeight: 1, borderRadius: 6,
+                }}>
+                  <Star size={11} fill="var(--gold)" stroke="var(--gold)" />
+                  {formatNumber(csRankInfo.star)}
+                </span>
               </div>
             </div>
           ) : null}
