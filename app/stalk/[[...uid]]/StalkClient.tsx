@@ -59,6 +59,14 @@ const notchTR = (n: number) =>
 // kartu itu pindah dari posisi di section normal ke posisi barunya di grid,
 // dan sebaliknya - bukan sekadar fade.
 const gridItemLayoutId = (category: string, id: number) => `stalk-item::${category}::${id}`;
+// Namespace TERPISAH buat item di Vault - sengaja BEDA dari layoutId di
+// atas. Sebelumnya sama persis, efeknya tiap toggle Grid View bikin
+// framer-motion nyoba "magic move" puluhan item sekaligus antara section
+// normal (Profile Items/Outfit/Weapon) dan Vault, numpuk berantakan pas
+// baliknya. Vault sekarang cukup crossfade polos (lihat sectionSwapTransition
+// di CharacterSection & di bawah `!gridViewOn` sections), jadi gak perlu lagi
+// berbagi identitas layoutId sama section normal.
+const vaultItemLayoutId = (category: string, id: number) => `stalk-vault-item::${category}::${id}`;
 
 // Konfigurasi spring yang sama persis dipakai di kartu versi normal
 // (OutfitGrid) maupun versi Vault/grid (CompactGridItem), supaya kecepatan
@@ -982,7 +990,7 @@ function CompactCollectionGrid({
           <CompactGridItem
             key={`${item._cat ?? ''}-${item.id}`}
             item={item}
-            layoutId={gridItemLayoutId(item._cat || 'Item', item.id)}
+            layoutId={vaultItemLayoutId(item._cat || 'Item', item.id)}
             onSelect={() => onSelectItem(item, item._cat || 'Item')}
           />
         ))}
@@ -2041,63 +2049,95 @@ export default function StalkClient() {
               onSelectItem={(item, cat) => setSelectedItem({ item, category: cat })}
             />
 
-            {!gridViewOn && profileItems.length > 0 ? (
-              <>
-                <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
-                <div>
-                  <SectionDividerLabel>Profile Items</SectionDividerLabel>
-                  <OutfitGrid items={profileItems} category="Profile Item" onSelect={(item, cat) => setSelectedItem({ item, category: cat })} />
-                </div>
-              </>
-            ) : null}
+            <AnimatePresence mode="popLayout" initial={false}>
+              {!gridViewOn && profileItems.length > 0 ? (
+                <motion.div
+                  key="profile-items-section"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={sectionSwapTransition}
+                >
+                  <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+                  <div>
+                    <SectionDividerLabel>Profile Items</SectionDividerLabel>
+                    <OutfitGrid items={profileItems} category="Profile Item" onSelect={(item, cat) => setSelectedItem({ item, category: cat })} />
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
 
-            {!gridViewOn && basic?.equippedOutfitItems && basic.equippedOutfitItems.length > 0 ? (
-              <>
-                <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
-                <div>
-                  <SectionDividerLabel>Outfit</SectionDividerLabel>
-                  <OutfitGrid items={basic.equippedOutfitItems} category="Outfit" onSelect={(item, cat) => setSelectedItem({ item, category: cat })} />
-                </div>
-              </>
-            ) : null}
+            <AnimatePresence mode="popLayout" initial={false}>
+              {!gridViewOn && basic?.equippedOutfitItems && basic.equippedOutfitItems.length > 0 ? (
+                <motion.div
+                  key="outfit-section"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={sectionSwapTransition}
+                >
+                  <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+                  <div>
+                    <SectionDividerLabel>Outfit</SectionDividerLabel>
+                    <OutfitGrid items={basic.equippedOutfitItems} category="Outfit" onSelect={(item, cat) => setSelectedItem({ item, category: cat })} />
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
 
-            {!gridViewOn && ((basic?.equippedWeaponOutfitItems && basic.equippedWeaponOutfitItems.length > 0) ||
-            (basic?.equippedLookChangerItems && basic.equippedLookChangerItems.length > 0) ||
-            (basic?.equippedArrivalAnimationItems && basic.equippedArrivalAnimationItems.length > 0)) ? (
-              <>
-                <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
-                <div>
-                  <SectionDividerLabel>
-                    {[
-                      basic?.equippedWeaponOutfitItems && basic.equippedWeaponOutfitItems.length > 0 ? 'Weapon' : null,
-                      basic?.equippedLookChangerItems && basic.equippedLookChangerItems.length > 0 ? 'Look Changer' : null,
-                      basic?.equippedArrivalAnimationItems && basic.equippedArrivalAnimationItems.length > 0 ? 'Arrival Animation' : null,
-                    ]
-                      .filter(Boolean)
-                      .join(' • ')}
-                  </SectionDividerLabel>
-                  <OutfitGrid
-                    items={[
-                      ...(basic?.equippedWeaponOutfitItems ?? []).map((i) => ({ ...i, _cat: 'Weapon' })),
-                      ...(basic?.equippedLookChangerItems ?? []).map((i) => ({ ...i, _cat: 'Look Changer' })),
-                      ...(basic?.equippedArrivalAnimationItems ?? []).map((i) => ({ ...i, _cat: 'Arrival Animation' })),
-                    ]}
-                    category="Weapon"
-                    onSelect={(item, cat) => setSelectedItem({ item, category: cat })}
-                  />
-                </div>
-              </>
-            ) : null}
+            <AnimatePresence mode="popLayout" initial={false}>
+              {!gridViewOn && ((basic?.equippedWeaponOutfitItems && basic.equippedWeaponOutfitItems.length > 0) ||
+              (basic?.equippedLookChangerItems && basic.equippedLookChangerItems.length > 0) ||
+              (basic?.equippedArrivalAnimationItems && basic.equippedArrivalAnimationItems.length > 0)) ? (
+                <motion.div
+                  key="weapon-section"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={sectionSwapTransition}
+                >
+                  <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+                  <div>
+                    <SectionDividerLabel>
+                      {[
+                        basic?.equippedWeaponOutfitItems && basic.equippedWeaponOutfitItems.length > 0 ? 'Weapon' : null,
+                        basic?.equippedLookChangerItems && basic.equippedLookChangerItems.length > 0 ? 'Look Changer' : null,
+                        basic?.equippedArrivalAnimationItems && basic.equippedArrivalAnimationItems.length > 0 ? 'Arrival Animation' : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' • ')}
+                    </SectionDividerLabel>
+                    <OutfitGrid
+                      items={[
+                        ...(basic?.equippedWeaponOutfitItems ?? []).map((i) => ({ ...i, _cat: 'Weapon' })),
+                        ...(basic?.equippedLookChangerItems ?? []).map((i) => ({ ...i, _cat: 'Look Changer' })),
+                        ...(basic?.equippedArrivalAnimationItems ?? []).map((i) => ({ ...i, _cat: 'Arrival Animation' })),
+                      ]}
+                      category="Weapon"
+                      onSelect={(item, cat) => setSelectedItem({ item, category: cat })}
+                    />
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
 
-            {!gridViewOn && pet ? (
-              <>
-                <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
-                <div>
-                  <SectionDividerLabel>Pet Info</SectionDividerLabel>
-                  <PetInfoCard data={pet} />
-                </div>
-              </>
-            ) : null}
+            <AnimatePresence mode="popLayout" initial={false}>
+              {!gridViewOn && pet ? (
+                <motion.div
+                  key="pet-info-section"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={sectionSwapTransition}
+                >
+                  <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+                  <div>
+                    <SectionDividerLabel>Pet Info</SectionDividerLabel>
+                    <PetInfoCard data={pet} />
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
           </LayoutGroup>
         </section>
       ) : null}
