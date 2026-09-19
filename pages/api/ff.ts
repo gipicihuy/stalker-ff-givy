@@ -1,6 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { FreeFireAPI } from 'ffapis';
+import { guardRequest, sendGuardRejection } from '../../lib/security/guard';
+import { signImagePath } from '../../lib/security/imageSign';
+import { GUARD_PATHS } from '../../lib/security/constants';
 
 // Pengganti waitUntil dari '@vercel/functions'. Di Cloudflare Workers,
 // background task (kirim notif Telegram tanpa nge-block response) harus
@@ -32,33 +35,39 @@ function getRequestOrigin(req: NextApiRequest): string {
   return `${proto}://${host}`;
 }
 
-// Jalan-jalan (deep walk) ke seluruh payload JSON dan tempelin domain asli
-// ke tiap path proxy gambar relatif ("/api/img?u=...") yang dibuat
-// buildProxiedImageUrl. Dipanggil sekali di titik paling akhir sebelum
-// response dikirim / notif Telegram dibuat.
-function absolutizeImageUrls<T>(value: T, origin: string): T {
+// Jalan-jalan (deep walk) ke seluruh payload JSON, tempelin domain asli ke
+// tiap path proxy gambar relatif ("/api/img?u=...") yang dibuat
+// buildProxiedImageUrl, SEKALIAN nempelin signature+expiry (lihat
+// lib/security/imageSign.ts) supaya /api/img cuma mau ngelayanin path yang
+// beneran baru diterbitin dari sini - bukan hasil tebak-tebakan langsung ke
+// /api/img. Dipanggil sekali di titik paling akhir sebelum response
+// dikirim / notif Telegram dibuat. Async karena signing-nya pakai
+// Web Crypto (HMAC).
+async function absolutizeImageUrls<T>(value: T, origin: string): Promise<T> {
   if (typeof value === 'string') {
-    return (value.startsWith('/api/img?') ? `${origin}${value}` : value) as unknown as T;
+    if (!value.startsWith('/api/img?')) return value as unknown as T;
+    const signed = await signImagePath(value);
+    return `${origin}${signed}` as unknown as T;
   }
   if (Array.isArray(value)) {
-    return value.map((item) => absolutizeImageUrls(item, origin)) as unknown as T;
+    return (await Promise.all(value.map((item) => absolutizeImageUrls(item, origin)))) as unknown as T;
   }
   if (value && typeof value === 'object') {
     const out: Record<string, any> = {};
     for (const [key, val] of Object.entries(value as Record<string, any>)) {
-      out[key] = absolutizeImageUrls(val, origin);
+      out[key] = await absolutizeImageUrls(val, origin);
     }
     return out as unknown as T;
   }
   return value;
 }
 
-const RATE_LIMIT_WINDOW_MS = 10_000;
-const RATE_LIMIT_MAX_REQUESTS = 5;
-const RATE_LIMIT_STALE_MS = RATE_LIMIT_WINDOW_MS * 6;
-
-type RateBucket = { count: number; windowStart: number };
-const rateBuckets = new Map<string, RateBucket>();
+// Rate limit endpoint ini sekarang ditegakkan di lib/security/guard.ts lewat
+// Durable Object EdgeGuardDO (konsisten di seluruh edge), bukan Map
+// in-memory per-isolate kayak sebelumnya. Konstanta di bawah cuma nentuin
+// budget-nya buat endpoint /api/ff spesifik.
+const FF_RATE_LIMIT = 8;
+const FF_RATE_WINDOW_MS = 10_000;
 
 // Dedup notif Telegram: kalau UID yang sama dari IP yang sama baru aja
 // notif dalam beberapa detik terakhir (double-click tombol search, double
@@ -87,24 +96,6 @@ function shouldSkipNotif(ip: string, accountId: string): boolean {
   return false;
 }
 
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-
-  if (Math.random() < 0.01) {
-    for (const [key, bucket] of rateBuckets) {
-      if (now - bucket.windowStart > RATE_LIMIT_STALE_MS) rateBuckets.delete(key);
-    }
-  }
-
-  const bucket = rateBuckets.get(ip);
-  if (!bucket || now - bucket.windowStart > RATE_LIMIT_WINDOW_MS) {
-    rateBuckets.set(ip, { count: 1, windowStart: now });
-    return false;
-  }
-
-  bucket.count += 1;
-  return bucket.count > RATE_LIMIT_MAX_REQUESTS;
-}
 
 function getBrowser(ua: string): string {
   if (/Edg\//i.test(ua)) return 'Microsoft Edge';
@@ -212,7 +203,7 @@ async function sendTelegramNotif(
   const rawPhotoUrl = merged.avatarUrl || merged.equippedCharacterIconUrl || null;
   // Telegram butuh URL absolut & publik buat sendPhoto, jadi path proxy
   // relatif (/api/img?...) ditempelin domain dari request ini sendiri.
-  const photoUrl = rawPhotoUrl ? absolutizeImageUrls(rawPhotoUrl, getRequestOrigin(req)) : null;
+  const photoUrl = rawPhotoUrl ? await absolutizeImageUrls(rawPhotoUrl, getRequestOrigin(req)) : null;
   const origin = getRequestOrigin(req);
   const pageUrl = `${origin}/stalk/${encodeURIComponent(uid)}`;
   const apiUrl = `${origin}/api/ff?uid=${encodeURIComponent(uid)}`;
@@ -1058,10 +1049,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const ip = getIP(req);
-  if (isRateLimited(ip)) {
-    res.setHeader('Retry-After', '10');
-    return res.status(429).json({ error: 'Terlalu banyak request. Tunggu beberapa detik lalu coba lagi.' });
-  }
+  const requestOriginForGuard = getRequestOrigin(req);
+  const guard = await guardRequest(req, ip, requestOriginForGuard, {
+    path: GUARD_PATHS.ff,
+    rateLimit: FF_RATE_LIMIT,
+    rateWindowMs: FF_RATE_WINDOW_MS,
+    requireHandshake: true,
+  });
+  if (!guard.ok) return sendGuardRejection(res, guard);
 
   const { uid, region } = req.query;
   const uidStr = String(uid || '');
@@ -1137,73 +1132,73 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const requestOrigin = getRequestOrigin(req);
 
-  res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
-  res.status(200).json(
-    absolutizeImageUrls(
-      {
-        status: 'ok',
-        meta: {
-          uid: uidStr,
-          region: regionStr,
-          source: 'freefirestalk',
-        },
-        player: {
-          accountId: merged.accountId,
-          nickname: merged.nickname,
-          region: merged.region,
-          level: merged.level,
-          exp: merged.exp,
-          headPic: merged.headPic,
-          rank: merged.rank,
-          rankingPoints: merged.rankingPoints,
-          csRank: merged.csRank,
-          csRankingPoints: merged.csRankingPoints,
-          badgeCnt: merged.badgeCnt,
-          hasElitePass: merged.hasElitePass,
-          liked: merged.liked,
-          createAt: merged.createAt,
-          lastLoginAt: merged.lastLoginAt,
-          primeInfo: merged.primeInfo,
-          avatarUrl: merged.avatarUrl,
-          titleIconUrl: merged.titleIconUrl,
-          equippedCharacterIconUrl: merged.equippedCharacterIconUrl,
-          equippedSkinIconUrls: merged.equippedSkinIconUrls,
-          equippedWeaponSkinIconUrls: merged.equippedWeaponSkinIconUrls,
-          equippedOutfitItems,
-          equippedWeaponOutfitItems,
-          equippedLookChangerItems,
-          equippedArrivalAnimationItems,
-          equippedBanner,
-          equippedTitle,
-          equippedPin,
-          equippedCharacter,
-          equippedAvatar,
-        },
-        guild: {
-          guildName: merged.guildName,
-          guildLevel: merged.guildLevel,
-          memberNum: merged.memberNum,
-          capacity: merged.capacity,
-        },
-        social: {
-          signature: merged.signature,
-        },
-        credit: {
-          creditScore: merged.creditScore,
-        },
-        ban: banCheckData
-          ? {
-              isBanned: Boolean(banCheckData.isBanned),
-              lastLoginAt: banCheckData.lastLoginAt ?? null,
-              banPeriod: banCheckData.banPeriod ?? null,
-              status: banCheckData.status ?? null,
-            }
-          : null,
-        pet: petInfoData,
+  const responseBody = await absolutizeImageUrls(
+    {
+      status: 'ok',
+      meta: {
+        uid: uidStr,
+        region: regionStr,
+        source: 'freefirestalk',
       },
-      requestOrigin
-    )
+      player: {
+        accountId: merged.accountId,
+        nickname: merged.nickname,
+        region: merged.region,
+        level: merged.level,
+        exp: merged.exp,
+        headPic: merged.headPic,
+        rank: merged.rank,
+        rankingPoints: merged.rankingPoints,
+        csRank: merged.csRank,
+        csRankingPoints: merged.csRankingPoints,
+        badgeCnt: merged.badgeCnt,
+        hasElitePass: merged.hasElitePass,
+        liked: merged.liked,
+        createAt: merged.createAt,
+        lastLoginAt: merged.lastLoginAt,
+        primeInfo: merged.primeInfo,
+        avatarUrl: merged.avatarUrl,
+        titleIconUrl: merged.titleIconUrl,
+        equippedCharacterIconUrl: merged.equippedCharacterIconUrl,
+        equippedSkinIconUrls: merged.equippedSkinIconUrls,
+        equippedWeaponSkinIconUrls: merged.equippedWeaponSkinIconUrls,
+        equippedOutfitItems,
+        equippedWeaponOutfitItems,
+        equippedLookChangerItems,
+        equippedArrivalAnimationItems,
+        equippedBanner,
+        equippedTitle,
+        equippedPin,
+        equippedCharacter,
+        equippedAvatar,
+      },
+      guild: {
+        guildName: merged.guildName,
+        guildLevel: merged.guildLevel,
+        memberNum: merged.memberNum,
+        capacity: merged.capacity,
+      },
+      social: {
+        signature: merged.signature,
+      },
+      credit: {
+        creditScore: merged.creditScore,
+      },
+      ban: banCheckData
+        ? {
+            isBanned: Boolean(banCheckData.isBanned),
+            lastLoginAt: banCheckData.lastLoginAt ?? null,
+            banPeriod: banCheckData.banPeriod ?? null,
+            status: banCheckData.status ?? null,
+          }
+        : null,
+      pet: petInfoData,
+    },
+    requestOrigin
   );
+
+  res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
+  res.status(200).json(responseBody);
 
   // Notif dikirim default tiap ada hit beneran. generateMetadata di
   // app/stalk/[[...uid]]/page.tsx juga manggil endpoint ini buat bikin OG

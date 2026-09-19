@@ -1,6 +1,10 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"main": ".open-next/worker.js",
+	// Entry point custom (bukan langsung .open-next/worker.js) supaya kita
+	// bisa nge-export Durable Object class EdgeGuardDO dari worker yang sama.
+	// Lihat src/worker.ts - dia cuma re-export fetch handler hasil build
+	// OpenNext apa adanya, jadi behavior Next.js-nya sama sekali nggak berubah.
+	"main": "src/worker.ts",
 	"name": "ff-stalker-givy",
 	"compatibility_date": "2026-08-01",
 	"compatibility_flags": [
@@ -22,5 +26,31 @@
 			"binding": "WORKER_SELF_REFERENCE",
 			"service": "ff-stalker-givy"
 		}
-	]
+	],
+	// Durable Object dipakai buat anti-scraping: rate limit per-IP, replay
+	// guard buat handshake token, dan blacklist IP honeypot. Semua state-nya
+	// per-IP (DO id di-derive dari IP), jadi konsisten di seluruh edge -
+	// beda dari in-memory Map yang cuma hidup per-isolate/per-region.
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "EDGE_GUARD",
+				"class_name": "EdgeGuardDO"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["EdgeGuardDO"]
+		}
+	],
+	// Secret buat HMAC handshake token & signed image URL. JANGAN taruh
+	// value asli di sini - set lewat:
+	//   npx wrangler secret put FP_SIGNING_SECRET
+	// Baris "vars" di bawah cuma placeholder dev/local (dipakai kalau secret
+	// belum di-set), supaya `wrangler dev` tetap jalan.
+	"vars": {
+		"FP_SIGNING_SECRET": "dev-insecure-fallback-secret-change-me"
+	}
 }

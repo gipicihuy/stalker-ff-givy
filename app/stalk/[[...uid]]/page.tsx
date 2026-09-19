@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import StalkClient from './StalkClient';
 import { SITE_NAME, SITE_DESCRIPTION } from '../../lib/seo';
+import { signInternalRequest } from '../../../lib/security/internal';
 
 type PageProps = {
   params: { uid?: string[] };
@@ -21,9 +22,10 @@ async function getBaseUrl() {
 async function fetchPlayerData(uid: string) {
   try {
     const baseUrl = await getBaseUrl();
+    const internalSig = await signInternalRequest();
     const res = await fetch(`${baseUrl}/api/ff?uid=${encodeURIComponent(uid)}`, {
       cache: 'no-store',
-      headers: { 'x-internal-ssr': '1' },
+      headers: { 'x-internal-ssr': '1', 'x-internal-ssr-sig': internalSig },
     });
     if (!res.ok) return null;
     return await res.json();
