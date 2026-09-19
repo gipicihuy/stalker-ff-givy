@@ -1046,13 +1046,29 @@ function CharacterSection({
             smooth juga, bukan snap instan - konten di dalamnya beda total
             tiap toggle, tapi tinggi kontainernya tetep transisi halus. */}
         <motion.div layout transition={{ layout: gridItemLayoutTransition }}>
-          {!gridViewOn ? (
-            <OutfitGrid items={characterItems} category="Character" onSelect={onSelectItem} />
-          ) : (
-            <div>
-              <CompactCollectionGrid items={allCategory?.items ?? []} onSelectItem={onSelectItem} />
-            </div>
-          )}
+          <AnimatePresence mode="wait" initial={false}>
+            {!gridViewOn ? (
+              <motion.div
+                key="character-view"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
+              >
+                <OutfitGrid items={characterItems} category="Character" onSelect={onSelectItem} />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="vault-view"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
+              >
+                <CompactCollectionGrid items={allCategory?.items ?? []} onSelectItem={onSelectItem} />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       </div>
     </>
