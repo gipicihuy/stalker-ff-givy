@@ -1,4 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { guardRequest } from '../../lib/security/guard';
+import { GUARD_PATHS } from '../../lib/security/constants';
+import { getClientIp, getRequestOrigin } from '../../lib/security/request';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
 const GITHUB_OWNER = process.env.GITHUB_OWNER || 'gipicihuy';
@@ -6,6 +9,14 @@ const GITHUB_REPO = process.env.GITHUB_REPO || 'stalker-ff-givy';
 const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
 const GITHUB_FILE_PATH = 'public/gingga12/data/listbabu.json';
 const BABU_ACCESS_CODE = process.env.BABU_ACCESS_CODE || '';
+
+// Endpoint ini bisa nulis ke repo GitHub (lewat GITHUB_TOKEN) dan udah
+// dilindungi kode akses - tapi sebelumnya sama sekali nggak ada rate limit,
+// jadi kode aksesnya bisa di-brute-force sepuasnya. Budget-nya dibikin
+// ketat karena ini endpoint admin, bukan endpoint publik yang sering
+// dipanggil.
+const BABU_RATE_LIMIT = 10;
+const BABU_RATE_WINDOW_MS = 60_000;
 
 type BabuEntry = {
   cc: string;
@@ -77,6 +88,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'POST' && req.method !== 'DELETE') {
     res.setHeader('Allow', 'POST, DELETE');
     return res.status(405).json({ ok: false, error: 'method_not_allowed' });
+  }
+
+  const ip = getClientIp(req);
+  const guard = await guardRequest(req, ip, getRequestOrigin(req), {
+    path: GUARD_PATHS.babu,
+    rateLimit: BABU_RATE_LIMIT,
+    rateWindowMs: BABU_RATE_WINDOW_MS,
+    requireHandshake: true,
+  });
+  if (!guard.ok) {
+    return res.status(guard.status).json({ ok: false, error: guard.body.error });
   }
 
   if (!GITHUB_TOKEN) {

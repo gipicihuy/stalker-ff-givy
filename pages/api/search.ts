@@ -1,6 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { FreeFireAPI } from 'ffapis';
+import { guardRequest, sendGuardRejection } from '../../lib/security/guard';
+import { GUARD_PATHS } from '../../lib/security/constants';
+import { getRequestOrigin } from '../../lib/security/request';
 
 // Sama persis pola waitUntil di pages/api/ff.ts: kirim notif Telegram di
 // background tanpa nge-block response ke user, lewat ctx.waitUntil kalau
@@ -102,31 +105,11 @@ function getIP(req: NextApiRequest): string {
   return fwdIp || (req.headers['x-real-ip'] as string) || req.socket.remoteAddress || '127.0.0.1';
 }
 
-const RATE_LIMIT_WINDOW_MS = 10_000;
-const RATE_LIMIT_MAX_REQUESTS = 5;
-const RATE_LIMIT_STALE_MS = RATE_LIMIT_WINDOW_MS * 6;
-
-type RateBucket = { count: number; windowStart: number };
-const rateBuckets = new Map<string, RateBucket>();
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-
-  if (Math.random() < 0.01) {
-    for (const [key, bucket] of rateBuckets) {
-      if (now - bucket.windowStart > RATE_LIMIT_STALE_MS) rateBuckets.delete(key);
-    }
-  }
-
-  const bucket = rateBuckets.get(ip);
-  if (!bucket || now - bucket.windowStart > RATE_LIMIT_WINDOW_MS) {
-    rateBuckets.set(ip, { count: 1, windowStart: now });
-    return false;
-  }
-
-  bucket.count += 1;
-  return bucket.count > RATE_LIMIT_MAX_REQUESTS;
-}
+// Rate limit endpoint ini sekarang ditegakkan di lib/security/guard.ts lewat
+// Durable Object EdgeGuardDO (konsisten di seluruh edge), bukan Map
+// in-memory per-isolate kayak sebelumnya.
+const SEARCH_RATE_LIMIT = 8;
+const SEARCH_RATE_WINDOW_MS = 10_000;
 
 // Dedup notif Telegram, sama polanya kayak di pages/api/ff.ts: kalau IP
 // yang sama baru aja notif buat keyword yang sama dalam beberapa detik
@@ -261,10 +244,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const ip = getIP(req);
-  if (isRateLimited(ip)) {
-    res.setHeader('Retry-After', '10');
-    return res.status(429).json({ error: 'Terlalu banyak request. Tunggu beberapa detik lalu coba lagi.' });
-  }
+  const guard = await guardRequest(req, ip, getRequestOrigin(req), {
+    path: GUARD_PATHS.search,
+    rateLimit: SEARCH_RATE_LIMIT,
+    rateWindowMs: SEARCH_RATE_WINDOW_MS,
+    requireHandshake: true,
+  });
+  if (!guard.ok) return sendGuardRejection(res, guard);
 
   const { q } = req.query;
   const keyword = String(q || '').trim();

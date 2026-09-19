@@ -4,6 +4,8 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { Search, X, Tag, CalendarDays, Copy, Check, Heart, Clock, Users, RefreshCw, MessageSquare, ShieldAlert, ShieldCheck, PawPrint, Send, User, Shirt, ChevronDown, ChevronRight, Trophy, Hash, LayoutGrid, Swords, Sparkles, Wind, Star, type LucideIcon } from 'lucide-react';
+import { buildHandshakeHeaders } from '@/lib/security/client';
+import { GUARD_PATHS } from '@/lib/security/constants';
 
 type PrimeInfo = { primeLevel?: number };
 type ResolvedItem = { id: number; name: string; icon: string | null; type: string | null; description?: string | null };
@@ -1306,7 +1308,8 @@ export default function StalkClient() {
     }
 
     try {
-      const res = await fetch(`/api/ff?uid=${encodeURIComponent(trimmed)}`);
+      const headers = await buildHandshakeHeaders(GUARD_PATHS.ff);
+      const res = await fetch(`/api/ff?uid=${encodeURIComponent(trimmed)}`, { headers });
       const data = await res.json();
 
       if (!res.ok) {
@@ -1334,7 +1337,8 @@ export default function StalkClient() {
     setNicknameResults([]);
 
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`);
+      const headers = await buildHandshakeHeaders(GUARD_PATHS.search);
+      const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`, { headers });
       const data = await res.json();
 
       if (!res.ok) {

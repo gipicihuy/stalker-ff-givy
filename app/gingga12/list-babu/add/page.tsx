@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft, Skull, Loader2, Lock, Unlock, Trash2, Check, X } from 'lucide-react';
+import { buildHandshakeHeaders } from '@/lib/security/client';
+import { GUARD_PATHS } from '@/lib/security/constants';
 
 type BabuEntry = {
   cc: string;
@@ -60,9 +62,10 @@ export default function AddBabuPage() {
     setCodeErr('');
 
     try {
+      const handshake = await buildHandshakeHeaders(GUARD_PATHS.babu);
       const res = await fetch('/api/babu', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...handshake },
         body: JSON.stringify({ code, verifyOnly: true }),
       });
       const result = await res.json();
@@ -88,9 +91,10 @@ export default function AddBabuPage() {
     setFormMsg(null);
 
     try {
+      const handshake = await buildHandshakeHeaders(GUARD_PATHS.babu);
       const res = await fetch('/api/babu', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...handshake },
         body: JSON.stringify({
           cc,
           note,
@@ -129,9 +133,10 @@ export default function AddBabuPage() {
     setFormMsg(null);
 
     try {
+      const handshake = await buildHandshakeHeaders(GUARD_PATHS.babu);
       const res = await fetch('/api/babu', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...handshake },
         body: JSON.stringify({ index, code }),
       });
       const result = await res.json();
