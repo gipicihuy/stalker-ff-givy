@@ -66,6 +66,7 @@ const gridItemLayoutId = (category: string, id: number) => `stalk-item::${catego
 // OFF->ON) - bukan cuma soal layoutId yang sama, transition-nya juga harus
 // sama biar gak ada "loncatan" kecepatan.
 const gridItemLayoutTransition = { type: 'spring' as const, stiffness: 340, damping: 34, mass: 0.75 };
+const sectionSwapTransition = { duration: 0.22, ease: [0.4, 0, 0.2, 1] as [number, number, number, number] };
 
 type GuildInfo = { guildName?: string; guildLevel?: number; memberNum?: number; capacity?: number };
 type SocialInfo = { signature?: string };
@@ -1043,27 +1044,31 @@ function CharacterSection({
 
         {/* `layout` di wrapper ini bikin PERUBAHAN TINGGI section (OutfitGrid
             biasa <-> label All + grid Vault) ikut dianimasikan secara
-            smooth juga, bukan snap instan - konten di dalamnya beda total
-            tiap toggle, tapi tinggi kontainernya tetep transisi halus. */}
-        <motion.div layout transition={{ layout: gridItemLayoutTransition }}>
-          <AnimatePresence mode="wait" initial={false}>
+            smooth juga, bukan snap instan. Durasi resize (`sectionSwapTransition`)
+            sengaja disamain persis sama durasi fade konten di bawah, dan
+            pake mode "popLayout" (bukan "wait") biar konten lama & baru
+            gak nunggu bergantian - kalau gak disamain, box bisa keburu
+            "nyampe" ukuran final sebelum kontennya keliatan (nge-blank
+            sesaat), jadi kerasa patah/gak nyambung. */}
+        <motion.div layout transition={{ layout: sectionSwapTransition }} style={{ overflow: 'hidden' }}>
+          <AnimatePresence mode="popLayout" initial={false}>
             {!gridViewOn ? (
               <motion.div
                 key="character-view"
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.18, ease: 'easeOut' }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={sectionSwapTransition}
               >
                 <OutfitGrid items={characterItems} category="Character" onSelect={onSelectItem} />
               </motion.div>
             ) : (
               <motion.div
                 key="vault-view"
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.18, ease: 'easeOut' }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={sectionSwapTransition}
               >
                 <CompactCollectionGrid items={allCategory?.items ?? []} onSelectItem={onSelectItem} />
               </motion.div>
