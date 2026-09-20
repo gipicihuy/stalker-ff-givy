@@ -89,7 +89,13 @@ export default function SiteFooter() {
                 >
                   Information
                 </p>
-                <p style={{ fontSize: 13, color: 'var(--muted-text)', marginBottom: 10, cursor: 'default' }}>About Us</p>
+                <a
+                  href="/about"
+                  className="icon-btn"
+                  style={{ display: 'block', fontSize: 13, color: 'var(--muted-text)', marginBottom: 10, textDecoration: 'none' }}
+                >
+                  About Us
+                </a>
                 <p style={{ fontSize: 13, color: 'var(--muted-text)', cursor: 'default' }}>API</p>
               </div>
               <div style={{ minWidth: 130 }}>
