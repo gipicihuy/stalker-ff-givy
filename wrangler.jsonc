@@ -50,7 +50,18 @@
 	//   npx wrangler secret put FP_SIGNING_SECRET
 	// Baris "vars" di bawah cuma placeholder dev/local (dipakai kalau secret
 	// belum di-set), supaya `wrangler dev` tetap jalan.
+	//
+	// FF_OB_VERSION: override versi game (ReleaseVersion header) yang dikirim
+	// ffapis pas login guest ke Garena. Free Fire pindah dari OB54 -> OB55
+	// tanggal 16 September 2026, tapi ffapis (vendor lokal 1.6.0 maupun
+	// rilis npm terbaru 3.0.1) masih hardcode default "OB54", bikin semua
+	// login guest ditolak Garena (MajorLogin gagal terus) -> circuit breaker
+	// pencarian nickname langsung "down". Env var ini dibaca ffapis sendiri
+	// (lib/constants.ts: resolveObVersion, prioritas request > instance >
+	// env > settings.yaml default), jadi cukup di-set di sini tanpa perlu
+	// ubah kode di vendor/ffapis atau tiap pemanggilan `new FreeFireAPI()`.
 	"vars": {
-		"FP_SIGNING_SECRET": "dev-insecure-fallback-secret-change-me"
+		"FP_SIGNING_SECRET": "dev-insecure-fallback-secret-change-me",
+		"FF_OB_VERSION": "OB55"
 	}
 }
