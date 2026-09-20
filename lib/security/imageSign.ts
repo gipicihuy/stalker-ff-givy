@@ -3,7 +3,7 @@ import { getSigningSecret } from './env';
 import { IMAGE_TOKEN_TTL_MS } from './constants';
 
 // /api/img dipanggil browser lewat tag <img src="..."> biasa, jadi nggak
-// bisa nempelin custom header (beda dari /api/ff, /api/search, /api/babu
+// bisa nempelin custom header (beda dari /api/ff, /api/search
 // yang dipanggil lewat fetch()). Sebagai gantinya, setiap URL proxy gambar
 // yang kita keluarin dari /api/ff ditempelin query param signature (`t`)
 // + expiry (`e`) yang di-HMAC server-side saat itu juga. /api/img cuma mau

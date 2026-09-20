@@ -1,7 +1,7 @@
 'use client';
 
 // Helper sisi browser buat "handshake" ke endpoint utama (/api/ff,
-// /api/search, /api/babu). Dipanggil sesaat sebelum tiap request ke
+// /api/search). Dipanggil sesaat sebelum tiap request ke
 // endpoint-endpoint itu - token single-use & expired 30 detik, jadi selalu
 // ambil token baru per request, jangan di-cache/dipakai ulang.
 //

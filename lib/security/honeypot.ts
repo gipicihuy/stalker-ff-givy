@@ -7,7 +7,7 @@ import { HONEYPOT_BLACKLIST_TTL_MS } from './constants';
 // namanya sengaja masuk akal (mis. "bulk lookup", "debug/export") supaya
 // scraper yang suka nebak-nebak/enumerasi path /api/* kepancing. IP yang
 // hit endpoint ini diblacklist di Durable Object yang sama dengan rate
-// limiter, jadi request berikutnya ke endpoint asli (ff/search/img/babu)
+// limiter, jadi request berikutnya ke endpoint asli (ff/search/img)
 // langsung ditolak di layer guard, apapun handshake-nya.
 export function createHoneypotHandler(reason: string) {
   return async function handler(req: NextApiRequest, res: NextApiResponse) {

@@ -17,5 +17,4 @@ export const SIG_HEADER = 'x-fp-sig';
 export const GUARD_PATHS = {
   ff: '/api/ff',
   search: '/api/search',
-  babu: '/api/babu',
 } as const;
