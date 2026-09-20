@@ -4,6 +4,7 @@ import { FreeFireAPI } from 'ffapis';
 import { guardRequest, sendGuardRejection } from '../../lib/security/guard';
 import { GUARD_PATHS } from '../../lib/security/constants';
 import { getRequestOrigin } from '../../lib/security/request';
+import { acquireProbe, getHealth, markDown, markUp, retryAfterSec, type SearchHealth } from '../../lib/searchHealth';
 
 // Sama persis pola waitUntil di pages/api/ff.ts: kirim notif Telegram di
 // background tanpa nge-block response ke user, lewat ctx.waitUntil kalau
@@ -252,20 +253,73 @@ async function searchWithRetry(keyword: string, attempts = 10) {
   };
 }
 
+const MAINTENANCE_MESSAGE = 'Pencarian nickname lagi maintenance. Untuk sementara pakai pencarian By UID dulu ya.';
+const PROBE_KEYWORD = 'givy';
+const PROBE_TIMEOUT_MS = 8_000;
+
+function sendMaintenance(res: NextApiResponse, health: SearchHealth, reason?: string | null) {
+  const retryAfter = retryAfterSec(health);
+  res.setHeader('Retry-After', String(retryAfter));
+  res.setHeader('Cache-Control', 'no-store');
+  return res.status(503).json({
+    error: MAINTENANCE_MESSAGE,
+    maintenance: true,
+    retryAfter,
+    ...(reason ? { reason } : {}),
+  });
+}
+
+// Tes ringan ke Garena (1 login + 1 search) buat mastiin pencarian udah
+// normal lagi. Dibatasi timeout biar request status nggak ikut ngegantung
+// kalau Garena lagi lambat, bukan cuma nolak.
+async function probeSearch(): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<{ ok: false }>((resolve) => {
+    timer = setTimeout(() => resolve({ ok: false }), PROBE_TIMEOUT_MS);
+  });
+  try {
+    const r = await Promise.race([searchOnce(new FreeFireAPI(), PROBE_KEYWORD), timeout]);
+    return r.ok;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+// GET /api/search?status=1 -> { maintenance, retryAfter }. Dipakai frontend
+// buat nampilin label "Maintenance" di tab By Nickname dan nge-disable input.
+// Kalau statusnya lagi down dan masa tunggunya udah habis, request ini juga
+// yang ngetes Garena (satu request saja yang dapat giliran) supaya pencarian
+// otomatis nyala lagi begitu Garena pulih, tanpa nunggu ada user yang gagal.
+async function handleStatusCheck(res: NextApiResponse) {
+  let health = await getHealth();
+  if (health.down && (await acquireProbe())) {
+    health = (await probeSearch()) ? await markUp() : await markDown();
+  }
+  res.setHeader('Cache-Control', 'no-store');
+  return res.status(200).json({ maintenance: health.down, retryAfter: retryAfterSec(health) });
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET']);
     return res.status(405).json({ error: `Method ${req.method} tidak diizinkan` });
   }
 
+  const isStatusCheck = req.query.status === '1';
+
   const ip = getIP(req);
   const guard = await guardRequest(req, ip, getRequestOrigin(req), {
     path: GUARD_PATHS.search,
     rateLimit: SEARCH_RATE_LIMIT,
     rateWindowMs: SEARCH_RATE_WINDOW_MS,
-    requireHandshake: true,
+    // Cek status cuma ngembaliin up/down (bukan data player), jadi nggak
+    // perlu handshake token+PoW tiap kali; blacklist, origin, dan rate limit
+    // tetap berlaku.
+    requireHandshake: !isStatusCheck,
   });
   if (!guard.ok) return sendGuardRejection(res, guard);
+
+  if (isStatusCheck) return handleStatusCheck(res);
 
   const { q } = req.query;
   const keyword = String(q || '').trim();
@@ -274,15 +328,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Nickname minimal 3 karakter.' });
   }
 
+  // Circuit breaker: kalau pencarian lagi diputus (Garena nolak semua login),
+  // jangan tembak Garena lagi, langsung jawab maintenance. Begitu masa
+  // tunggunya habis, SATU request boleh jadi "probe": pencarian nyata
+  // request itu sendiri yang dipakai buat ngecek apakah Garena sudah pulih.
+  const health = await getHealth();
+  let probing = false;
+  if (health.down) {
+    probing = Date.now() >= health.until && (await acquireProbe());
+    if (!probing) return sendMaintenance(res, health);
+  }
+
   try {
     const { results, failed, errorMessage } = await searchWithRetry(keyword);
 
     if (failed) {
-      return res.status(502).json({
-        error: 'Server pencarian lagi bermasalah, coba lagi sebentar.',
-        reason: errorMessage,
-      });
+      return sendMaintenance(res, await markDown(), errorMessage);
     }
+    if (probing) await markUp();
 
     const mapped = results.map((p: any) => ({
       accountid: String(p.accountid),
@@ -314,6 +377,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ status: 'ok', results: mapped });
   } catch (error) {
     console.error('[api/search] unexpected failure:', error instanceof Error ? error.message : error);
+    if (probing) await markDown().catch(() => {});
     return res.status(502).json({ error: 'Server pencarian lagi bermasalah, coba lagi sebentar.' });
   }
 }

@@ -1252,6 +1252,10 @@ export default function StalkClient() {
   const [nicknameResults, setNicknameResults] = useState<NicknameSearchItem[]>([]);
   const [nicknameLoading, setNicknameLoading] = useState(false);
   const [nicknameError, setNicknameError] = useState<string | null>(null);
+  // true = pencarian nickname lagi diputus (Garena nolak login) -> tab
+  // By Nickname dikasih label Maintenance & inputnya di-disable. Diisi dari
+  // /api/search?status=1 dan dari respons 503 { maintenance: true }.
+  const [nicknameMaintenance, setNicknameMaintenance] = useState(false);
   const lastCheckRef = useRef(0);
   const didInitRef = useRef(false);
   const lastRequestedUidRef = useRef<string | undefined>(initialUid);
@@ -1282,6 +1286,35 @@ export default function StalkClient() {
       document.body.style.paddingRight = prevPaddingRight;
     };
   }, [loading, nicknameLoading]);
+
+  // Cek status pencarian nickname. Kalau request-nya gagal (jaringan / kena
+  // rate limit) status TIDAK diubah: lebih baik tampilan tetap seperti
+  // sebelumnya daripada nge-disable fitur gara-gara pengecekannya sendiri gagal.
+  const checkNicknameStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/search?status=1', { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = (await res.json()) as { maintenance?: unknown };
+      if (typeof data?.maintenance === 'boolean') setNicknameMaintenance(data.maintenance);
+    } catch {
+      /* abaikan */
+    }
+  }, []);
+
+  useEffect(() => {
+    checkNicknameStatus();
+  }, [checkNicknameStatus]);
+
+  // Selama maintenance, cek ulang tiap 45 detik (cuma kalau tab-nya kelihatan)
+  // supaya begitu Garena pulih, label hilang & input nyala lagi sendiri
+  // tanpa user harus refresh.
+  useEffect(() => {
+    if (!nicknameMaintenance) return;
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') checkNicknameStatus();
+    }, 45_000);
+    return () => clearInterval(id);
+  }, [nicknameMaintenance, checkNicknameStatus]);
 
   const cekID = useCallback(async (overrideUid?: string) => {
     const trimmed = (overrideUid ?? uid).trim();
@@ -1325,6 +1358,7 @@ export default function StalkClient() {
   }, [uid, initialUid, router]);
 
   const searchNickname = useCallback(async () => {
+    if (nicknameMaintenance) return;
     const trimmed = nickname.trim();
     if (trimmed.length < 3) {
       setNicknameError('Masukkan nickname minimal 3 karakter.');
@@ -1342,6 +1376,10 @@ export default function StalkClient() {
       const data = (await res.json()) as any;
 
       if (!res.ok) {
+        if (data?.maintenance) {
+          setNicknameMaintenance(true);
+          return;
+        }
         setNicknameError(data?.error || 'Gagal mencari akun.');
         return;
       }
@@ -1355,7 +1393,7 @@ export default function StalkClient() {
     } finally {
       setNicknameLoading(false);
     }
-  }, [nickname]);
+  }, [nickname, nicknameMaintenance]);
 
   const selectNicknameResult = useCallback((accountid: string) => {
     setSearchMode('uid');
@@ -1384,6 +1422,8 @@ export default function StalkClient() {
       setResult(null);
     }
   };
+
+  const nicknameBlocked = searchMode === 'nickname' && nicknameMaintenance;
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter') return;
@@ -1570,6 +1610,7 @@ export default function StalkClient() {
             <Hash size={14} />
             By UID
           </button>
+          <div style={{ position: 'relative', display: 'flex' }}>
           <button
             type="button"
             onClick={() => switchSearchMode('nickname')}
@@ -1586,6 +1627,18 @@ export default function StalkClient() {
             <Search size={14} />
             By Nickname
           </button>
+          {nicknameMaintenance ? (
+            <span
+              style={{
+                position: 'absolute', top: -9, right: 10, padding: '2px 7px', borderRadius: 4,
+                background: '#d93636', color: '#fff', fontSize: 10, fontWeight: 700, lineHeight: 1.3,
+                letterSpacing: '0.03em', pointerEvents: 'none', boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
+              }}
+            >
+              Maintenance
+            </span>
+          ) : null}
+          </div>
         </div>
 
         <SectionLabel>{searchMode === 'uid' ? 'Masukkan UID' : 'Masukkan Nickname'}</SectionLabel>
@@ -1595,7 +1648,10 @@ export default function StalkClient() {
               type="text"
               inputMode={searchMode === 'uid' ? 'numeric' : 'text'}
               maxLength={searchMode === 'uid' ? 12 : 20}
-              placeholder={searchMode === 'uid' ? 'Contoh: 903474122' : 'Contoh: Givy'}
+              placeholder={
+                searchMode === 'uid' ? 'Contoh: 903474122' : nicknameBlocked ? 'Sedang maintenance' : 'Contoh: Givy'
+              }
+              disabled={nicknameBlocked}
               value={searchMode === 'uid' ? uid : nickname}
               onChange={(e) => {
                 if (searchMode === 'uid') setUid(e.target.value.replace(/[^0-9]/g, ''));
@@ -1605,11 +1661,12 @@ export default function StalkClient() {
               style={{
                 width: '100%', background: 'transparent', border: 'none',
                 padding: '13px 84px 13px 16px', fontSize: 15, color: 'var(--white)', outline: 'none',
+                cursor: nicknameBlocked ? 'not-allowed' : 'text', opacity: nicknameBlocked ? 0.5 : 1,
               }}
             />
           </div>
           <div style={{ position: 'absolute', right: 6, top: 6, bottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-            {(searchMode === 'uid' ? uid : nickname) ? (
+            {(searchMode === 'uid' ? uid : nickname) && !nicknameBlocked ? (
               <button
                 type="button"
                 aria-label="Bersihkan"
@@ -1638,13 +1695,14 @@ export default function StalkClient() {
               type="button"
               aria-label={searchMode === 'uid' ? 'Cek ID' : 'Cari Nickname'}
               onClick={() => (searchMode === 'uid' ? cekID() : searchNickname())}
-              disabled={searchMode === 'uid' ? loading : nicknameLoading}
+              disabled={searchMode === 'uid' ? loading : nicknameLoading || nicknameMaintenance}
               className="icon-btn"
               style={{
                 width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: (searchMode === 'uid' ? loading : nicknameLoading) ? 'var(--gold-hover)' : 'var(--gold)',
                 border: 'none', clipPath: notchTR(6),
-                color: '#14161b', opacity: (searchMode === 'uid' ? loading : nicknameLoading) ? 0.85 : 1,
+                color: '#14161b', opacity: nicknameBlocked ? 0.35 : (searchMode === 'uid' ? loading : nicknameLoading) ? 0.85 : 1,
+                cursor: nicknameBlocked ? 'not-allowed' : undefined,
               }}
             >
               {(searchMode === 'uid' ? loading : nicknameLoading) ? <Spinner /> : <Search size={16} />}
@@ -1661,7 +1719,17 @@ export default function StalkClient() {
           </div>
         ) : null}
 
-        {searchMode === 'nickname' && nicknameError ? (
+        {nicknameBlocked ? (
+          <div role="status" style={{
+            marginTop: 14, background: 'var(--error-bg)', border: '1px solid var(--error-border)',
+            color: 'var(--error-text)', borderRadius: 10, padding: '12px 14px', fontSize: 14,
+          }}>
+            Pencarian nickname lagi maintenance. Untuk sementara pakai <b>By UID</b> dulu ya.
+            Fitur ini nyala lagi otomatis begitu sudah normal.
+          </div>
+        ) : null}
+
+        {searchMode === 'nickname' && nicknameError && !nicknameMaintenance ? (
           <div style={{
             marginTop: 14, background: 'var(--error-bg)', border: '1px solid var(--error-border)',
             color: 'var(--error-text)', borderRadius: 10, padding: '12px 14px', fontSize: 14,
@@ -1670,7 +1738,7 @@ export default function StalkClient() {
           </div>
         ) : null}
 
-        {searchMode === 'nickname' && nicknameResults.length > 0 ? (
+        {searchMode === 'nickname' && nicknameResults.length > 0 && !nicknameMaintenance ? (
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column' }}>
             {nicknameResults.map((p, idx) => {
               const avatar = avatarStyleFor(p.accountid);
