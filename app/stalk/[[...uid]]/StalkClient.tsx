@@ -2246,8 +2246,8 @@ export default function StalkClient() {
                 >
                   Information
                 </p>
-                <p style={{ fontSize: 13, color: 'var(--muted-text)', marginBottom: 10, cursor: 'default' }}>About</p>
-                <p style={{ fontSize: 13, color: 'var(--muted-text)', cursor: 'default' }}>Status</p>
+                <p style={{ fontSize: 13, color: 'var(--muted-text)', marginBottom: 10, cursor: 'default' }}>About Us</p>
+                <p style={{ fontSize: 13, color: 'var(--muted-text)', cursor: 'default' }}>API</p>
               </div>
               <div style={{ minWidth: 130 }}>
                 <p
@@ -2262,8 +2262,20 @@ export default function StalkClient() {
                 >
                   Legal
                 </p>
-                <p style={{ fontSize: 13, color: 'var(--muted-text)', marginBottom: 10, cursor: 'default' }}>Terms of Service</p>
-                <p style={{ fontSize: 13, color: 'var(--muted-text)', cursor: 'default' }}>Privacy Policy</p>
+                <a
+                  href="/terms"
+                  className="icon-btn"
+                  style={{ display: 'block', fontSize: 13, color: 'var(--muted-text)', marginBottom: 10, textDecoration: 'none' }}
+                >
+                  Terms of Service
+                </a>
+                <a
+                  href="/privacy"
+                  className="icon-btn"
+                  style={{ display: 'block', fontSize: 13, color: 'var(--muted-text)', textDecoration: 'none' }}
+                >
+                  Privacy Policy
+                </a>
               </div>
             </div>
           </div>
