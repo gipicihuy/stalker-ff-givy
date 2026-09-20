@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { ChevronLeft } from 'lucide-react';
-import SiteHeader from './SiteHeader';
 import SiteFooter from './SiteFooter';
 
 // Shell buat halaman-halaman informasi statis (Terms of Service, Privacy
@@ -21,9 +20,7 @@ export default function LegalPageShell({
       minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center',
       padding: '48px 16px 0', background: 'var(--background)', color: 'var(--light-text)',
     }}>
-      <SiteHeader />
-
-      <div style={{ width: '100%', maxWidth: 760, margin: '0 auto', padding: '0 4px 80px' }}>
+      <div style={{ width: '100%', maxWidth: 760, margin: '0 auto', padding: '48px 4px 80px' }}>
         <a
           href="/stalk"
           style={{
@@ -34,15 +31,29 @@ export default function LegalPageShell({
           <ChevronLeft size={16} /> Kembali ke Beranda
         </a>
 
-        <h1 style={{
-          fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: '#ffffff',
-          margin: '0 0 8px',
-        }}>
-          {title}
-        </h1>
-        <p style={{ fontSize: 13, color: 'var(--muted-text)', margin: '0 0 32px' }}>
-          Terakhir diperbarui: {updatedAt}
-        </p>
+        <div style={{ position: 'relative', padding: '18px 20px', marginBottom: 32 }}>
+          {/* HUD corner accents — decorative only, standalone, do not affect content layout */}
+          <span aria-hidden="true" style={{
+            position: 'absolute', top: 0, left: 0, width: 22, height: 22,
+            borderTop: '2px solid var(--gold)', borderLeft: '2px solid var(--gold)',
+            pointerEvents: 'none',
+          }} />
+          <span aria-hidden="true" style={{
+            position: 'absolute', bottom: 0, right: 0, width: 22, height: 22,
+            borderBottom: '2px solid var(--gold)', borderRight: '2px solid var(--gold)',
+            pointerEvents: 'none',
+          }} />
+
+          <h1 style={{
+            fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: '#ffffff',
+            margin: '0 0 8px',
+          }}>
+            {title}
+          </h1>
+          <p style={{ fontSize: 13, color: 'var(--muted-text)', margin: 0 }}>
+            Terakhir diperbarui: {updatedAt}
+          </p>
+        </div>
 
         <div
           style={{
