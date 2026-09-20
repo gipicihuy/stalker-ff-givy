@@ -19,7 +19,7 @@ export default function PrivacyPage() {
       <LegalSection heading="1. Data yang Kami Kumpulkan">
         <p>
           Saat Anda melakukan pencarian/lookup UID di {SITE_NAME}, kami memproses Player ID yang
-          Anda masukkan untuk mengambil informasi publik akun tersebut; seperti layanan web pada
+          Anda masukkan untuk mengambil informasi publik akun tersebut. Seperti layanan web pada
           umumnya, server kami juga dapat mencatat data teknis standar (misalnya waktu akses) yang
           dibutuhkan untuk menjaga layanan tetap berjalan dengan baik.
         </p>
@@ -49,7 +49,7 @@ export default function PrivacyPage() {
 
       <LegalSection heading="4. Cookie & Penyimpanan Lokal">
         <p>
-          Layanan ini tidak menggunakan cookie pelacakan pihak ketiga untuk iklan; jika ada data
+          Layanan ini tidak menggunakan cookie pelacakan pihak ketiga untuk iklan. Jika ada data
           yang disimpan pada sisi browser Anda (misalnya preferensi tampilan), data tersebut hanya
           digunakan untuk fungsi dasar layanan dan tidak dibagikan kepada pihak manapun.
         </p>

@@ -13,7 +13,7 @@ export default function TermsPage() {
     <LegalPageShell title="Terms of Service" updatedAt="20 September 2026">
       <p>
         Dengan mengakses dan menggunakan {SITE_NAME} ("kami", "layanan"), Anda dianggap setuju
-        untuk terikat dengan syarat dan ketentuan di bawah ini; jika Anda tidak setuju dengan salah
+        untuk terikat dengan syarat dan ketentuan di bawah ini. Jika Anda tidak setuju dengan salah
         satu poinnya, mohon untuk tidak menggunakan layanan ini.
       </p>
 
@@ -58,7 +58,7 @@ export default function TermsPage() {
         <p>
           Kami berhak mengubah, menghentikan sementara, atau menghentikan sebagian maupun seluruh
           layanan kapan saja tanpa pemberitahuan sebelumnya, dan ketentuan ini juga dapat
-          diperbarui dari waktu ke waktu; penggunaan layanan setelah perubahan berarti Anda
+          diperbarui dari waktu ke waktu. Penggunaan layanan setelah perubahan berarti Anda
           menyetujui ketentuan yang telah diperbarui.
         </p>
       </LegalSection>
