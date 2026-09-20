@@ -1,4 +1,7 @@
 import type { ReactNode } from 'react';
+import { ChevronLeft } from 'lucide-react';
+import SiteHeader from './SiteHeader';
+import SiteFooter from './SiteFooter';
 
 // Shell buat halaman-halaman informasi statis (Terms of Service, Privacy
 // Policy, dst) - styling-nya dicocokin sama tema gold/dark yang dipake di
@@ -14,16 +17,21 @@ export default function LegalPageShell({
   children: ReactNode;
 }) {
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--background)', color: 'var(--light-text)' }}>
-      <div style={{ maxWidth: 760, margin: '0 auto', padding: '48px 20px 80px' }}>
+    <main style={{
+      minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center',
+      padding: '48px 16px 0', background: 'var(--background)', color: 'var(--light-text)',
+    }}>
+      <SiteHeader />
+
+      <div style={{ width: '100%', maxWidth: 760, margin: '0 auto', padding: '0 4px 80px' }}>
         <a
-          href="/"
+          href="/stalk"
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600,
             color: 'var(--gold)', textDecoration: 'none', marginBottom: 28,
           }}
         >
-          ← Kembali ke Beranda
+          <ChevronLeft size={16} /> Kembali ke Beranda
         </a>
 
         <h1 style={{
@@ -45,7 +53,9 @@ export default function LegalPageShell({
           {children}
         </div>
       </div>
-    </div>
+
+      <SiteFooter />
+    </main>
   );
 }
 
