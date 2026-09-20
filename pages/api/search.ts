@@ -201,11 +201,20 @@ async function searchWithRetry(keyword: string, attempts = 10) {
   // udah stabil/lengkap dan berhenti — bukan asal kepotong di angka tetap.
   const STALE_STREAK_LIMIT = 3; // berhenti kalau 3x berturut-turut gak ada akun baru
   const HARD_CAP = 40; // pengaman biar list gak membengkak gak wajar & tetep kebatasi total attempt
+  // FAIL FAST: kalau server Garena lagi nolak semua login (mis. versi OB game
+  // baru naik tapi ffapis masih kirim versi lama -> MajorLogin 503 terus),
+  // lanjut sampai `attempts` cuma nembak login berkali-kali ke Garena tanpa
+  // hasil. Berhenti setelah N kegagalan BERUNTUN. Angkanya sengaja 4 (bukan
+  // 2-3): kalau cuma sebagian akun guest di pool yang mati, 4x gagal beruntun
+  // jarang kejadian jadi search normal nggak ikut kena, tapi kalau semuanya
+  // mati kita berhenti di percobaan ke-4, bukan ke-10.
+  const FAIL_STREAK_LIMIT = 4;
 
   const merged = new Map();
   let lastErrorMessage: string | null = null;
   let anySucceeded = false;
   let staleStreak = 0;
+  let failStreak = 0;
 
   for (let i = 0; i < attempts; i++) {
     const api = new FreeFireAPI();
@@ -213,9 +222,15 @@ async function searchWithRetry(keyword: string, attempts = 10) {
 
     if (!attempt.ok) {
       lastErrorMessage = attempt.message;
+      failStreak += 1;
+      if (failStreak >= FAIL_STREAK_LIMIT) {
+        console.error(`[api/search] berhenti setelah ${failStreak} kegagalan beruntun (percobaan ke-${i + 1}/${attempts}):`, attempt.message);
+        break;
+      }
       continue;
     }
 
+    failStreak = 0;
     anySucceeded = true;
     const sizeBefore = merged.size;
     for (const p of attempt.results) merged.set(p.accountid, p);
