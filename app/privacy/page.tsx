@@ -17,12 +17,12 @@ export default function PrivacyPage() {
       </p>
 
       <LegalSection heading="1. Data yang Kami Kumpulkan">
-        <p>Saat kamu melakukan pencarian/lookup UID di {SITE_NAME}, kami dapat mencatat:</p>
-        <ul style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <li>Player ID / UID yang kamu cari.</li>
-          <li>Alamat IP perangkat yang digunakan untuk mengakses layanan.</li>
-          <li>Waktu dan hasil singkat dari pencarian (misal status berhasil/gagal).</li>
-        </ul>
+        <p>
+          Saat kamu melakukan pencarian/lookup UID di {SITE_NAME}, kami memproses Player ID yang
+          kamu masukkan untuk mengambil informasi publik akun tersebut. Seperti layanan web pada
+          umumnya, server kami juga bisa mencatat data teknis standar (misalnya waktu akses) yang
+          dibutuhkan untuk menjaga layanan tetap berjalan dengan baik.
+        </p>
         <p>
           Kami gak meminta ataupun menyimpan data pribadi seperti nama asli, email, nomor telepon,
           atau kredensial akun Free Fire kamu - layanan ini cuma butuh Player ID publik untuk
@@ -32,10 +32,9 @@ export default function PrivacyPage() {
 
       <LegalSection heading="2. Kenapa Data Ini Dikumpulkan">
         <p>
-          Data pencarian (UID & IP) dipakai secara internal untuk memantau kestabilan layanan,
-          mendeteksi penyalahgunaan (misal scraping massal atau spam request), dan membantu
-          troubleshooting kalau ada laporan error. Kami gak menjual atau membagikan data ini ke
-          pihak ketiga untuk kepentingan iklan.
+          Data yang tercatat dipakai secara internal semata-mata untuk menjaga layanan tetap
+          berjalan stabil dan bisa diakses semua orang. Kami gak menjual atau membagikan data ini
+          ke pihak ketiga untuk kepentingan iklan.
         </p>
       </LegalSection>
 
