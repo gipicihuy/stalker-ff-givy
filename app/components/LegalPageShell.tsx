@@ -31,7 +31,7 @@ export default function LegalPageShell({
           <ChevronLeft size={16} /> Kembali ke Beranda
         </a>
 
-        <div style={{ position: 'relative', padding: '18px 20px', marginBottom: 32 }}>
+        <div style={{ position: 'relative', display: 'inline-block', maxWidth: '100%', padding: '18px 20px', marginBottom: 32 }}>
           {/* HUD corner accents — decorative only, standalone, do not affect content layout */}
           <span aria-hidden="true" style={{
             position: 'absolute', top: 0, left: 0, width: 22, height: 22,
