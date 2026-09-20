@@ -1397,7 +1397,15 @@ async function httpPost(url, body, options = {}) {
       } catch {
         errData = void 0;
       }
-      throw new HttpError(`Request failed with status code ${res.status}`, res.status, errData);
+      const httpErr = new HttpError(`Request failed with status code ${res.status}`, res.status, errData);
+      // Diagnostik: simpan beberapa header respons (bukan semuanya) buat
+      // ngebedain penolakan dari server game vs WAF/CDN di depannya.
+      httpErr.headers = {};
+      for (const h of ["server", "via", "cf-ray", "content-type", "content-length", "retry-after", "x-cache"]) {
+        const v = res.headers.get(h);
+        if (v) httpErr.headers[h] = v;
+      }
+      throw httpErr;
     }
     if (options.responseType === "arraybuffer") {
       const buf = await res.arrayBuffer();
@@ -154865,6 +154873,18 @@ var FreeFireAPI = class {
       const decoded = await protoHandler.decode("MajorLogin.proto", "response", response.data);
       return decoded;
     } catch (error) {
+      try {
+        if (isHttpError(error)) {
+          const body = Buffer.isBuffer(error.data) ? error.data.toString("utf8", 0, 300) : String(error.data ?? "").slice(0, 300);
+          console.error("[ffapis DEBUG _majorLogin] http", JSON.stringify({
+            status: error.status,
+            ob: this._headers(obVersion).ReleaseVersion,
+            headers: error.headers ?? null,
+            body
+          }));
+        }
+      } catch {
+      }
       console.error("[ffapis DEBUG _majorLogin] raw error:", error, error instanceof Error ? error.stack : "(no stack)");
       throw new Error(`Major Login Request Failed: ${getErrorMessage(error)}`);
     }
