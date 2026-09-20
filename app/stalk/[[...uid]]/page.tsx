@@ -19,7 +19,7 @@ async function getBaseUrl() {
   return `${protocol}://${host}`;
 }
 
-async function fetchPlayerData(uid: string) {
+async function fetchPlayerData(uid: string): Promise<any> {
   try {
     const baseUrl = await getBaseUrl();
     const internalSig = await signInternalRequest();

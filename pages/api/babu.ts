@@ -57,7 +57,7 @@ async function getCurrentList() {
     const errBody = await getRes.text();
     throw new Error(`github_get_failed_${getRes.status}: ${errBody.slice(0, 200)}`);
   }
-  const getData = await getRes.json();
+  const getData = (await getRes.json()) as { content: string; sha: string };
   const currentContent = Buffer.from(getData.content, 'base64').toString('utf-8');
   const currentList: BabuEntry[] = JSON.parse(currentContent);
   return { list: currentList, sha: getData.sha, apiBase };

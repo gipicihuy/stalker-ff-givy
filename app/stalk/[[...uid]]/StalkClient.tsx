@@ -1310,7 +1310,7 @@ export default function StalkClient() {
     try {
       const headers = await buildHandshakeHeaders(GUARD_PATHS.ff);
       const res = await fetch(`/api/ff?uid=${encodeURIComponent(trimmed)}`, { headers });
-      const data = await res.json();
+      const data = (await res.json()) as any;
 
       if (!res.ok) {
         setError(data?.error || 'Gagal mengambil data.');
@@ -1339,7 +1339,7 @@ export default function StalkClient() {
     try {
       const headers = await buildHandshakeHeaders(GUARD_PATHS.search);
       const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`, { headers });
-      const data = await res.json();
+      const data = (await res.json()) as any;
 
       if (!res.ok) {
         setNicknameError(data?.error || 'Gagal mencari akun.');

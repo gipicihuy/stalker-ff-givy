@@ -214,7 +214,7 @@ async function sendTelegramNotif(
     const geoRes = await fetch(`http://ip-api.com/json/${ip}?fields=city,regionName,country,isp,status`, {
       signal: AbortSignal.timeout(3000),
     });
-    const geo = await geoRes.json();
+    const geo = (await geoRes.json()) as any;
     if (geo.status === 'success') {
       city = geo.city;
       region = geo.regionName;
@@ -825,7 +825,7 @@ async function fetchAhmyth(uid: string) {
   const upstream = await fetch(url, { headers: AHMYTH_HEADERS, cache: 'no-store' });
   if (upstream.status === 404) throw new NotFoundError('ahmyth_not_found');
   if (!upstream.ok) throw new Error(`ahmyth_http_${upstream.status}`);
-  const data = await upstream.json();
+  const data = (await upstream.json()) as any;
   if (data?.error) throw new Error(data.error);
   if (!data?.basicInfo?.accountId) throw new NotFoundError('ahmyth_empty');
   return data;

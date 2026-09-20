@@ -1,3 +1,4 @@
+/// <reference types="@cloudflare/workers-types" />
 // Custom worker entry point.
 //
 // Kenapa ini ada: worker yang di-generate OpenNext (.open-next/worker.js)

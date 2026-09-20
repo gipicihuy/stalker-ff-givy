@@ -14,6 +14,11 @@ type BabuEntry = {
   note?: string;
 };
 
+// fetch().json() di lib type Node/DOM terbaru balikin `unknown` secara
+// default (bukan `any` kayak versi lama) - dikasih tipe eksplisit di sini
+// biar akses .ok/.error di bawah gak error compile.
+type BabuApiResult = { ok: boolean; error?: string };
+
 const BULAN_ID = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
@@ -68,7 +73,7 @@ export default function AddBabuPage() {
         headers: { 'Content-Type': 'application/json', ...handshake },
         body: JSON.stringify({ code, verifyOnly: true }),
       });
-      const result = await res.json();
+      const result = (await res.json()) as BabuApiResult;
 
       if (!res.ok || !result.ok) {
         setCodeErr('Kode salah.');
@@ -103,7 +108,7 @@ export default function AddBabuPage() {
           time: customTime,
         }),
       });
-      const result = await res.json();
+      const result = (await res.json()) as BabuApiResult;
 
       if (!res.ok || !result.ok) {
         if (result?.error === 'invalid_code') {
@@ -139,7 +144,7 @@ export default function AddBabuPage() {
         headers: { 'Content-Type': 'application/json', ...handshake },
         body: JSON.stringify({ index, code }),
       });
-      const result = await res.json();
+      const result = (await res.json()) as BabuApiResult;
 
       if (!res.ok || !result.ok) {
         if (result?.error === 'invalid_code') {

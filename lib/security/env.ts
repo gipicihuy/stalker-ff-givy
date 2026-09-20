@@ -1,14 +1,28 @@
+/// <reference types="@cloudflare/workers-types" />
+// Reference eksplisit di atas WAJIB ada - jangan diandelin ke ambient type
+// yang "nebeng" kepake gak langsung gara-gara file lain (mis.
+// @opennextjs/cloudflare) kebetulan nge-pull tipe itu lewat import
+// package-nya sendiri. Itu rapuh: bisa beda hasil antara lokal vs CI
+// tergantung urutan/cara resolusi module TypeScript-nya (ini beneran kejadian
+// - build sempat gagal di Cloudflare Pages walau lolos tsc lokal).
 import { getCloudflareContext } from '@opennextjs/cloudflare';
+import type { EdgeGuardDO } from '../../src/durable-objects/edge-guard';
 
-// CloudflareEnv di-generate otomatis oleh `wrangler types` (lihat
-// cloudflare-env.d.ts) berdasarkan binding di wrangler.jsonc - dipakai
-// langsung di sini (bukan interface custom) supaya tipe EDGE_GUARD
-// (DurableObjectNamespace<EdgeGuardDO>) nggak konflik generic-nya.
-export type GuardEnv = Partial<CloudflareEnv>;
+// SENGAJA nggak pakai/extend `CloudflareEnv` (interface global yang
+// di-generate `wrangler types` ke cloudflare-env.d.ts). File itu di-gitignore
+// dan di CI/Cloudflare Pages build server `wrangler types` NGGAK dijalankan
+// otomatis - jadi `CloudflareEnv` di sana cuma resolve ke interface kosong
+// bawaan @opennextjs/cloudflare, dan build gagal ("Property 'EDGE_GUARD'
+// does not exist"). Deklarasi manual di sini berdiri sendiri, jadi kompil
+// di mana aja (lokal maupun CI) tanpa gantung ke file generated tersebut.
+export interface GuardEnv {
+  EDGE_GUARD?: DurableObjectNamespace<EdgeGuardDO>;
+  FP_SIGNING_SECRET?: string;
+}
 
 export function getGuardEnv(): GuardEnv {
   try {
-    return getCloudflareContext().env || {};
+    return (getCloudflareContext().env as unknown as GuardEnv) || {};
   } catch {
     // Di luar Workers runtime (mis. `next dev` biasa, bukan
     // `opennextjs-cloudflare preview`), getCloudflareContext() throw.

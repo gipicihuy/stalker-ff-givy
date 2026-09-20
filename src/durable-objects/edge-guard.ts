@@ -1,3 +1,9 @@
+/// <reference types="@cloudflare/workers-types" />
+// Reference eksplisit di atas (bukan ngandelin ambient type yang "nebeng"
+// kepake gak langsung lewat import package lain) - lihat penjelasan di
+// lib/security/env.ts.
+import { DurableObject } from 'cloudflare:workers';
+
 // Durable Object per-IP buat tiga hal sekaligus (satu DO instance = satu
 // IP, id-nya di-derive dari IP lewat idFromName): rate limiting yang
 // konsisten di seluruh edge (bukan in-memory Map per-isolate yang gampang
@@ -7,6 +13,11 @@
 // Nggak dipisah jadi 3 DO class karena semuanya per-IP dan saling berkaitan
 // (mis. "sudah kena rate limit N kali" bisa jadi sinyal tambahan), dan biar
 // nggak nambah binding + migration yang nggak perlu.
+//
+// Extends `DurableObject` dari 'cloudflare:workers' (API resmi terbaru) -
+// wajib biar tipe DurableObjectNamespace<EdgeGuardDO> valid (constraint
+// DurableObjectBranded di @cloudflare/workers-types), bukan sekadar plain
+// class.
 
 interface RateBucket {
   count: number;
@@ -16,11 +27,12 @@ interface RateBucket {
 const SWEEP_INTERVAL_MS = 5 * 60 * 1000;
 const MAX_TRACKED_NONCES = 500; // hard cap jaga-jaga per DO instance
 
-export class EdgeGuardDO {
+export class EdgeGuardDO extends DurableObject {
   state: DurableObjectState;
 
-  constructor(state: DurableObjectState) {
-    this.state = state;
+  constructor(ctx: DurableObjectState, env: unknown) {
+    super(ctx, env as Record<string, unknown>);
+    this.state = ctx;
   }
 
   async fetch(request: Request): Promise<Response> {
