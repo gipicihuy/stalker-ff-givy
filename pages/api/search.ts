@@ -253,7 +253,8 @@ async function searchWithRetry(keyword: string, attempts = 10) {
   };
 }
 
-const MAINTENANCE_MESSAGE = 'Pencarian nickname lagi maintenance. Untuk sementara pakai pencarian By UID dulu ya.';
+const MAINTENANCE_MESSAGE =
+  'Pencarian nickname sedang dalam pemeliharaan, untuk sementara gunakan By UID terlebih dahulu, fitur akan aktif kembali secara otomatis setelah pemeliharaan selesai';
 const PROBE_KEYWORD = 'givy';
 const PROBE_TIMEOUT_MS = 8_000;
 

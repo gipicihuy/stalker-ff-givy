@@ -1724,8 +1724,8 @@ export default function StalkClient() {
             marginTop: 14, background: 'var(--error-bg)', border: '1px solid var(--error-border)',
             color: 'var(--error-text)', borderRadius: 10, padding: '12px 14px', fontSize: 14,
           }}>
-            Pencarian nickname lagi maintenance. Untuk sementara pakai <b>By UID</b> dulu ya.
-            Fitur ini nyala lagi otomatis begitu sudah normal.
+            Pencarian nickname sedang dalam pemeliharaan, untuk sementara gunakan <b>By UID</b> terlebih dahulu,
+            fitur akan aktif kembali secara otomatis setelah pemeliharaan selesai
           </div>
         ) : null}
 
