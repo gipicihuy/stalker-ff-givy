@@ -167,17 +167,27 @@ export type BadgeHistoryItem = {
   nameKey: string | null;
 };
 
-export type SparkInfo = { level: number | null; points: number | null };
+// `SparkInfo` (PlayerPersonalShow field 15 = spark milik akun, field 16 = spark
+// collab). `state` diambil dari enum SparkState resmi:
+// 0 NONE, 1 ACTIVE, 2 DORMANT, 3 EXTINGUISHED.
+export type SparkInfo = {
+  state: number | null;
+  level: number | null;
+  exp: number | null;
+  loginStreakDays: number | null;
+  temper: number | null;
+  appearanceStage: number | null;
+};
 
 export type RoleStat = {
   seasonId: number | null;
   gamemode: number | null;
   matchmode: number | null;
   roleId: number | null;
-  field2: number | null;
-  field3: number | null;
-  field4: number | null;
-  field5: number | null;
+  scores: number | null;
+  proficients: number | null;
+  proficientLv: number | null;
+  isSelected: boolean | null;
 };
 
 export type AccountExtra = {
@@ -232,9 +242,12 @@ export type GarenaExtra = {
 //
 // Nama field `detailed` di bawah diambil apa adanya dari descriptor
 // `PlayerStats.json` / `PlayerCSStats.json` milik ffapis - jadi bukan istilah
-// yang dikarang. Yang NGGAK ada di descriptor mana pun (wishlist, badge
-// history, spark, lone wolf, role, dan field `AccountInfoBasic` yang
-// ke-trim) dinamai dari angka field-nya langsung.
+// yang dikarang. Field `AccountInfoBasic` yang ke-trim di descriptor ffapis
+// diambil dari proto `PlayerPersonalShow.proto` (repo 0xMe/FreeFire-Api), yang
+// urutannya sudah dicek ke data live: field 66/67 di sana bernama
+// `hipporank`/`hipporankingpoints` (codename internal, isinya ranked mode
+// bertaruh emas 1v1 yang di klien disebut Lone Wolf), field 61 berisi data
+// OccupationSeasonInfo (per-occupasi tiap musim), dan field 15 berisi SparkInfo.
 // ---------------------------------------------------------------------------
 
 const BR_DETAIL_FIELDS: Record<number, string> = {
@@ -274,9 +287,8 @@ const CS_DETAIL_FIELDS: Record<number, string> = {
   18: 'hitCount',
 };
 
-// Urutan field 1/2/3 di response GetPlayerStats = tiga mode BR. Angka fieldnya
-// bukan nama modenya, jadi mapping di sini berdasarkan urutan yang dipakai
-// server (solo, duo, squad).
+// Urutan field 1/2/3 di response GetPlayerStats = solostats/duostats/quadstats
+// sesuai descriptor `PlayerStats.json`, jadi mapping ini bukan tebakan.
 const BR_MODE_BY_FIELD: Record<number, BrModeStats['mode']> = { 1: 'solo', 2: 'duo', 3: 'squad' };
 
 function parseDetailed(fields: ProtoField[], mapping: Record<number, string>): DetailedStats {
@@ -312,23 +324,31 @@ function parseAccountExtra(basic: ProtoField[]): AccountExtra {
 function parseRoles(basic: ProtoField[]): RoleStat[] {
   return subsOf(basic, 61).map((entry) => {
     const detail = subsOf(entry, 3)[0];
+    const selected = detail ? numOf(detail, 5) : null;
     return {
       seasonId: numOf(entry, 1),
       gamemode: numOf(entry, 2),
       matchmode: numOf(entry, 4),
       roleId: detail ? numOf(detail, 1) : null,
-      field2: detail ? numOf(detail, 2) : null,
-      field3: detail ? numOf(detail, 3) : null,
-      field4: detail ? numOf(detail, 4) : null,
-      field5: detail ? numOf(detail, 5) : null,
+      scores: detail ? numOf(detail, 2) : null,
+      proficients: detail ? numOf(detail, 3) : null,
+      proficientLv: detail ? numOf(detail, 4) : null,
+      isSelected: selected == null ? null : selected !== 0,
     };
   });
 }
 
 function parseSpark(fields: ProtoField[]): SparkInfo | null {
   const spark = subsOf(fields, 15)[0];
-  if (!spark) return null;
-  return { level: numOf(spark, 1), points: numOf(spark, 2) };
+  if (!spark || spark.length === 0) return null;
+  return {
+    state: numOf(spark, 1),
+    level: numOf(spark, 2),
+    exp: numOf(spark, 3),
+    loginStreakDays: numOf(spark, 4),
+    temper: numOf(spark, 5),
+    appearanceStage: numOf(spark, 9),
+  };
 }
 
 function parseDiamondTopup(fields: ProtoField[]): number | null {

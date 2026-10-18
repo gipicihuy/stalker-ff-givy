@@ -119,16 +119,23 @@ type BadgeHistoryEntry = {
   iconKey?: string | null;
   nameKey?: string | null;
 };
-type SparkInfo = { level?: number | null; points?: number | null };
+type SparkInfo = {
+  state?: number | null;
+  level?: number | null;
+  exp?: number | null;
+  loginStreakDays?: number | null;
+  temper?: number | null;
+  appearanceStage?: number | null;
+};
 type RoleStat = {
   seasonId?: number | null;
   gamemode?: number | null;
   matchmode?: number | null;
   roleId?: number | null;
-  field2?: number | null;
-  field3?: number | null;
-  field4?: number | null;
-  field5?: number | null;
+  scores?: number | null;
+  proficients?: number | null;
+  proficientLv?: number | null;
+  isSelected?: boolean | null;
 };
 
 type FfResponse = {
@@ -808,7 +815,7 @@ function CareerStatsSection({ career, roleStats }: { career?: CareerStats | null
                     borderRadius: 999, padding: '5px 12px', fontSize: 11.5, color: 'var(--light-text)',
                   }}
                 >
-                  S{role.seasonId ?? '—'} · {role.gamemode === 15 ? 'CS' : 'BR'} · Role {role.roleId ?? '—'}
+                  S{role.seasonId ?? '—'} · Role {role.roleId ?? '—'}
                 </span>
               ))}
             </div>
@@ -827,6 +834,19 @@ function badgeSeason(nameKey?: string | null): number | null {
   return match ? Number(match[1]) : null;
 }
 
+// Status Spark dari enum SparkState di proto PlayerPersonalShow resmi:
+// 1 = ACTIVE, 2 = DORMANT, 3 = EXTINGUISHED.
+const SPARK_STATE_LABEL: Record<number, string> = {
+  0: 'Tidak Aktif',
+  1: 'Aktif',
+  2: 'Dormant',
+  3: 'Padam',
+};
+
+function sparkStateLabel(state?: number | null): string | null {
+  return state != null ? SPARK_STATE_LABEL[state] ?? null : null;
+}
+
 function BadgeHistoryList({ items }: { items?: BadgeHistoryEntry[] | null }) {
   if (!items || items.length === 0) return null;
   return (
@@ -834,17 +854,27 @@ function BadgeHistoryList({ items }: { items?: BadgeHistoryEntry[] | null }) {
       <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
       <div>
         <SectionDividerLabel>Booyah Pass History</SectionDividerLabel>
-        <div style={{
-          background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)',
-          borderRadius: 14, padding: '12px 13px', display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(92px, 1fr))', gap: 8,
-        }}>
+        <div
+          style={{
+            background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)',
+            borderRadius: 14, padding: '12px 13px',
+            // Dibuat strip yang digeser, bukan grid: 40-an musim bikin halaman
+            // jeblok kalau dibungkus. Urutannya sudah dari musim terbaru (kiri).
+            display: 'flex', gap: 8, overflowX: 'auto',
+            scrollbarWidth: 'thin', WebkitOverflowScrolling: 'touch',
+          }}
+          role="list"
+          tabIndex={0}
+          aria-label="Riwayat Booyah Pass"
+        >
           {items.map((badge, i) => {
             const season = badgeSeason(badge.nameKey);
             return (
               <div
                 key={`${badge.badgeId ?? 'b'}-${i}`}
+                role="listitem"
                 style={{
+                  flex: '0 0 92px',
                   background: 'var(--panel-bg)', border: '1px solid var(--panel-border)',
                   borderRadius: 10, padding: '9px 8px', textAlign: 'center',
                 }}
@@ -2256,9 +2286,9 @@ export default function StalkClient() {
               {spark ? (
                 <StatCard
                   label="Spark"
-                  value={numOrDash(spark.points)}
+                  value={sparkStateLabel(spark.state) ?? numOrDash(spark.level)}
                   accent="var(--gold)"
-                  sub={spark.level != null ? `Level ${spark.level}` : undefined}
+                  sub={spark.level != null ? `Level ${formatNumber(spark.level)}` : undefined}
                 />
               ) : null}
               {basic.loneWolfRank != null || basic.loneWolfPoints != null ? (
