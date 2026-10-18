@@ -955,7 +955,17 @@ async function fetchExtrasSmart(uid: string): Promise<GarenaExtra | null> {
 // itu, jadi swap ke pool bawaan itu paling lama cuma numpang buat 1
 // request yang lagi error, bukan nempel permanen di request-request
 // berikutnya.
-type OwnGuestAccount = { uid: string; password: string; lastToken: string | null };
+// `passwordHash` (bukan `password`): endpoint grant Garena cuma menerima
+// SHA-256-nya dalam HURUF BESAR. Cek langsung ke endpoint-nya pakai akun
+// service Go: hash uppercase -> 200 + access_token; password mentah angka ->
+// {"error":"auth_error"}; hash lowercase -> auth_error juga (jadi memang
+// sensitif huruf besar). Kode ini sebelumnya nyimpen `result.password`
+// (angka mentah) dan login-nya selalu gagal, makanya session Garena gak
+// pernah kebentuk. Pola yang sama juga dipakai ffapis sendiri - lihat
+// vendor/ffapis/dist/src/embedded-data/credentials.json yang "password"-nya
+// isinya string hex 64 karakter, dan _getGarenaToken() ngirim password
+// apa adanya tanpa di-hash ulang.
+type OwnGuestAccount = { uid: string; passwordHash: string; lastToken: string | null };
 let ownGuestAccount: OwnGuestAccount | null = null;
 let ownGuestRegisteredAt = 0;
 // Rotasi akun tiap 30 menit (bukan cuma pas error) biar 1 akun guest gak
@@ -970,8 +980,8 @@ const OWN_GUEST_REGION = 'IND';
 
 async function registerOwnGuestAccount(api: FreeFireAPI): Promise<OwnGuestAccount> {
   const result = await api.register(OWN_GUEST_REGION);
-  const account: OwnGuestAccount = { uid: result.uid, password: result.password, lastToken: null };
-  const session = await api.login(result.uid, result.password);
+  const account: OwnGuestAccount = { uid: result.uid, passwordHash: result.passwordHash, lastToken: null };
+  const session = await api.login(result.uid, account.passwordHash);
   account.lastToken = session.token;
   ownGuestAccount = account;
   ownGuestRegisteredAt = Date.now();
@@ -989,7 +999,7 @@ async function ensureOwnGuestSession(api: FreeFireAPI): Promise<void> {
   // library yang diam-diam swap ke akun dari pool bawaan (lihat catatan di
   // atas). Klaim balik kendalinya dengan login ulang pake akun kita sendiri.
   if (api.session?.token !== ownGuestAccount!.lastToken) {
-    const session = await api.login(ownGuestAccount!.uid, ownGuestAccount!.password);
+    const session = await api.login(ownGuestAccount!.uid, ownGuestAccount!.passwordHash);
     ownGuestAccount!.lastToken = session.token;
   }
 }
