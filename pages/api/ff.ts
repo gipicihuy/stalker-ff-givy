@@ -859,13 +859,15 @@ function getFfapisClient(): FreeFireAPI {
 // kredensial habis, response utama tetap jalan normal dengan section kosong,
 // bukan ikut gagal 502.
 //
-// Budget-nya sengaja lega: bikin sesi itu beberapa round-trip HTTP dan cuma
-// kejadian sekali per isolate (sesudahnya nempel sampai rotate 30 menit).
-// Kalau dipotong terlalu pendek, request pertama abis deploy bakal balikin
-// section kosong - dan karena response ini di-cache 60 detik, versi kosongnya
-// ikut nempel semenet. Lebih baik nunggu sekali yang lama daripada ngunci
-// hasil yang belum lengkap.
-const EXTRA_BUDGET_MS = 12000;
+// Budget-nya lega tapi NGGAK boleh sembarangan: kalau host-nya Vercel,
+// limit function bawaannya cuma 10 detik, dan request ini juga nungguin
+// jalur profil yang paralel. Kalau kena 504, seluruh halaman mati - itu
+// jauh lebih buruk daripada section yang kosong. Komprominya: 8 detik buat
+// jalur data tambahan (dari uji lokal sesi dingin + 4 RPC cuma ~6 detik),
+// dan sisa 2 detik buat sisanya. Kalau kehabisan budget response tetap
+// keluar, tapi dengan cache singkat (lihat blok Cache-Control di bawah)
+// supaya versi kosongnya nggak nempel 60 detik di edge.
+const EXTRA_BUDGET_MS = 8000;
 
 // Race sama timer, tapi promise aslinya NGGAK dibatalkan - cuma berhenti
 // nunggu, jadi task-nya tetap selesai di belakang tanpa bikin unhandled
@@ -1313,7 +1315,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     requestOrigin
   );
 
-  res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
+  // Data tambahan kosong hampir selalu berarti jalurnya kehabisan budget
+  // atau sesi Garena gagal dibentuk di request itu. Jangan dikasih cache
+  // 60 detik - cukup 10, supaya request berikutnya langsung nyoba lagi dan
+  // section-nya cepat keisi. Kalau datanya lengkap, cache panjang seperti
+  // biasa, itu yang bikin hit berikutnya murah.
+  const extraLengkap = Boolean(
+    garenaExtra &&
+      (garenaExtra.spark ||
+        garenaExtra.wishlist.length ||
+        garenaExtra.badgeHistory.length ||
+        garenaExtra.roleStats.length ||
+        garenaExtra.brModes.length ||
+        garenaExtra.csStats)
+  );
+  res.setHeader(
+    'Cache-Control',
+    extraLengkap ? 's-maxage=60, stale-while-revalidate=120' : 's-maxage=10, stale-while-revalidate=30'
+  );
   res.status(200).json(responseBody);
 
   // Notif dikirim default tiap ada hit beneran. generateMetadata di
