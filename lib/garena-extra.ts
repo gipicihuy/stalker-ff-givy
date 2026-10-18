@@ -1,4 +1,4 @@
-import { CredentialManager, FreeFireAPI, encrypt, resolveObVersion } from 'ffapis';
+import { CredentialManager, encrypt, protoHandler, resolveObVersion } from 'ffapis';
 
 // ---------------------------------------------------------------------------
 // Protobuf varint (encoder + decoder) tangan.
@@ -206,6 +206,7 @@ export type AccountExtra = {
   seasonId: number | null;
   loneWolfRank: number | null;
   loneWolfPoints: number | null;
+  primeLevel: number | null;
   releaseVersion: string | null;
 };
 
@@ -317,6 +318,11 @@ function parseAccountExtra(basic: ProtoField[]): AccountExtra {
     seasonId: numOf(basic, 20),
     loneWolfRank: numOf(basic, 66),
     loneWolfPoints: numOf(basic, 67),
+    // Proto external nulis field ini di nomor 74, tapi di response beneran
+    // dapetnya di 76 (urutan field atas kadang geser antar build). Isinya
+    // kebukti: {1: accountid, 2: primelevel, 3: privilegeidlist} - sama
+    // persis bentuk PrimePrivilegeDetail, jadi nggak mungkin nomor lain.
+    primeLevel: numOf(subsOf(basic, 76)[0] || [], 2),
     releaseVersion: textOf(basic, 50),
   };
 }
@@ -428,24 +434,36 @@ function parseCsStats(buf: Buffer): CsStats | null {
 // Header login di sini sengaja dibikin sama persis sama `garenaRpc()` di
 // bawah (sudah terbukti jalan buat empat RPC), jadi dua jalur konsisten.
 //
-// Sumber kredensialnya dua lapis:
-//   a. akun guest daftaran sendiri via `ffapis.register()` - dicoba duluan
-//      karena itu niat asli kode ini (jangan ngandelin akun bersama). Tapi
-//      dari sandbox endpoint-nya balas `404 error_not_found` di semua
-//      varian parameter, jadi kemungkinan besar sudah diblokir per-IP atau
-//      guest register-nya memang sudah dimatikan Garena.
-//   b. kredensial embedded milik ffapis (`credentials.json`, 109 akun IND)
-//      sebagai jaring pengaman - tanpa ini semua section tambahan bakal
-//      kosong terus kalau register sudah mati. Dimuternya lewat
-//      `getNextCredential()` supaya bebannya nggak numpuk di satu akun.
+// Sumber kredensial: kredensial embedded milik ffapis (`credentials.json`,
+// 109 akun IND), dimuternya lewat `getNextCredential()` supaya bebannya nggak
+// numpuk di satu akun. Niat awalnya nyoba daftar akun guest sendiri dulu,
+// tapi endpoint `guest/register` Garena sudah mati - dari sandbox balas
+// `404 error_not_found` di SEMUA varian parameter (source/client_type/app_id),
+// jadi tiap kali nungguin register itu cuma buang waktu. Scraper Go yang jadi
+// acuan port ini juga langsung pakai akun service tanpa register.
 const GARENA_CLIENT_ID = '100067';
 const GARENA_CLIENT_SECRET = '2ee44819e9b4598845141067b281621874d0d5d7af9d8f7e00c1e54715b7d1e3';
 const GARENA_GRANT_URL = 'https://ffmconnect.live.gop.garenanow.com/oauth/guest/token/grant';
 const GARENA_MAJOR_LOGIN_URL = 'https://loginbp.ggblueshark.com/MajorLogin';
-const LOGIN_TIMEOUT_MS = 8000;
+// Timeout per percobaan login. Angkanya turun dari 8000: endpoint grant /
+// MajorLogin Garena emang sesekali nyangkut, dan kalau dibiarin 8 detik
+// tiga percobaan bisa nyedot ~48 detik di cold start - kelihatan banget pas
+// diuji (pernah ada sesi yang makan 35 detik cuma gara-gara nunggu baca
+// body). 5 detik masih lewat buat login normal (ukuran penuh ~1,5 detik).
+const LOGIN_TIMEOUT_MS = 5000;
 const SESSION_MAX_AGE_MS = 30 * 60 * 1000;
-const OWN_REGISTER_BUDGET_MS = 6000;
 const POOL_RETRY_LIMIT = 3;
+// Total waktu maksimal buat MEMBANGUN satu sesi. Tiap percobaan udah dibatesin
+// LOGIN_TIMEOUT_MS, tapi kalau jaringan lagi jelek semua akun bisa pada gagal -
+// tanpa plafon ini, 3 percobaan x (grant + major = 2x timeout) = ~30 detik
+// nahan seluruh request. 8 detik dipilih biar sejalur sama EXTRA_BUDGET_MS di
+// pages/api/ff.ts: sesi yang belum jadi pas budget data tambahan habis memang
+// nggak akan sempat kepakai juga.
+const SESSION_BUILD_BUDGET_MS = 8000;
+// Kredensial yang gagal dicoba lagi setelah jeda ini. Tanpa jeda, akun yang
+// emang rusak / di-throttle server bakal dicoba ulang tiap sesi perlu
+// dibangun ulang, dan tiap percobaan makan waktu penuh timeout login.
+const CRED_COOLDOWN_MS = 10 * 60 * 1000;
 // Response MajorLogin diawali blok 64 byte yang BUKAN protobuf (kalau nggak
 // dipotong, byte pertamanya kebaca jadi satu field sampah aneh), baru
 // sesudahnya ada payload yang bisa dibaca: field 8 = token, 10 = serverUrl.
@@ -453,34 +471,26 @@ const MAJOR_LOGIN_PREFIX = 64;
 
 type GuestCredential = { uid: string; passwordHash: string };
 
-async function fetchWithTimeout(url: string, init: RequestInit, ms: number): Promise<Response> {
+// Fetch + baca body-nya di bawah SATU timeout. Versi sebelumnya (fetch doang)
+// justru bahaya: timer-nya dilepas begitu header masuk, jadi baca
+// `res.json()` / `res.arrayBuffer()` yang nyangkut nggak pernah dibatasi -
+// itu yang bikin sesi pernah makan 35 detik. Kalau timeout keburu kepakai
+// saat baca body, sinyal abort-nya tetap nutup koneksi.
+async function fetchBounded<T>(
+  url: string,
+  init: RequestInit,
+  ms: number,
+  read: (res: Response) => Promise<T>
+): Promise<{ res: Response; data: T }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   try {
-    return await fetch(url, { ...init, signal: controller.signal });
+    const res = await fetch(url, { ...init, signal: controller.signal });
+    const data = await read(res);
+    return { res, data };
   } finally {
     clearTimeout(timer);
   }
-}
-
-// Timeout versi promise yang NGGAK membatalkan task aslinya. Dipakai buat
-// `register()` yang API-nya nggak menerima AbortSignal, jadi kalau endpointnya
-// ngegantung request tetap lanjut ke kredensial berikutnya tanpa nunggu.
-function raceTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => resolve(null), ms);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (err) => {
-        clearTimeout(timer);
-        console.log('garena_register_error', err instanceof Error ? err.message : err);
-        resolve(null);
-      }
-    );
-  });
 }
 
 async function guestGrant(cred: GuestCredential): Promise<{ openId: string; accessToken: string }> {
@@ -492,21 +502,23 @@ async function guestGrant(cred: GuestCredential): Promise<{ openId: string; acce
     client_secret: GARENA_CLIENT_SECRET,
     client_id: GARENA_CLIENT_ID,
   });
-  const res = await fetchWithTimeout(
+  const { res, data: body } = await fetchBounded(
     GARENA_GRANT_URL,
     {
       method: 'POST',
       headers: { 'User-Agent': GARENA_UA, 'Content-Type': 'application/x-www-form-urlencoded' },
       body: params.toString(),
     },
-    LOGIN_TIMEOUT_MS
+    LOGIN_TIMEOUT_MS,
+    async (r) => {
+      try {
+        return (await r.json()) as { open_id?: string; access_token?: string; error?: string };
+      } catch {
+        // body bukan JSON - biarkan kosong, ditangkap di bawah
+        return {};
+      }
+    }
   );
-  let body: { open_id?: string; access_token?: string; error?: string } = {};
-  try {
-    body = await res.json();
-  } catch {
-    // body bukan JSON - biarkan kosong, ditangkap di bawah
-  }
   if (!body.open_id || !body.access_token) throw new Error(`garena_grant_${body.error || res.status}`);
   return { openId: body.open_id, accessToken: body.access_token };
 }
@@ -519,7 +531,7 @@ async function majorLogin(openId: string, accessToken: string): Promise<GarenaSe
     encStrField(29, accessToken),
     encStrField(99, '4'),
   ]);
-  const res = await fetchWithTimeout(
+  const { res, data: buf } = await fetchBounded(
     GARENA_MAJOR_LOGIN_URL,
     {
       method: 'POST',
@@ -535,9 +547,9 @@ async function majorLogin(openId: string, accessToken: string): Promise<GarenaSe
       },
       body: new Uint8Array(await encrypt(payload)),
     },
-    LOGIN_TIMEOUT_MS
+    LOGIN_TIMEOUT_MS,
+    async (r) => Buffer.from(await r.arrayBuffer())
   );
-  const buf = Buffer.from(await res.arrayBuffer());
   if (!res.ok) throw new Error(`garena_major_login_http_${res.status}_${buf.toString('utf8', 0, 60)}`);
   const fields = readFields(buf.subarray(MAJOR_LOGIN_PREFIX));
   const token = textOf(fields, 8);
@@ -554,40 +566,55 @@ async function loginGuest(cred: GuestCredential): Promise<GarenaSession> {
 let sessionCache: { value: GarenaSession; at: number } | null = null;
 let sessionInFlight: Promise<GarenaSession> | null = null;
 
-async function buildSession(): Promise<GarenaSession> {
-  // (a) akun sendiri dulu
-  const own = await raceTimeout(
-    (async (): Promise<GuestCredential> => {
-      const reg = await new FreeFireAPI().register('IND');
-      return { uid: reg.uid, passwordHash: reg.passwordHash };
-    })(),
-    OWN_REGISTER_BUDGET_MS
-  );
-  if (own) {
-    try {
-      const session = await loginGuest(own);
-      sessionCache = { value: session, at: Date.now() };
-      console.log('garena_session source=own uid=' + own.uid);
-      return session;
-    } catch (err) {
-      console.log('garena_session_own_login_error', err instanceof Error ? err.message : err);
-    }
-  }
+// Kredensial pool yang barusan gagal, beserta kapan boleh dicoba lagi.
+// CredentialManager selalu mulai dari akun pertama, jadi tanpa catatan ini
+// akun yang rusak (lihat `4718507406` yang selalu `response_kosong`) bakal
+// dicoba ulang di SETIAP pembangunan sesi dan nahan loop-nya selama timeout.
+const credCooldownUntil = new Map<string, number>();
 
-  // (b) kredensial embedded ffapis
+async function buildSession(): Promise<GarenaSession> {
+  // Langsung pakai kredensial embedded - lihat catatan soal `guest/register`
+  // yang sudah mati di atas, jadi nggak ada langkah daftar akun sendiri lagi.
   const pool = new CredentialManager('IND');
+  const poolSize = pool.getPoolSize() || 1;
+
+  // Titik mulainya digeser acak dulu. CredentialManager selalu mulai dari
+  // index 0, dan akun pertama itu ternyata ada yang rusak permanen (`4718507406`
+  // jawabannya selalu kosong / nggak pernah nyambung) - kalau tiap build mulai
+  // dari situ, cold start tiap isolate kebagian bayar timeout-nya penuh.
+  // Acak di 109 akun bikin kemungkinan nyangkut akun yang sama jauh lebih
+  // kecil, sementara rotasi dalam tetap jalan (dan akun gagal tetap kena
+  // cooldown lewat logika bawah).
+  const startOffset = Math.floor(Math.random() * poolSize);
+  for (let i = 0; i < startOffset; i++) pool.getNextCredential();
+
+  const buildStart = Date.now();
   let lastError = '';
-  for (let attempt = 0; attempt < POOL_RETRY_LIMIT; attempt++) {
+  let failures = 0;
+  // Batas scan-nya pool size biar loop tetap berhenti kalau semua kredensial
+  // lagi cooldown (getNextCredential-nya muter balik ke awal), plus plafon
+  // waktu biar jaringan yang lagi jelek nggak nahan request selama puluhan detik.
+  for (
+    let scanned = 0;
+    scanned < poolSize && failures < POOL_RETRY_LIMIT && Date.now() - buildStart < SESSION_BUILD_BUDGET_MS;
+    scanned++
+  ) {
     const cred = pool.getNextCredential();
     if (!cred) break;
+    const uid = String(cred.uid);
+    const until = credCooldownUntil.get(uid) || 0;
+    if (until > Date.now()) continue;
     try {
-      const session = await loginGuest({ uid: String(cred.uid), passwordHash: String(cred.password) });
+      const session = await loginGuest({ uid, passwordHash: String(cred.password) });
       sessionCache = { value: session, at: Date.now() };
-      console.log('garena_session source=pool uid=' + cred.uid);
+      credCooldownUntil.delete(uid);
+      console.log('garena_session source=pool uid=' + uid);
       return session;
     } catch (err) {
+      failures++;
       lastError = err instanceof Error ? err.message : String(err);
-      console.log('garena_session_pool_error uid=' + cred.uid, lastError);
+      credCooldownUntil.set(uid, Date.now() + CRED_COOLDOWN_MS);
+      console.log('garena_session_pool_error uid=' + uid, lastError);
     }
   }
   throw new Error(`garena_session_unavailable ${lastError}`);
@@ -600,6 +627,102 @@ export async function ensureGarenaSession(): Promise<GarenaSession> {
     sessionInFlight = null;
   });
   return sessionInFlight;
+}
+
+// Buang sesi yang lagi kepakai supaya panggilan berikutnya login ulang dengan
+// akun lain dari pool. Dipakai buat dua hal: sesi yang ditolak server
+// (401/400) dan pencarian nickname - server Garena nge-scope hasil
+// FuzzySearchAccountByName per akun, jadi akun yang sama bolak-balik sering
+// cuma balikin hasil yang itu-itu aja.
+export function invalidateGarenaSession() {
+  sessionCache = null;
+}
+
+export type SearchAccount = {
+  accountid: string;
+  nickname: string;
+  region: string | null;
+  level: number | null;
+  exp: number | null;
+  liked: number | null;
+  lastloginat: number | null;
+};
+
+function parseSearchAccounts(buf: Buffer): SearchAccount[] {
+  const out: SearchAccount[] = [];
+  for (const f of readFields(buf)) {
+    if (f.num !== 1 || !f.bytes) continue;
+    const info = readFields(f.bytes);
+    const accountid = numOf(info, 1);
+    const nickname = textOf(info, 3);
+    if (!accountid || !nickname) continue;
+    out.push({
+      accountid: String(accountid),
+      nickname,
+      region: textOf(info, 5),
+      level: numOf(info, 6),
+      exp: numOf(info, 7),
+      liked: numOf(info, 21),
+      lastloginat: numOf(info, 24),
+    });
+  }
+  return out;
+}
+
+// Pencarian nickname langsung ke Garena: `/FuzzySearchAccountByName` (nama
+// endpointnya ada di settings.json ffapis, bukan `SearchAccountByName` yang
+// lebih dulu dicoba waktu port ini - endpoint itu balas 19 byte nggak kebaca).
+// Sesi yang dipakai sama dengan jalur /api/ff, jadi request pencarian yang
+// jalan di isolate hangat nggak nambah login sama sekali.
+export async function searchAccountsByName(keyword: string): Promise<SearchAccount[]> {
+  const session = await ensureGarenaSession();
+  const buf = await garenaRpc(session, '/FuzzySearchAccountByName', encStrField(1, keyword));
+  return parseSearchAccounts(buf);
+}
+
+// Profil lengkap lewat RPC yang sama (`/GetPlayerPersonalShow`), cuma
+// response-nya didekode pake descriptor milik ffapis biar bentuk object-nya
+// (`basicinfo`, `clanbasicinfo`, `petinfo`, `socialinfo`, `creditscoreinfo`)
+// sama persis dengan yang diharapkan normalizeProfileData - jadi nggak ada
+// mapping field yang perlu ditulis ulang di sini.
+//
+// Kenapa transportnya bukan `api.getPlayerProfile()` ffapis? Karena httpPost
+// bawaan ffapis nyisipin header `Expect: 100-continue` yang ditolak runtime
+// fetch di Node/Workers (`fetch failed`). Itu sebabnya selama ini jalur
+// "ffapis" selalu kalah balapan sama Ahmyth: dia udah login duluan tapi
+// HTTP-nya nggak pernah tembus.
+//
+// Panggilan untuk UID yang sama di-dedup selagi masih jalan: jalur profil
+// dan jalur data tambahan minta endpoint ini di request yang sama, dan dua
+// request paralel ke server Garena pake token yang sama ternyata saling
+// nahan sampai salah satunya kena RPC timeout (3,5 detik). Yang dibagi
+// buffer mentahnya, masing-masing jalur tetap decode sendiri (profil pake
+// descriptor ffapis, data tambahan pake parser manual kita).
+const personalShowRawInFlight = new Map<string, Promise<Buffer>>();
+
+function getPersonalShowRaw(uid: string): Promise<Buffer> {
+  const running = personalShowRawInFlight.get(uid);
+  if (running) return running;
+  const job = (async () => {
+    const session = await ensureGarenaSession();
+    const payload = Buffer.concat([
+      encIntField(1, Number(uid)),
+      encIntField(2, 7),
+      encIntField(3, 1),
+      encIntField(4, 1),
+      encIntField(5, 1),
+    ]);
+    return garenaRpc(session, '/GetPlayerPersonalShow', payload);
+  })().finally(() => {
+    personalShowRawInFlight.delete(uid);
+  });
+  personalShowRawInFlight.set(uid, job);
+  return job;
+}
+
+export async function fetchPersonalShow(uid: string): Promise<any> {
+  const buf = await getPersonalShowRaw(uid);
+  return protoHandler.decode('PlayerPersonalShow.proto', 'response', buf) as any;
 }
 
 // ---------------------------------------------------------------------------
@@ -620,17 +743,10 @@ export async function fetchGarenaExtra(uid: string): Promise<GarenaExtra> {
   const uidNum = Number(uid);
 
   // Field 3=1 (needGalleryInfo) itu yang bikin server ngirim badge history
-  // (field 5). Tanpa flag itu response-nya jauh lebih tipis.
-  const personalShowPayload = Buffer.concat([
-    encIntField(1, uidNum),
-    encIntField(2, 7),
-    encIntField(3, 1),
-    encIntField(4, 1),
-    encIntField(5, 1),
-  ]);
-
+  // (field 5). Tanpa flag itu response-nya jauh lebih tipis. Payload-nya
+  // persis sama dengan yang dipake jalur profil, jadi lewat dedup yang sama.
   const [personalShowRes, wishlistRes, brStatsRes, csStatsRes] = await Promise.allSettled([
-    garenaRpc(session, '/GetPlayerPersonalShow', personalShowPayload),
+    getPersonalShowRaw(uid),
     garenaRpc(session, '/GetWishListItems', encIntField(1, uidNum)),
     garenaRpc(session, '/GetPlayerStats', Buffer.concat([encIntField(1, uidNum), encIntField(2, 0)])),
     garenaRpc(session, '/GetPlayerTCStats', Buffer.concat([encIntField(1, uidNum), encIntField(3, 15), encIntField(4, 0)])),
@@ -665,3 +781,12 @@ export async function fetchGarenaExtra(uid: string): Promise<GarenaExtra> {
 
   return extra;
 }
+
+// Pemanasan sesi: login Garena dimulai sejak module ini di-load, bukan nunggu
+// request pertama masuk. Cold start udah makan waktu baca bundle + resolve
+// module, jadi grant + MajorLogin (~1,5-3 detik sehat, lebih kalau kredensial
+// pertama lagi bermasalah) ditumpukin di situ - request pertama lebih sering
+// tinggal nunggu sesi yang hampir jadi. Kegagalan di sini sengaja diem-kan:
+// jalur request tetap manggil ensureGarenaSession() sendiri, dan dialah yang
+// nentuin hasil akhirnya (termasuk retry ke kredensial berikutnya).
+ensureGarenaSession().catch(() => {});

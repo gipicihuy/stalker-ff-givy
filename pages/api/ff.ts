@@ -1,7 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
-import { FreeFireAPI } from 'ffapis';
-import { fetchGarenaExtra, type GarenaExtra } from '../../lib/garena-extra';
+import {
+  fetchGarenaExtra,
+  fetchPersonalShow,
+  invalidateGarenaSession,
+  type GarenaExtra,
+} from '../../lib/garena-extra';
 import { guardRequest, sendGuardRejection } from '../../lib/security/guard';
 import { signImagePath } from '../../lib/security/imageSign';
 import { GUARD_PATHS } from '../../lib/security/constants';
@@ -124,19 +128,19 @@ function getDevice(ua: string): string {
 
 function formatProfileSource(source: string | null): string {
   if (source === 'ahmyth') return 'Ahmyth';
-  if (source === 'ffapis') return 'FFApis (self-hosted)';
+  if (source === 'garena') return 'Garena (langsung)';
   return '-';
 }
 
 // URL/identifier upstream yang beneran dipanggil, dipakai buat notif
 // Telegram biar kelihatan API mana yang kepanggil dan menang balapannya.
-// Ahmyth punya URL asli beneran; ffapis nggak manggil HTTP endpoint pihak
-// ketiga (dia login+query langsung ke server Free Fire pakai guest account
-// yang di-embed di library), jadi dikasih pseudo-URL biar tetap informatif
-// di notif tanpa bikin caller mengira itu link yang bisa dibuka.
+// Ahmyth punya URL asli beneran; jalur Garena langsung bukan endpoint pihak
+// ketiga (kita nembak RPC ke server game dengan sesi sendiri), jadi dikasih
+// pseudo-URL RPC-nya biar tetap informatif tanpa bikin caller mengira itu
+// link yang bisa dibuka.
 function buildSourceApiUrl(source: string | null, uid: string): string | null {
   if (source === 'ahmyth') return `${AHMYTH_URL}?uid=${encodeURIComponent(uid)}`;
-  if (source === 'ffapis') return `ffapis://getPlayerProfile?uid=${encodeURIComponent(uid)}`;
+  if (source === 'garena') return `garena://GetPlayerPersonalShow?uid=${encodeURIComponent(uid)}`;
   return null;
 }
 
@@ -382,6 +386,33 @@ function toIconList(ids: any) {
 const ITEMID2_BASE = 'https://raw.githubusercontent.com/0xMe/ItemID2/main/assets';
 const OUTFIT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
+// Plafon buat semua manifes JSON remote (itemData, itemData lokal, cdn.json,
+// nama sekunder) - semuanya ditarik dari raw.githubusercontent.com TANPA
+// timeout sama sekali. Pas jaringan lagi jelek, endpoint ini pernah nahan
+// request utama 18 detik (item lokal) dan 31 detik (lookup outfit + icon)
+// padahal file-nya normal cuma butuh ~1 detik. Selain dibatesin 6 detik,
+// kegagalan diinget 30 detik biar request berikutnya nggak bayar timeout yang
+// sama lagi - selama cooldown, manifest dianggap gagal dan caller jatuh ke
+// fallback (nama generik / icon jsdelivr) yang emang udah disiapin.
+const MANIFEST_TIMEOUT_MS = 6000;
+const MANIFEST_FAIL_COOLDOWN_MS = 30 * 1000;
+const manifestFailUntil = new Map<string, number>();
+
+async function fetchManifest(url: string): Promise<Response> {
+  const until = manifestFailUntil.get(url) || 0;
+  if (until > Date.now()) throw new Error(`manifest_cooldown_${url}`);
+  try {
+    const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(MANIFEST_TIMEOUT_MS) });
+    if (!res.ok) throw new Error(`manifest_http_${res.status}`);
+    manifestFailUntil.delete(url);
+    return res;
+  } catch (err) {
+    manifestFailUntil.set(url, Date.now() + MANIFEST_FAIL_COOLDOWN_MS);
+    throw err;
+  }
+}
+
+
 type OutfitItem = { id: number; name: string; icon: string | null; type?: string | null; description?: string | null };
 type OutfitLookupEntry = { name: string; icon: string | null; inCdn: boolean };
 
@@ -407,21 +438,19 @@ let cleanIconAssetsPromise: Promise<CleanIconAssets> | null = null;
 
 async function fetchCleanIconAssets(): Promise<CleanIconAssets> {
   const cdnMap = new Map<string, string>();
-  try {
-    const res = await fetch(`${ITEMID2_BASE}/cdn.json`, { cache: 'no-store' });
-    if (res.ok) {
-      const list = await res.json();
-      if (Array.isArray(list)) {
-        for (const entry of list) {
-          if (!entry || typeof entry !== 'object') continue;
-          for (const [id, url] of Object.entries(entry)) {
-            if (typeof url === 'string') cdnMap.set(id, url);
-          }
-        }
+  // Kegagalan sengaja NGGAK ditelan: hasilnya bakal dicache 6 jam sama
+  // loadCleanIconAssets(), jadi satu timeout doang bisa bikin icon bersih
+  // hilang setengah hari. Biar error-nya nembak ke atas - resolveCleanIconUrl
+  // udah siap fallback ke jsdelivr lama.
+  const res = await fetchManifest(`${ITEMID2_BASE}/cdn.json`);
+  const list = await res.json();
+  if (Array.isArray(list)) {
+    for (const entry of list) {
+      if (!entry || typeof entry !== 'object') continue;
+      for (const [id, url] of Object.entries(entry)) {
+        if (typeof url === 'string') cdnMap.set(id, url);
       }
     }
-  } catch {
-    // biarin kosong, caller bakal fallback ke jsdelivr
   }
   return { cdnMap };
 }
@@ -590,7 +619,7 @@ let localItemDataCache: { ts: number } | null = null;
 let localItemDataPromise: Promise<void> | null = null;
 
 async function fetchLocalItemData(): Promise<void> {
-  const res = await fetch(LOCAL_ITEM_DATA_URL, { cache: 'no-store' });
+  const res = await fetchManifest(LOCAL_ITEM_DATA_URL);
   if (!res.ok) throw new Error(`local_item_data_fetch_failed_${res.status}`);
   const list = (await res.json()) as LocalItemEntry[];
   if (!Array.isArray(list)) throw new Error('local_item_data_not_array');
@@ -691,7 +720,7 @@ function resolveSingleItem(id: any): { id: number; name: string; icon: string | 
 }
 
 async function fetchOutfitLookup(): Promise<Map<string, OutfitLookupEntry>> {
-  const itemRes = await fetch(`${ITEMID2_BASE}/itemData.json`, { cache: 'no-store' });
+  const itemRes = await fetchManifest(`${ITEMID2_BASE}/itemData.json`);
   const itemList = itemRes.ok ? await itemRes.json() : [];
 
   const lookup = new Map<string, OutfitLookupEntry>();
@@ -739,20 +768,18 @@ let secondaryNameLookupPromise: Promise<Map<string, string>> | null = null;
 
 async function fetchSecondaryNameLookup(): Promise<Map<string, string>> {
   const map = new Map<string, string>();
-  try {
-    const res = await fetch(SECONDARY_NAME_SOURCE_URL, { cache: 'no-store' });
-    if (res.ok) {
-      const list = await res.json();
-      if (Array.isArray(list)) {
-        for (const item of list) {
-          const id = item?.id;
-          if (!id) continue;
-          const name = item?.name_text || item?.description_text;
-          if (name) map.set(String(id), String(name));
-        }
-      }
+  // Sama kayak fetchCleanIconAssets: error biar nembak ke atas, jangan jadi
+  // "hasil kosong" yang ke-cache 6 jam.
+  const res = await fetchManifest(SECONDARY_NAME_SOURCE_URL);
+  const list = await res.json();
+  if (Array.isArray(list)) {
+    for (const item of list) {
+      const id = item?.id;
+      if (!id) continue;
+      const name = item?.name_text || item?.description_text;
+      if (name) map.set(String(id), String(name));
     }
-  } catch {}
+  }
   return map;
 }
 
@@ -832,28 +859,14 @@ async function fetchAhmyth(uid: string) {
   return data;
 }
 
-// Instance FreeFireAPI disimpan di module scope (bukan dibuat baru tiap
-// request) supaya session/token guest account yang udah login bisa dipakai
-// ulang selama isolate/lambda-nya masih warm - login (Garena auth + Major
-// Login) itu beberapa round-trip HTTP yang lumayan makan waktu, jadi kalau
-// harus login ulang tiap request, ffapis nyaris pasti kalah balapan lawan
-// Ahmyth. Akun guest yang dipake buat login sendiri di-manage manual di
-// bawah (lihat OwnGuestAccount), bukan pake pool bawaan library.
-let ffapisClient: FreeFireAPI | null = null;
-function getFfapisClient(): FreeFireAPI {
-  if (!ffapisClient) ffapisClient = new FreeFireAPI();
-  return ffapisClient;
-}
-
 // Data tambahan dari Garena (wishlist, badge history, spark, lone wolf, role,
 // career stats) diambil lewat RPC langsung ke server game - endpoint-endpoint
 // itu nggak punya descriptor di ffapis. Sesi-nya juga dibangun sendiri di
-// lib/garena-extra.ts (grant token + MajorLogin), MANDIRI dari `api.login()`
-// ffapis yang memang nggak pernah bisa jalan: password yang dikirim mentah
-// padahal grant butuh hash uppercase, header MajorLogin-nya nggak ada
-// `X-GA-SV` (balasan `SignError1`), dan `Expect: 100-continue` bikin undici
-// ngelempar "expect header not supported". Karena mandiri, jalur ini nggak
-// ikut balapan login profil di bawah - alias nggak peduli siapa yang menang.
+// lib/garena-extra.ts (grant token + MajorLogin) dari kredensial pool, MANDIRI
+// dari `api.login()` ffapis yang memang nggak pernah bisa jalan: password yang
+// dikirim mentah padahal grant butuh hash uppercase, header MajorLogin-nya
+// nggak ada `X-GA-SV` (balasan `SignError1`), dan `Expect: 100-continue`
+// bikin undici ngelempar "expect header not supported".
 //
 // Data tambahan ini tetap pure "bonus": kalau Garena nolak / timeout /
 // kredensial habis, response utama tetap jalan normal dengan section kosong,
@@ -868,6 +881,7 @@ function getFfapisClient(): FreeFireAPI {
 // keluar, tapi dengan cache singkat (lihat blok Cache-Control di bawah)
 // supaya versi kosongnya nggak nempel 60 detik di edge.
 const EXTRA_BUDGET_MS = 8000;
+const BAN_CHECK_BUDGET_MS = 5000;
 
 // Race sama timer, tapi promise aslinya NGGAK dibatalkan - cuma berhenti
 // nunggu, jadi task-nya tetap selesai di belakang tanpa bikin unhandled
@@ -893,106 +907,53 @@ async function fetchExtrasSafe(uid: string): Promise<GarenaExtra | null> {
   return withBudget(fetchGarenaExtra(uid), EXTRA_BUDGET_MS);
 }
 
-// --- Akun guest self-managed, bukan gantungan ke pool bawaan `ffapis` ---
+// --- Profil lewat RPC Garena, pake sesi yang sama dengan data tambahan ---
 //
-// `getPlayerProfile()` normalnya login pake pool guest account BAWAAN
-// LIBRARY yang udah di-embed (lihat vendor/ffapis/dist/src/embedded-data/
-// credentials.json - ~260 akun IND/SG/RU) dan DIBAGI SAMA SEMUA ORANG yang
-// install package `ffapis`, bukan cuma situs kita doang. Biar situs kita
-// nggak ikut-ikutan gampang kena rate-limit/flag Garena gara-gara akun yang
-// dipake situs LAIN, kita `register()` akun guest MILIK SENDIRI dan login
-// pake itu secara eksplisit, jadi getPlayerProfile nggak perlu nyentuh pool
-// bawaan sama sekali di jalur normal.
+// Response-nya diambil dari `/GetPlayerPersonalShow` pake sesi yang
+// dibangun di lib/garena-extra.ts (grant token + MajorLogin) dan didekode
+// pake descriptor milik ffapis, jadi bentuk object-nya sama persis kayak
+// yang diharapkan normalizeProfileData. Transport ffapis sendiri
+// (`api.getPlayerProfile()`) sengaja NGGAK dipakai: httpPost-nya nyisipin
+// header `Expect: 100-continue` yang ditolak runtime fetch Node/Workers
+// (`fetch failed`) - makanya dulu jalur ini selalu kalah balapan sama
+// Ahmyth padahal login-nya duluan yang selesai.
 //
-// CAVEAT yang jujur perlu diomongin: kalau akun kita sendiri gagal (401)
-// PAS di dalam satu panggilan getPlayerProfile, library-nya punya retry
-// internal SATU KALI yang otomatis balik ke pool bawaan (lihat
-// `_requestProfile` di dist/src/lib/api.js) - itu behavior bawaan yang gak
-// bisa dimatiin dari luar tanpa nge-fork library-nya. Yang kita bisa
-// lakuin: DETEKSI kalau itu kejadian (token session berubah beda dari
-// token akun kita), lalu proaktif re-login pake akun sendiri lagi abis
-// itu, jadi swap ke pool bawaan itu paling lama cuma numpang buat 1
-// request yang lagi error, bukan nempel permanen di request-request
-// berikutnya.
-// `passwordHash` (bukan `password`): endpoint grant Garena cuma menerima
-// SHA-256-nya dalam HURUF BESAR. Cek langsung ke endpoint-nya pakai akun
-// service Go: hash uppercase -> 200 + access_token; password mentah angka ->
-// {"error":"auth_error"}; hash lowercase -> auth_error juga (jadi memang
-// sensitif huruf besar). Kode ini sebelumnya nyimpen `result.password`
-// (angka mentah) dan login-nya selalu gagal, makanya session Garena gak
-// pernah kebentuk. Pola yang sama juga dipakai ffapis sendiri - lihat
-// vendor/ffapis/dist/src/embedded-data/credentials.json yang "password"-nya
-// isinya string hex 64 karakter, dan _getGarenaToken() ngirim password
-// apa adanya tanpa di-hash ulang.
-type OwnGuestAccount = { uid: string; passwordHash: string; lastToken: string | null };
-let ownGuestAccount: OwnGuestAccount | null = null;
-let ownGuestRegisteredAt = 0;
-// Rotasi akun tiap 30 menit (bukan cuma pas error) biar 1 akun guest gak
-// dipakein query berkali-kali tanpa henti - ngurangin kemungkinan
-// ke-flag Garena karena pola pemakaian yang mencolok.
-const OWN_GUEST_MAX_AGE_MS = 30 * 60 * 1000;
-// Region 'IND' dipilih asal (semua region guest bisa query profil siapa aja,
-// query profil gak region-locked) - yang penting BUKAN 'ID'/'PK' karena
-// dua itu gak support guest registration (lihat docs/configuration.md
-// ffapis).
-const OWN_GUEST_REGION = 'IND';
-
-async function registerOwnGuestAccount(api: FreeFireAPI): Promise<OwnGuestAccount> {
-  const result = await api.register(OWN_GUEST_REGION);
-  const account: OwnGuestAccount = { uid: result.uid, passwordHash: result.passwordHash, lastToken: null };
-  const session = await api.login(result.uid, account.passwordHash);
-  account.lastToken = session.token;
-  ownGuestAccount = account;
-  ownGuestRegisteredAt = Date.now();
-  return account;
-}
-
-async function ensureOwnGuestSession(api: FreeFireAPI): Promise<void> {
-  const isStale = !ownGuestAccount || Date.now() - ownGuestRegisteredAt > OWN_GUEST_MAX_AGE_MS;
-  if (isStale) {
-    await registerOwnGuestAccount(api);
-    return;
-  }
-  // Kalau token sesi sekarang beda dari token akun kita yang terakhir kita
-  // set, artinya di request SEBELUMNYA sempat kejadian retry internal
-  // library yang diam-diam swap ke akun dari pool bawaan (lihat catatan di
-  // atas). Klaim balik kendalinya dengan login ulang pake akun kita sendiri.
-  if (api.session?.token !== ownGuestAccount!.lastToken) {
-    const session = await api.login(ownGuestAccount!.uid, ownGuestAccount!.passwordHash);
-    ownGuestAccount!.lastToken = session.token;
-  }
-}
-
-async function fetchFfapis(uid: string) {
-  const api = getFfapisClient();
-  await ensureOwnGuestSession(api);
+// Kalau server nolak token (401/400), sesi cache-an dibuang, login ulang
+// dengan akun lain dari pool, dicoba sekali lagi. UID yang emang nggak ada
+// (balasan tanpa `basicinfo.accountid`) bukan kesalahan sesi, jadi
+// langsung NotFoundError tanpa login ulang cuma buat balikin 404.
+async function fetchGarenaProfile(uid: string) {
   try {
-    const data = await api.getPlayerProfile(uid);
-    if (!(data as any)?.basicinfo?.accountid) throw new NotFoundError('ffapis_empty');
+    const data = await fetchPersonalShow(uid);
+    if (!(data as any)?.basicinfo?.accountid) throw new NotFoundError('garena_empty');
     return data;
   } catch (err) {
     if (err instanceof NotFoundError) throw err;
-    // Akun kita sendiri kemungkinan lagi bermasalah (expired/soft-limited)
-    // DAN retry internal library ke pool bawaan juga ikut gagal. Daftar
-    // akun baru yang bener-bener fresh, terus coba sekali lagi.
-    await registerOwnGuestAccount(api);
-    const data = await api.getPlayerProfile(uid);
-    if (!(data as any)?.basicinfo?.accountid) throw new NotFoundError('ffapis_empty');
+    const message = err instanceof Error ? err.message : String(err);
+    if (!/http_(400|401)$/.test(message)) throw err;
+    invalidateGarenaSession();
+    const data = await fetchPersonalShow(uid);
+    if (!(data as any)?.basicinfo?.accountid) throw new NotFoundError('garena_empty');
     return data;
   }
 }
 
-type ProfileSource = 'ahmyth' | 'ffapis';
+type ProfileSource = 'ahmyth' | 'garena';
 
-// Balapan dua sumber sekaligus lewat Promise.any: yang pertama BERHASIL
-// (bukan sekadar pertama selesai) yang menang dan dipakai. Kalau salah satu
-// error/timeout, yang lain otomatis jadi fallback tanpa nunggu - Promise.any
-// cuma reject kalau SEMUA sumber gagal (dilempar sebagai AggregateError).
+// Urutan sumber: RPC Garena langsung pake sesi kita sendiri jadi UTAMA
+// (cepat - cuma 1 request, sesinya udah ada dan udah login duluan), Ahmyth
+// (API pihak ketiga, jaringan luar) turun jadi FALLBACK kalau jalur langsung
+// gagal. UID yang emang nggak ada tetap dicek ke Ahmyth dulu sebelum
+// dibalikin 404, biar perilakunya sama kayak balapan dua sumber sebelumnya.
 async function fetchFastestProfile(uid: string): Promise<{ source: ProfileSource; data: any }> {
-  return Promise.any([
-    fetchAhmyth(uid).then((data) => ({ source: 'ahmyth' as const, data })),
-    fetchFfapis(uid).then((data) => ({ source: 'ffapis' as const, data })),
-  ]);
+  try {
+    return { source: 'garena', data: await fetchGarenaProfile(uid) };
+  } catch (err) {
+    if (!(err instanceof NotFoundError)) {
+      console.error('profile_direct_error', err instanceof Error ? err.message : err);
+    }
+  }
+  return { source: 'ahmyth', data: await fetchAhmyth(uid) };
 }
 
 async function fetchMultipurposeBanCheck(uid: string) {
@@ -1132,9 +1093,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // tetap jalan dengan section kosong.
   const [profileResult, multipurposeBanResult, localItemDataResult, garenaExtraResult] = await Promise.allSettled([
     fetchFastestProfile(uidStr),
-    fetchMultipurposeBanCheck(uidStr),
+    // onrender.com (free tier) bisa bangun tidur 30-60 detik - jangan
+    // nge-block response utama, kalau kelewat budget ya section ban kosong.
+    withBudget(fetchMultipurposeBanCheck(uidStr), BAN_CHECK_BUDGET_MS),
     ensureLocalItemDataLoaded(),
     fetchExtrasSafe(uidStr),
+    // Manifes item/icon dipakai tahap penyusunan response (nama outfit,
+    // icon bersih, nama sekunder) - dulunya baru diambil pas proses, jadi
+    // pas upstreamnya nahan dia numpuk URUT di belakang (pernah 31 detik).
+    // Sekarang dibarengin dari awal; hasilnya nggak dibaca di sini karena
+    // loadernya sendiri yang nge-cache, ini cuma bikin ia mulai duluan.
+    loadOutfitLookup(),
+    loadCleanIconAssets(),
+    loadSecondaryNameLookup(),
   ]);
 
   if (profileResult.status === 'rejected') {
@@ -1198,6 +1169,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     merged.loneWolfRank = pick(merged.loneWolfRank, accountExtra.loneWolfRank);
     merged.loneWolfPoints = pick(merged.loneWolfPoints, accountExtra.loneWolfPoints);
     merged.releaseVersion = pick(merged.releaseVersion, accountExtra.releaseVersion);
+    // Prime Level cuma disediain sumber yang ngedekode field 76 (Ahmyth punya,
+    // deskriptor ffapis buat AccountInfoBasic nggak - isinya cuma field dasar).
+    // Isi dari accountExtra kita sendiri, jadi kartu Prime tetap muncul walau
+    // jalur langsung yang menang.
+    merged.primeInfo = pick(
+      merged.primeInfo,
+      accountExtra.primeLevel != null ? { primeLevel: accountExtra.primeLevel } : null
+    );
   }
 
   const [equippedOutfitItems, equippedWeaponOutfitItems, equippedLookChangerItems, equippedArrivalAnimationItems, cleanAvatarUrl, wishlistItems] = await Promise.all([
@@ -1223,6 +1202,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // kalau nggak ketemu, tetap pakai avatarUrl lama (ShahGCreator jsdelivr).
   if (cleanAvatarUrl) {
     merged.avatarUrl = cleanAvatarUrl;
+  } else if (!merged.avatarUrl && merged.headPic) {
+    // Jalur langsung ngedekode profil pake descriptor ffapis yang CUMA bawa
+    // field dasar (nggak ada `headPic`), jadi avatarUrl dari sana kosong -
+    // fallback ke id avatar yang udah disuntikin dari accountExtra.
+    merged.avatarUrl = buildIconUrl(merged.headPic);
   }
 
   const equippedBanner = resolveSingleItem(merged.bannerId);

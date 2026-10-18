@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { FreeFireAPI } from 'ffapis';
+import { searchAccountsByName, invalidateGarenaSession } from '../../lib/garena-extra';
 import { guardRequest, sendGuardRejection } from '../../lib/security/guard';
 import { GUARD_PATHS } from '../../lib/security/constants';
 import { getRequestOrigin } from '../../lib/security/request';
@@ -151,6 +152,26 @@ async function searchOnce(api: FreeFireAPI, keyword: string) {
   }
 }
 
+// Pencarian nickname lewat RPC Garena langsung (/FuzzySearchAccountByName),
+// tanpa login ulang tiap percobaan - sesinya udah ada dan dibagi sama jalur
+// /api/ff. Kalau hasilnya nol, sesi-nya dibuang sekali biar percobaan
+// berikutnya jatuh ke akun guest lain, karena server Garena nge-scope hasil
+// pencarian per akun yang nembak.
+async function searchDirect(keyword: string) {
+  try {
+    const first = await searchAccountsByName(keyword);
+    if (first.length > 0) return { ok: true as const, results: first };
+    invalidateGarenaSession();
+    const second = await searchAccountsByName(keyword);
+    if (second.length > 0) return { ok: true as const, results: second };
+    // Nol hasil dua kali berturut-turut = kemungkinan besar emang nggak ada
+    // akunnya, bukan sesi yang kering - nggak usah lanjut ke fallback.
+    return { ok: true as const, results: [] };
+  } catch (error) {
+    return { ok: false as const, message: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 // Skor relevansi nickname hasil pencarian terhadap keyword yang diketik user.
 // Makin kecil = makin cocok/diprioritaskan. Dipakai buat sorting, bukan filter
 // (semua hasil dari API tetap ditampilkan, cuma urutannya yang diatur ulang).
@@ -279,7 +300,9 @@ async function probeSearch(): Promise<boolean> {
     timer = setTimeout(() => resolve({ ok: false }), PROBE_TIMEOUT_MS);
   });
   try {
-    const r = await Promise.race([searchOnce(new FreeFireAPI(), PROBE_KEYWORD), timeout]);
+    // Pakai jalur langsung (1 search, sesi udah ada), bukan login ffapis -
+    // tes status harus ngecek kesehatan Garena, bukan kesehatan library.
+    const r = await Promise.race([searchDirect(PROBE_KEYWORD), timeout]);
     return r.ok;
   } finally {
     if (timer) clearTimeout(timer);
@@ -341,10 +364,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { results, failed, errorMessage } = await searchWithRetry(keyword);
-
-    if (failed) {
-      return sendMaintenance(res, await markDown(), errorMessage);
+    let results: any[] = [];
+    const direct = await searchDirect(keyword);
+    if (direct.ok) {
+      results = direct.results;
+    } else {
+      // Jalur langsung gagal (token ditolak / koneksi ke Garena putus) ->
+      // fallback ke pencarian lewat ffapis yang login sendiri tiap attempt.
+      // Lebih lambat (bisa berkali-kali login), tapi tetap dicoba biar
+      // fitur pencarian nggak mati total pas sesi kita lagi bermasalah.
+      console.error('[api/search] jalur langsung gagal, fallback ffapis:', direct.message);
+      const fallback = await searchWithRetry(keyword);
+      if (fallback.failed) {
+        return sendMaintenance(res, await markDown(), fallback.errorMessage);
+      }
+      results = fallback.results;
     }
     if (probing) await markUp();
 
