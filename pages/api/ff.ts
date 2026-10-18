@@ -869,6 +869,71 @@ async function fetchExtrasSafe(session: GarenaSession | null, uid: string): Prom
   }
 }
 
+// Pas isolate baru mulai, session Garena belum ada sama sekali. Jangan
+// ngandelin ffapis "yang duluan login" buat nyiapin session-nya, karena
+// balapan profil di bawah hampir selalu dimenangi Ahmyth (satu kali GET)
+// jauh sebelum ffapis kelar register+login - jadinya section baru bakal
+// kosong terus tiap cold start. Jalur extras jadi login sendiri, TAPI lewat
+// ensureSessionOnce() yang dedupe, jadi walaupun ffapis dan extras jalan
+// bareng-bareng Garena tetap cuma dapet SATU login.
+// register+login Garena itu beberapa round-trip HTTP dan cuma kejadian sekali
+// per isolate (setelahnya session-nya nempel sampai rotate 30 menit), jadi
+// budget-nya sengaja lega. Kalau dipotong terlalu pendek, request pertama
+// abis deploy bakal balikin section kosong terus - dan karena response ini
+// di-cache edge s-maxage=60, versi kosongnya bakal nempel semenet; lebih baik
+// nunggu sekali yang lama daripada ngunci hasil yang belum lengkap.
+// Di Cloudflare Workers `Expect: 100-continue` (dipakai ffapis di header
+// MajorLogin-nya) diabaikan, jadi login-nya jalan - beda sama Node/undici
+// yang ngelempar "expect header not supported".
+const EXTRA_SESSION_BUDGET_MS = 12000;
+let sessionWarmup: Promise<void> | null = null;
+
+function ensureSessionOnce(): Promise<void> {
+  if (!sessionWarmup) {
+    sessionWarmup = ensureOwnGuestSession(getFfapisClient()).finally(() => {
+      sessionWarmup = null;
+    });
+    // Dibiarin "kependem" catch-nya: kalau yang nunggu promise ini udah
+    // kehabisan budget duluan (lihat withBudget), promise-nya tetap jalan
+    // sampai selesai tanpa ada yang nangkep error-nya -> unhandled rejection.
+    sessionWarmup.catch(() => {});
+  }
+  return sessionWarmup;
+}
+
+// Race sama timer, tapi promise aslinya NGGAK dibatalkan - cuma berhenti
+// nunggu. Penting buat ensureSessionOnce() karena login-nya dipakai bareng
+// (ffapis juga nungguin itu), jadi kalaupun jalur extras udah nyerah duluan,
+// ffapis tetap bisa manfaatin login yang sama sampai kelar.
+function withBudget<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        console.error('garena_extra_promise_error', err);
+        resolve(null);
+      }
+    );
+  });
+}
+
+async function fetchExtrasSmart(uid: string): Promise<GarenaExtra | null> {
+  try {
+    if (!peekGarenaSession()) {
+      await withBudget(ensureSessionOnce(), EXTRA_SESSION_BUDGET_MS);
+    }
+    return await fetchExtrasSafe(peekGarenaSession(), uid);
+  } catch (err) {
+    console.error('garena_extra_error', err);
+    return null;
+  }
+}
+
 // --- Akun guest self-managed, bukan gantungan ke pool bawaan `ffapis` ---
 //
 // `getPlayerProfile()` normalnya login pake pool guest account BAWAAN
@@ -931,7 +996,10 @@ async function ensureOwnGuestSession(api: FreeFireAPI): Promise<void> {
 
 async function fetchFfapis(uid: string) {
   const api = getFfapisClient();
-  await ensureOwnGuestSession(api);
+  // Lewat ensureSessionOnce() (bukan langsung ke ensureOwnGuestSession) biar
+  // kalau jalur data-tambahan Garena lagi login bareng, Garena cuma dapet
+  // SATU login, bukan dua.
+  await ensureSessionOnce();
   try {
     const data = await api.getPlayerProfile(uid);
     if (!(data as any)?.basicinfo?.accountid) throw new NotFoundError('ffapis_empty');
@@ -1091,16 +1159,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'UID tidak valid. Masukkan UID Free Fire yang benar (angka saja).' });
   }
 
-  // Kalau isolate-nya udah warm, session Garena pasti udah nempel di instance
-  // ffapis, jadi data tambahan (wishlist/badge/spark/lone wolf/role/stats)
-  // bisa langsung dibarengin sama pencarian profil. Kalau isolate-nya masih
-  // dingin session-nya null, jadi dilewatin di sini dan dicoba sekali lagi
-  // setelah profil selesai - lihat fallback setelah blok Promise.allSettled.
+  // Data tambahan Garena dibarengin dari awal, TANPA syarat "isolate harus
+  // warm" / "ffapis harus menang balapan" - fetchExtrasSmart() yang urus
+  // session-nya sendiri (lihat catatan di sekitar EXTRA_SESSION_BUDGET_MS).
+  // Kalau RPC-nya gagal/kehabisan budget, nilainya null dan response utama
+  // tetap jalan dengan section kosong.
   const [profileResult, multipurposeBanResult, localItemDataResult, garenaExtraResult] = await Promise.allSettled([
     fetchFastestProfile(uidStr),
     fetchMultipurposeBanCheck(uidStr),
     ensureLocalItemDataLoaded(),
-    fetchExtrasSafe(peekGarenaSession(), uidStr),
+    fetchExtrasSmart(uidStr),
   ]);
 
   if (profileResult.status === 'rejected') {
@@ -1121,13 +1189,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const petInfoData = profileWinner ? normalizePetInfo(profileWinner.data) : null;
 
-  let garenaExtra = garenaExtraResult.status === 'fulfilled' ? garenaExtraResult.value : null;
-  // Fallback cold start: pas isolate baru mulai, session Garena masih kosong
-  // jadi extras di atas otomatis null. Sekarang fetchFfapis() udah selesai
-  // login, jadi session-nya pasti udah keisi dan kita bisa ambil sekali lagi.
-  if (!garenaExtra && profileWinner?.source === 'ffapis') {
-    garenaExtra = await fetchExtrasSafe(peekGarenaSession(), uidStr);
-  }
+  const garenaExtra = garenaExtraResult.status === 'fulfilled' ? garenaExtraResult.value : null;
 
   if (!profileData) {
     // Promise.any hanya reject kalau SEMUA sumber gagal, dengan AggregateError
