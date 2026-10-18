@@ -1,4 +1,4 @@
-import { encrypt, resolveObVersion } from 'ffapis';
+import { CredentialManager, FreeFireAPI, encrypt, resolveObVersion } from 'ffapis';
 
 // ---------------------------------------------------------------------------
 // Protobuf varint (encoder + decoder) tangan.
@@ -391,6 +391,198 @@ function parseCsStats(buf: Buffer): CsStats | null {
 }
 
 // ---------------------------------------------------------------------------
+// Sesi Garena sendiri: grant token + MajorLogin.
+//
+// Kenapa ditulis sendiri, bukan lewat `api.login()` milik ffapis? Tiga
+// alasan, semuanya diuji langsung ke endpoint-nya:
+//   1. `_getGarenaToken()` ngirim password apa adanya, padahal endpoint grant
+//      cuma menerima SHA-256-nya dalam HURUF BESAR (dites: hash uppercase ->
+//      200 + access_token, angka mentah -> {"error":"auth_error"}, hash
+//      lowercase -> auth_error juga).
+//   2. Header MajorLogin ffapis nggak pernah menyertakan `X-GA-SV` (unix
+//      timestamp). Tanpa header itu server balas `400 SignError1`; dengan
+//      `X-GA-SV` request yang identik balas 200.
+//   3. `getCommonHeaders()` ffapis nyisipin `Expect: 100-continue`, yang di
+//      Node/undici langsung melempar "expect header not supported" sebelum
+//      request-nya sempat dikirim.
+// Header login di sini sengaja dibikin sama persis sama `garenaRpc()` di
+// bawah (sudah terbukti jalan buat empat RPC), jadi dua jalur konsisten.
+//
+// Sumber kredensialnya dua lapis:
+//   a. akun guest daftaran sendiri via `ffapis.register()` - dicoba duluan
+//      karena itu niat asli kode ini (jangan ngandelin akun bersama). Tapi
+//      dari sandbox endpoint-nya balas `404 error_not_found` di semua
+//      varian parameter, jadi kemungkinan besar sudah diblokir per-IP atau
+//      guest register-nya memang sudah dimatikan Garena.
+//   b. kredensial embedded milik ffapis (`credentials.json`, 109 akun IND)
+//      sebagai jaring pengaman - tanpa ini semua section tambahan bakal
+//      kosong terus kalau register sudah mati. Dimuternya lewat
+//      `getNextCredential()` supaya bebannya nggak numpuk di satu akun.
+const GARENA_CLIENT_ID = '100067';
+const GARENA_CLIENT_SECRET = '2ee44819e9b4598845141067b281621874d0d5d7af9d8f7e00c1e54715b7d1e3';
+const GARENA_GRANT_URL = 'https://ffmconnect.live.gop.garenanow.com/oauth/guest/token/grant';
+const GARENA_MAJOR_LOGIN_URL = 'https://loginbp.ggblueshark.com/MajorLogin';
+const LOGIN_TIMEOUT_MS = 8000;
+const SESSION_MAX_AGE_MS = 30 * 60 * 1000;
+const OWN_REGISTER_BUDGET_MS = 6000;
+const POOL_RETRY_LIMIT = 3;
+// Response MajorLogin diawali blok 64 byte yang BUKAN protobuf (kalau nggak
+// dipotong, byte pertamanya kebaca jadi satu field sampah aneh), baru
+// sesudahnya ada payload yang bisa dibaca: field 8 = token, 10 = serverUrl.
+const MAJOR_LOGIN_PREFIX = 64;
+
+type GuestCredential = { uid: string; passwordHash: string };
+
+async function fetchWithTimeout(url: string, init: RequestInit, ms: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Timeout versi promise yang NGGAK membatalkan task aslinya. Dipakai buat
+// `register()` yang API-nya nggak menerima AbortSignal, jadi kalau endpointnya
+// ngegantung request tetap lanjut ke kredensial berikutnya tanpa nunggu.
+function raceTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        console.log('garena_register_error', err instanceof Error ? err.message : err);
+        resolve(null);
+      }
+    );
+  });
+}
+
+async function guestGrant(cred: GuestCredential): Promise<{ openId: string; accessToken: string }> {
+  const params = new URLSearchParams({
+    uid: cred.uid,
+    password: cred.passwordHash,
+    response_type: 'token',
+    client_type: '2',
+    client_secret: GARENA_CLIENT_SECRET,
+    client_id: GARENA_CLIENT_ID,
+  });
+  const res = await fetchWithTimeout(
+    GARENA_GRANT_URL,
+    {
+      method: 'POST',
+      headers: { 'User-Agent': GARENA_UA, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
+    },
+    LOGIN_TIMEOUT_MS
+  );
+  let body: { open_id?: string; access_token?: string; error?: string } = {};
+  try {
+    body = await res.json();
+  } catch {
+    // body bukan JSON - biarkan kosong, ditangkap di bawah
+  }
+  if (!body.open_id || !body.access_token) throw new Error(`garena_grant_${body.error || res.status}`);
+  return { openId: body.open_id, accessToken: body.access_token };
+}
+
+async function majorLogin(openId: string, accessToken: string): Promise<GarenaSession> {
+  // Nomor field request: 22 = open_id, 23 = "4", 29 = access_token, 99 = "4".
+  const payload = Buffer.concat([
+    encStrField(22, openId),
+    encStrField(23, '4'),
+    encStrField(29, accessToken),
+    encStrField(99, '4'),
+  ]);
+  const res = await fetchWithTimeout(
+    GARENA_MAJOR_LOGIN_URL,
+    {
+      method: 'POST',
+      headers: {
+        'User-Agent': GARENA_UA,
+        'X-Unity-Version': '2018.4.11f1',
+        'X-GA': 'v1 1',
+        ReleaseVersion: resolveObVersion(),
+        // Wajib - tanpa ini server balas 400 SignError1.
+        'X-GA-SV': String(Math.floor(Date.now() / 1000)),
+        Authorization: 'Bearer',
+        'Content-Type': 'application/octet-stream',
+      },
+      body: new Uint8Array(await encrypt(payload)),
+    },
+    LOGIN_TIMEOUT_MS
+  );
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (!res.ok) throw new Error(`garena_major_login_http_${res.status}_${buf.toString('utf8', 0, 60)}`);
+  const fields = readFields(buf.subarray(MAJOR_LOGIN_PREFIX));
+  const token = textOf(fields, 8);
+  const serverUrl = textOf(fields, 10);
+  if (!token || !serverUrl) throw new Error('garena_major_login_response_kosong');
+  return { token, serverUrl };
+}
+
+async function loginGuest(cred: GuestCredential): Promise<GarenaSession> {
+  const { openId, accessToken } = await guestGrant(cred);
+  return majorLogin(openId, accessToken);
+}
+
+let sessionCache: { value: GarenaSession; at: number } | null = null;
+let sessionInFlight: Promise<GarenaSession> | null = null;
+
+async function buildSession(): Promise<GarenaSession> {
+  // (a) akun sendiri dulu
+  const own = await raceTimeout(
+    (async (): Promise<GuestCredential> => {
+      const reg = await new FreeFireAPI().register('IND');
+      return { uid: reg.uid, passwordHash: reg.passwordHash };
+    })(),
+    OWN_REGISTER_BUDGET_MS
+  );
+  if (own) {
+    try {
+      const session = await loginGuest(own);
+      sessionCache = { value: session, at: Date.now() };
+      console.log('garena_session source=own uid=' + own.uid);
+      return session;
+    } catch (err) {
+      console.log('garena_session_own_login_error', err instanceof Error ? err.message : err);
+    }
+  }
+
+  // (b) kredensial embedded ffapis
+  const pool = new CredentialManager('IND');
+  let lastError = '';
+  for (let attempt = 0; attempt < POOL_RETRY_LIMIT; attempt++) {
+    const cred = pool.getNextCredential();
+    if (!cred) break;
+    try {
+      const session = await loginGuest({ uid: String(cred.uid), passwordHash: String(cred.password) });
+      sessionCache = { value: session, at: Date.now() };
+      console.log('garena_session source=pool uid=' + cred.uid);
+      return session;
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+      console.log('garena_session_pool_error uid=' + cred.uid, lastError);
+    }
+  }
+  throw new Error(`garena_session_unavailable ${lastError}`);
+}
+
+export async function ensureGarenaSession(): Promise<GarenaSession> {
+  if (sessionCache && Date.now() - sessionCache.at < SESSION_MAX_AGE_MS) return sessionCache.value;
+  if (sessionInFlight) return sessionInFlight;
+  sessionInFlight = buildSession().finally(() => {
+    sessionInFlight = null;
+  });
+  return sessionInFlight;
+}
+
+// ---------------------------------------------------------------------------
 // Ambil semua data tambahan dari Garena, sekaligus.
 //
 // Empat RPC dijalankan paralel. `Promise.allSettled` dipakai (bukan
@@ -400,7 +592,11 @@ function parseCsStats(buf: Buffer): CsStats | null {
 // perlu null-check di mana-mana.
 // ---------------------------------------------------------------------------
 
-export async function fetchGarenaExtra(session: GarenaSession, uid: string): Promise<GarenaExtra> {
+export async function fetchGarenaExtra(uid: string): Promise<GarenaExtra> {
+  // Sesi-nya diurus di sini (lihat ensureGarenaSession() di atas), jadi
+  // caller nggak perlu punya session sama sekali - termasuk nggak bergantung
+  // pada siapa pun yang "menang balapan" login di request ini.
+  const session = await ensureGarenaSession();
   const uidNum = Number(uid);
 
   // Field 3=1 (needGalleryInfo) itu yang bikin server ngirim badge history
