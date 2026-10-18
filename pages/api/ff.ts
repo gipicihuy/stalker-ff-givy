@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { FreeFireAPI } from 'ffapis';
+import { fetchGarenaExtra, type GarenaExtra, type GarenaSession } from '../../lib/garena-extra';
 import { guardRequest, sendGuardRejection } from '../../lib/security/guard';
 import { signImagePath } from '../../lib/security/imageSign';
 import { GUARD_PATHS } from '../../lib/security/constants';
@@ -844,6 +845,30 @@ function getFfapisClient(): FreeFireAPI {
   return ffapisClient;
 }
 
+// Session Garena (token + serverUrl) yang lagi nempel di instance ffapis
+// sekarang. Data tambahan dari Garena (wishlist, badge history, spark, lone
+// wolf, role, career stats) diambil lewat RPC langsung ke server game pakai
+// session yang sama, bukan lewat library - karena endpoint-endpoint itu
+// nggak punya descriptor di ffapis (lihat lib/garena-extra.ts).
+function peekGarenaSession(): GarenaSession | null {
+  const session = (getFfapisClient().session ?? null) as { token?: string; serverUrl?: string } | null;
+  if (!session?.token || !session?.serverUrl) return null;
+  return { token: session.token, serverUrl: session.serverUrl };
+}
+
+// Data tambahan ini pure "bonus": kalau Garena nolak / timeout / isolate lagi
+// dingin (session belum ada), response utama tetap harus jalan normal dengan
+// section-section kosong, bukan ikut gagal 502.
+async function fetchExtrasSafe(session: GarenaSession | null, uid: string): Promise<GarenaExtra | null> {
+  if (!session) return null;
+  try {
+    return await fetchGarenaExtra(session, uid);
+  } catch (err) {
+    console.error('garena_extra_error', err);
+    return null;
+  }
+}
+
 // --- Akun guest self-managed, bukan gantungan ke pool bawaan `ffapis` ---
 //
 // `getPlayerProfile()` normalnya login pake pool guest account BAWAAN
@@ -1066,10 +1091,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'UID tidak valid. Masukkan UID Free Fire yang benar (angka saja).' });
   }
 
-  const [profileResult, multipurposeBanResult, localItemDataResult] = await Promise.allSettled([
+  // Kalau isolate-nya udah warm, session Garena pasti udah nempel di instance
+  // ffapis, jadi data tambahan (wishlist/badge/spark/lone wolf/role/stats)
+  // bisa langsung dibarengin sama pencarian profil. Kalau isolate-nya masih
+  // dingin session-nya null, jadi dilewatin di sini dan dicoba sekali lagi
+  // setelah profil selesai - lihat fallback setelah blok Promise.allSettled.
+  const [profileResult, multipurposeBanResult, localItemDataResult, garenaExtraResult] = await Promise.allSettled([
     fetchFastestProfile(uidStr),
     fetchMultipurposeBanCheck(uidStr),
     ensureLocalItemDataLoaded(),
+    fetchExtrasSafe(peekGarenaSession(), uidStr),
   ]);
 
   if (profileResult.status === 'rejected') {
@@ -1089,6 +1120,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     multipurposeBanResult.status === 'fulfilled' ? normalizeBanCheck(multipurposeBanResult.value) : null;
 
   const petInfoData = profileWinner ? normalizePetInfo(profileWinner.data) : null;
+
+  let garenaExtra = garenaExtraResult.status === 'fulfilled' ? garenaExtraResult.value : null;
+  // Fallback cold start: pas isolate baru mulai, session Garena masih kosong
+  // jadi extras di atas otomatis null. Sekarang fetchFfapis() udah selesai
+  // login, jadi session-nya pasti udah keisi dan kita bisa ambil sekali lagi.
+  if (!garenaExtra && profileWinner?.source === 'ffapis') {
+    garenaExtra = await fetchExtrasSafe(peekGarenaSession(), uidStr);
+  }
 
   if (!profileData) {
     // Promise.any hanya reject kalau SEMUA sumber gagal, dengan AggregateError
@@ -1110,13 +1149,47 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(404).json({ error: 'Player tidak ditemukan.' });
   }
 
-  const [equippedOutfitItems, equippedWeaponOutfitItems, equippedLookChangerItems, equippedArrivalAnimationItems, cleanAvatarUrl] = await Promise.all([
+  // Field `AccountInfoBasic` yang ke-trim di descriptor ffapis (dan memang
+  // nggak dikirim Ahmyth) sekarang bisa diisi dari Garena langsung. Sifatnya
+  // CUMA fallback: dipakai `pick()` jadi data Ahmyth/ffapis yang udah ada
+  // tetap menang, Garena cuma nutup yang kosong. Ini juga bikin jalur ffapis
+  // jadi mandiri - dulu avatar/title/pin/rank cuma bisa dapat dari Ahmyth.
+  const accountExtra = garenaExtra?.accountExtra;
+  if (accountExtra) {
+    merged.headPic = pick(merged.headPic, accountExtra.avatarId);
+    merged.rank = pick(merged.rank, accountExtra.brRank);
+    merged.rankingPoints = pick(merged.rankingPoints, accountExtra.brRankPoints);
+    merged.maxRank = pick(merged.maxRank, accountExtra.brMaxRank);
+    merged.csRank = pick(merged.csRank, accountExtra.csRank);
+    merged.csRankingPoints = pick(merged.csRankingPoints, accountExtra.csRankPoints);
+    merged.csMaxRank = pick(merged.csMaxRank, accountExtra.csMaxRank);
+    merged.badgeCnt = pick(merged.badgeCnt, accountExtra.badgeCnt);
+    merged.titleId = pick(merged.titleId, accountExtra.titleId);
+    merged.pinId = pick(merged.pinId, accountExtra.pinId);
+    merged.bannerId = pick(merged.bannerId, accountExtra.bannerId);
+    merged.loneWolfRank = pick(merged.loneWolfRank, accountExtra.loneWolfRank);
+    merged.loneWolfPoints = pick(merged.loneWolfPoints, accountExtra.loneWolfPoints);
+    merged.releaseVersion = pick(merged.releaseVersion, accountExtra.releaseVersion);
+  }
+
+  const [equippedOutfitItems, equippedWeaponOutfitItems, equippedLookChangerItems, equippedArrivalAnimationItems, cleanAvatarUrl, wishlistItems] = await Promise.all([
     toOutfitItems(merged.equippedSkinIds || [], OUTFIT_TYPES),
     toOutfitItems(merged.weaponSkinIds || [], WEAPON_SKIN_TYPES),
     toOutfitItems(merged.weaponSkinIds || [], LOOK_CHANGER_TYPES),
     toOutfitItems(merged.weaponSkinIds || [], ARRIVAL_ANIMATION_TYPES),
     resolveCleanIconUrl(merged.headPic),
+    // Wishlist isinya item apa aja (bukan cuma outfit/weapon), jadi sengaja
+    // nggak dikasih filter tipe biar nggak ada yang kebuang. Nama + icon-nya
+    // tetap dilewatin lewat mesin lookup yang sama kayak outfit.
+    toOutfitItems((garenaExtra?.wishlist || []).map((w) => w.itemId).filter(Boolean)),
   ]);
+
+  // Timestamp "ditambahkan" dari Garena dilekatin balik ke item hasil
+  // lookup, karena toOutfitItems() cuma nerima daftar id.
+  const wishlistAddedAt = new Map(
+    (garenaExtra?.wishlist || []).map((w) => [w.itemId, w.addedAt] as const)
+  );
+  const wishlist = wishlistItems.map((item) => ({ ...item, addedAt: wishlistAddedAt.get(item.id) ?? null }));
 
   // Avatar bersih (tanpa background rarity) dari ItemID2/ff-resources kalau ada;
   // kalau nggak ketemu, tetap pakai avatarUrl lama (ShahGCreator jsdelivr).
@@ -1149,8 +1222,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         headPic: merged.headPic,
         rank: merged.rank,
         rankingPoints: merged.rankingPoints,
+        maxRank: merged.maxRank ?? null,
         csRank: merged.csRank,
         csRankingPoints: merged.csRankingPoints,
+        csMaxRank: merged.csMaxRank ?? null,
+        loneWolfRank: merged.loneWolfRank ?? null,
+        loneWolfPoints: merged.loneWolfPoints ?? null,
+        releaseVersion: merged.releaseVersion ?? null,
         badgeCnt: merged.badgeCnt,
         hasElitePass: merged.hasElitePass,
         liked: merged.liked,
@@ -1183,6 +1261,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
       credit: {
         creditScore: merged.creditScore,
+      },
+      // Data tambahan dari Garena langsung (lib/garena-extra.ts). Semuanya
+      // pure bonus: kalau RPC-nya gagal/timeout nilainya kosong, tapi
+      // response utama tetap 200.
+      wishlist,
+      badgeHistory: garenaExtra?.badgeHistory ?? [],
+      spark: garenaExtra?.spark ?? null,
+      roleStats: garenaExtra?.roleStats ?? [],
+      diamondTopup: garenaExtra?.diamondTopup ?? null,
+      careerStats: {
+        br: garenaExtra?.brModes ?? [],
+        cs: garenaExtra?.csStats ?? null,
       },
       ban: banCheckData
         ? {

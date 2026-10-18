@@ -20,8 +20,13 @@ type BasicInfo = {
   headPic?: number;
   rank?: number;
   rankingPoints?: number;
+  maxRank?: number | null;
   csRank?: number;
   csRankingPoints?: number;
+  csMaxRank?: number | null;
+  loneWolfRank?: number | null;
+  loneWolfPoints?: number | null;
+  releaseVersion?: string | null;
   badgeCnt?: number;
   hasElitePass?: boolean;
   liked?: number;
@@ -88,6 +93,44 @@ type PetInfo = {
   selectedSkillId?: number;
   skillName?: string | null;
 } | null;
+// --- Data tambahan yang diambil langsung dari server game Garena ---
+// (lib/garena-extra.ts). Semuanya pure bonus: kalau RPC-nya gagal di
+// belakang, API tetap balikin section kosong, jadi komponen-komponen di
+// bawah harus siap nerima undefined/null.
+type DetailedStats = Record<string, number | null>;
+type BrModeStats = {
+  mode: 'solo' | 'duo' | 'squad';
+  gamesPlayed?: number | null;
+  wins?: number | null;
+  kills?: number | null;
+  detailed?: DetailedStats;
+};
+type CsStats = {
+  gamesPlayed?: number | null;
+  wins?: number | null;
+  kills?: number | null;
+  detailed?: DetailedStats;
+};
+type CareerStats = { br?: BrModeStats[]; cs?: CsStats | null };
+type WishlistEntry = OutfitItem & { addedAt?: number | null };
+type BadgeHistoryEntry = {
+  badgeId?: number | null;
+  level?: number | null;
+  iconKey?: string | null;
+  nameKey?: string | null;
+};
+type SparkInfo = { level?: number | null; points?: number | null };
+type RoleStat = {
+  seasonId?: number | null;
+  gamemode?: number | null;
+  matchmode?: number | null;
+  roleId?: number | null;
+  field2?: number | null;
+  field3?: number | null;
+  field4?: number | null;
+  field5?: number | null;
+};
+
 type FfResponse = {
   basicInfo: BasicInfo;
   guildBasicInfo?: GuildInfo;
@@ -95,6 +138,12 @@ type FfResponse = {
   creditScoreInfo?: CreditInfo;
   banInfo?: BanInfo | null;
   petInfo?: PetInfo;
+  wishlist?: WishlistEntry[];
+  badgeHistory?: BadgeHistoryEntry[];
+  spark?: SparkInfo | null;
+  roleStats?: RoleStat[];
+  careerStats?: CareerStats | null;
+  diamondTopup?: number | null;
 };
 type NicknameSearchItem = {
   accountid: string;
@@ -104,8 +153,10 @@ type NicknameSearchItem = {
 };
 
 // API /api/ff mengembalikan schema milik Free Fire Stalk sendiri (player,
-// guild, social, credit, ban, pet). Adapter ini memetakan ke bentuk internal
-// yang dipakai komponen di bawah, biar logic render nggak perlu diubah.
+// guild, social, credit, ban, pet, plus data tambahan dari Garena langsung:
+// wishlist, badge history, spark, lone wolf, role, career stats). Adapter ini
+// memetakan ke bentuk internal yang dipakai komponen di bawah, biar logic
+// render nggak perlu diubah.
 function adaptApiResponse(raw: any): FfResponse {
   return {
     basicInfo: raw?.player,
@@ -114,6 +165,12 @@ function adaptApiResponse(raw: any): FfResponse {
     creditScoreInfo: raw?.credit,
     banInfo: raw?.ban ?? null,
     petInfo: raw?.pet ?? null,
+    wishlist: raw?.wishlist ?? [],
+    badgeHistory: raw?.badgeHistory ?? [],
+    spark: raw?.spark ?? null,
+    roleStats: raw?.roleStats ?? [],
+    careerStats: raw?.careerStats ?? null,
+    diamondTopup: raw?.diamondTopup ?? null,
   };
 }
 
@@ -619,6 +676,192 @@ function PetInfoCard({ data }: { data: PetInfo }) {
         <PetStat label="Skill" value={skillName} />
       </div>
     </div>
+  );
+}
+
+const BR_MODE_LABELS: Record<string, string> = { solo: 'Solo', duo: 'Duo', squad: 'Squad' };
+
+// formatNumber() balikin "0" buat undefined, padahal di stat match angka yang
+// NGGAK ADA beda maknanya sama angka nol beneran - makanya dicek manual dulu.
+function numOrDash(value?: number | null): string {
+  return value === undefined || value === null ? '—' : formatNumber(value);
+}
+
+function winRate(wins?: number | null, games?: number | null): string {
+  if (!games || wins === undefined || wins === null) return '—';
+  return `${Math.round((wins / games) * 100)}%`;
+}
+
+function CareerModeCard({
+  title,
+  icon,
+  gamesPlayed,
+  wins,
+  kills,
+  rows,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  gamesPlayed?: number | null;
+  wins?: number | null;
+  kills?: number | null;
+  rows: [string, React.ReactNode][];
+}) {
+  return (
+    <div style={{ background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)', borderRadius: 12, padding: '12px 11px' }}>
+      <p style={{
+        fontSize: 10, fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase',
+        letterSpacing: '0.08em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 5,
+      }}>
+        {icon} {title}
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 7 }}>
+        <PetStat label="Main" value={numOrDash(gamesPlayed)} />
+        <PetStat label="Menang" value={numOrDash(wins)} />
+        <PetStat label="Win Rate" value={winRate(wins, gamesPlayed)} />
+        <PetStat label="Kill" value={numOrDash(kills)} />
+        {rows.map(([label, value]) => (
+          <PetStat key={label} label={label} value={value} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Career stats (Battle Royale per mode + Clash Squad) datang dari endpoint
+// Garena /GetPlayerStats dan /GetPlayerTCStats. Nama-nama angka detailnya
+// ngikutin descriptor PlayerStats milik ffapis, bukan istilah karangan.
+function CareerStatsSection({ career, roleStats }: { career?: CareerStats | null; roleStats?: RoleStat[] | null }) {
+  const brModes = career?.br ?? [];
+  const cs = career?.cs;
+  const roles = roleStats ?? [];
+  if (brModes.length === 0 && !cs && roles.length === 0) return null;
+
+  return (
+    <>
+      {brModes.length > 0 ? (
+        <>
+          <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+          <div>
+            <SectionDividerLabel>Statistik Battle Royale</SectionDividerLabel>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
+              {brModes.map((mode) => (
+                <CareerModeCard
+                  key={mode.mode}
+                  title={BR_MODE_LABELS[mode.mode] || mode.mode}
+                  icon={<Swords size={12} />}
+                  gamesPlayed={mode.gamesPlayed}
+                  wins={mode.wins}
+                  kills={mode.kills}
+                  rows={[
+                    ['Headshot', numOrDash(mode.detailed?.headshots)],
+                    ['Damage', numOrDash(mode.detailed?.damage)],
+                    ['Top 10', numOrDash(mode.detailed?.top10Times)],
+                    ['Revive', numOrDash(mode.detailed?.revives)],
+                    ['Kill Tertinggi', numOrDash(mode.detailed?.highestKills)],
+                    ['Jarak', numOrDash(mode.detailed?.distanceTravelled)],
+                  ]}
+                />
+              ))}
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      {cs ? (
+        <>
+          <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+          <div>
+            <SectionDividerLabel>Statistik Clash Squad</SectionDividerLabel>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
+              <CareerModeCard
+                title="Clash Squad"
+                icon={<Trophy size={12} />}
+                gamesPlayed={cs.gamesPlayed}
+                wins={cs.wins}
+                kills={cs.kills}
+                rows={[
+                  ['MVP', numOrDash(cs.detailed?.mvpCount)],
+                  ['Headshot Kill', numOrDash(cs.detailed?.headshotKills)],
+                  ['Damage', numOrDash(cs.detailed?.damage)],
+                  ['Assist', numOrDash(cs.detailed?.assists)],
+                  ['Knockdown', numOrDash(cs.detailed?.knockdowns)],
+                  ['Revive', numOrDash(cs.detailed?.revivals)],
+                ]}
+              />
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      {roles.length > 0 ? (
+        <>
+          <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+          <div>
+            <SectionDividerLabel>Role per Season</SectionDividerLabel>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {roles.map((role, i) => (
+                <span
+                  key={`${role.seasonId ?? 's'}-${role.gamemode ?? 'g'}-${i}`}
+                  style={{
+                    background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)',
+                    borderRadius: 999, padding: '5px 12px', fontSize: 11.5, color: 'var(--light-text)',
+                  }}
+                >
+                  S{role.seasonId ?? '—'} · {role.gamemode === 15 ? 'CS' : 'BR'} · Role {role.roleId ?? '—'}
+                </span>
+              ))}
+            </div>
+          </div>
+        </>
+      ) : null}
+    </>
+  );
+}
+
+// Badge Booyah Pass dari musim-musim sebelumnya. `nameKey` aslinya berupa
+// kunci lokalization Garena semacam "T_54_H_BP100_NAME", jadi nomor
+// musimnya diambil dari pola itu, bukan ditebak.
+function badgeSeason(nameKey?: string | null): number | null {
+  const match = /^T_(\d+)_/.exec(nameKey || '');
+  return match ? Number(match[1]) : null;
+}
+
+function BadgeHistoryList({ items }: { items?: BadgeHistoryEntry[] | null }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <>
+      <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+      <div>
+        <SectionDividerLabel>Booyah Pass History</SectionDividerLabel>
+        <div style={{
+          background: 'var(--panel-bg-alt)', border: '1px solid var(--panel-border)',
+          borderRadius: 14, padding: '12px 13px', display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(92px, 1fr))', gap: 8,
+        }}>
+          {items.map((badge, i) => {
+            const season = badgeSeason(badge.nameKey);
+            return (
+              <div
+                key={`${badge.badgeId ?? 'b'}-${i}`}
+                style={{
+                  background: 'var(--panel-bg)', border: '1px solid var(--panel-border)',
+                  borderRadius: 10, padding: '9px 8px', textAlign: 'center',
+                }}
+                title={badge.nameKey || undefined}
+              >
+                <p style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--muted-text)', marginBottom: 2 }}>
+                  {season !== null ? `Season ${season}` : 'Booyah Pass'}
+                </p>
+                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-display)' }}>
+                  BP {badge.level ?? '—'}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -1457,6 +1700,12 @@ export default function StalkClient() {
   const credit = result?.creditScoreInfo;
   const ban = result?.banInfo;
   const pet = result?.petInfo;
+  const wishlist = result?.wishlist ?? [];
+  const badgeHistory = result?.badgeHistory ?? [];
+  const spark = result?.spark ?? null;
+  const careerStats = result?.careerStats ?? null;
+  const roleStats = result?.roleStats ?? [];
+  const diamondTopup = result?.diamondTopup ?? null;
   const customTag = basic ? CUSTOM_TAGS[basic.accountId] : null;
   const accountAgeDays = basic ? calculateAccountAgeDays(basic.createAt) : null;
   const ageBreakdown = basic ? calculateAgeBreakdown(basic.createAt) : null;
@@ -1988,7 +2237,7 @@ export default function StalkClient() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
               <StatCard
                 icon={basic.hasElitePass ? '/image/bphidup.png' : '/image/bpmati.png'}
                 label="Booyah Pass"
@@ -2004,6 +2253,29 @@ export default function StalkClient() {
               />
               <StatCard icon="/image/exp.png" label="Exp Level" value={formatNumber(basic.exp)} />
               <StatCard icon="/image/skor.png" label="Credit Score" value={credit?.creditScore ?? '—'} accent="var(--success)" />
+              {spark ? (
+                <StatCard
+                  label="Spark"
+                  value={numOrDash(spark.points)}
+                  accent="var(--gold)"
+                  sub={spark.level != null ? `Level ${spark.level}` : undefined}
+                />
+              ) : null}
+              {basic.loneWolfRank != null || basic.loneWolfPoints != null ? (
+                <StatCard
+                  label="Lone Wolf"
+                  value={numOrDash(basic.loneWolfRank)}
+                  accent="var(--blue)"
+                  sub={basic.loneWolfPoints != null ? `Poin: ${formatNumber(basic.loneWolfPoints)}` : undefined}
+                />
+              ) : null}
+              {diamondTopup != null ? (
+                <StatCard
+                  label="Diamond Topup"
+                  value={formatNumber(diamondTopup)}
+                  accent="var(--blue)"
+                />
+              ) : null}
             </div>
           </div>
 
@@ -2033,6 +2305,10 @@ export default function StalkClient() {
               <p style={{ fontSize: 12, color: 'var(--muted-text)' }}>Tidak tergabung dalam guild.</p>
             )}
           </div>
+
+          <CareerStatsSection career={careerStats} roleStats={roleStats} />
+
+          <BadgeHistoryList items={badgeHistory} />
 
           <LayoutGroup id="stalk-collection">
             <CharacterSection
@@ -2098,6 +2374,20 @@ export default function StalkClient() {
                 <div>
                   <SectionDividerLabel>Pet Info</SectionDividerLabel>
                   <PetInfoCard data={pet} />
+                </div>
+              </>
+            ) : null}
+
+            {!gridViewOn && wishlist.length > 0 ? (
+              <>
+                <div style={{ height: 1, background: 'var(--panel-border)', margin: '16px 0' }} />
+                <div>
+                  <SectionDividerLabel>Wishlist</SectionDividerLabel>
+                  <OutfitGrid
+                    items={wishlist}
+                    category="Wishlist"
+                    onSelect={(item, cat) => setSelectedItem({ item, category: cat })}
+                  />
                 </div>
               </>
             ) : null}
