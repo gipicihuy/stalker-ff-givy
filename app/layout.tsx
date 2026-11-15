@@ -1,4 +1,5 @@
 import './globals.css';
+import DonationModal from './components/DonationModal';
 import type { Metadata, Viewport } from 'next';
 import {
   SITE_NAME,
@@ -56,7 +57,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="id" style={{ backgroundColor: BACKGROUND_COLOR }}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <DonationModal />
+      </body>
     </html>
   );
 }
