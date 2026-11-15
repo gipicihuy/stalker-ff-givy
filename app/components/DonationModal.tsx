@@ -100,8 +100,12 @@ export default function DonationModal() {
           <X size={18} />
         </button>
 
+        <div className="donate-emoji" aria-hidden="true">
+          ☕
+        </div>
+
         <h2 id="donate-title" className="donate-title">
-          Dukung Stalker FF
+          Dukung Stalker FF 💛
         </h2>
         <p className="donate-text">
           Kalau Stalker membantu kamu mengecek akun Free Fire dengan cepat, kamu bisa ikut mendukung
@@ -120,11 +124,17 @@ export default function DonationModal() {
             <path d={qrPath} fill="#141B2D" />
           </svg>
         </div>
-        <p className="donate-note">Scan dengan e-wallet atau m-banking. Nominal bebas.</p>
+
+        <p className="donate-amount">Nominal bebas, berapa pun sangat berarti 🙏</p>
+
+        <div className="donate-chips">
+          <span className="donate-chip">🔒 Aman via QRIS</span>
+          <span className="donate-chip">📲 Semua e-wallet &amp; m-banking</span>
+        </div>
 
         <div className="donate-actions">
           <button type="button" className="donate-btn primary" onClick={downloadQr}>
-            Simpan QR
+            💛 Simpan QR
           </button>
           <button type="button" className="donate-btn ghost" onClick={close}>
             Nanti saja
