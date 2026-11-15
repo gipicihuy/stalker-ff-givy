@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { X } from 'lucide-react';
+import { Download, ShieldCheck, Smartphone, X } from 'lucide-react';
 import { QRIS_ROWS, QRIS_SIZE } from '../lib/qris-data';
 
 // Modal donasi: muncul setiap kali user membuka web (tiap load/refresh).
@@ -94,47 +94,64 @@ export default function DonationModal() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="donate-title"
+        aria-describedby="donate-desc"
         className="donate-card"
       >
         <button type="button" className="donate-close" onClick={close} aria-label="Tutup">
           <X size={18} />
         </button>
 
-        <div className="donate-emoji" aria-hidden="true">
-          ☕
-        </div>
+        <header className="donate-header">
+          <div className="donate-badge" aria-hidden="true">
+            ☕
+          </div>
+          <div>
+            <p className="donate-eyebrow">Donasi</p>
+            <h2 id="donate-title" className="donate-title">
+              Dukung Stalker FF
+            </h2>
+          </div>
+        </header>
 
-        <h2 id="donate-title" className="donate-title">
-          Dukung Stalker FF 💛
-        </h2>
-        <p className="donate-text">
+        <p id="donate-desc" className="donate-text">
           Kalau Stalker membantu kamu mengecek akun Free Fire dengan cepat, kamu bisa ikut mendukung
           pengembangannya agar web ini tetap aktif dan terus bisa digunakan.
         </p>
 
-        <div className="donate-qr">
-          <svg
-            viewBox={`0 0 ${vb} ${vb}`}
-            role="img"
-            aria-label="QRIS donasi"
-            shapeRendering="crispEdges"
-            style={{ display: 'block', width: '100%', height: 'auto' }}
-          >
-            <rect width={vb} height={vb} fill="#ffffff" />
-            <path d={qrPath} fill="#141B2D" />
-          </svg>
-        </div>
+        <section className="donate-qr-box" aria-label="QRIS donasi">
+          <div className="donate-qr">
+            <svg
+              viewBox={`0 0 ${vb} ${vb}`}
+              role="img"
+              aria-label="QRIS donasi"
+              shapeRendering="crispEdges"
+              style={{ display: 'block', width: '100%', height: 'auto' }}
+            >
+              <rect width={vb} height={vb} fill="#ffffff" />
+              <path d={qrPath} fill="#141B2D" />
+            </svg>
+          </div>
+          <div className="donate-qr-meta">
+            <span className="donate-qr-label">QRIS</span>
+            <span className="donate-qr-amount">Nominal bebas</span>
+          </div>
+        </section>
 
-        <p className="donate-amount">Nominal bebas, berapa pun sangat berarti 🙏</p>
-
-        <div className="donate-chips">
-          <span className="donate-chip">🔒 Aman via QRIS</span>
-          <span className="donate-chip">📲 Semua e-wallet &amp; m-banking</span>
-        </div>
+        <ul className="donate-info">
+          <li>
+            <ShieldCheck size={15} aria-hidden="true" />
+            Aman via QRIS
+          </li>
+          <li>
+            <Smartphone size={15} aria-hidden="true" />
+            Semua e-wallet &amp; m-banking
+          </li>
+        </ul>
 
         <div className="donate-actions">
           <button type="button" className="donate-btn primary" onClick={downloadQr}>
-            💛 Simpan QR
+            <Download size={16} aria-hidden="true" />
+            Simpan QR
           </button>
           <button type="button" className="donate-btn ghost" onClick={close}>
             Nanti saja
