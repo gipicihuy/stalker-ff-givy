@@ -4,9 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { QRIS_ROWS, QRIS_SIZE } from '../lib/qris-data';
 
-// Modal donasi: muncul sekali tiap sesi (tab) setelah user masuk ke web.
-// Ganti SESSION_KEY kalau mau muncul lagi untuk user yang sudah menutupnya.
-const SESSION_KEY = 'donate-modal-seen-v1';
+// Modal donasi: muncul setiap kali user membuka web (tiap load/refresh).
+// Pindah halaman di dalam web (navigasi client-side) tidak memunculkannya lagi.
 const SHOW_DELAY_MS = 1500;
 const QUIET = 2; // quiet zone (modul) di sekeliling QR
 
@@ -67,19 +66,7 @@ export default function DonationModal() {
   const vb = QRIS_SIZE + QUIET * 2;
 
   useEffect(() => {
-    let seen = false;
-    try {
-      seen = sessionStorage.getItem(SESSION_KEY) === '1';
-    } catch {
-      // storage diblokir -> tetap tampil sekali per load
-    }
-    if (seen) return;
-    const t = setTimeout(() => {
-      setOpen(true);
-      try {
-        sessionStorage.setItem(SESSION_KEY, '1');
-      } catch {}
-    }, SHOW_DELAY_MS);
+    const t = setTimeout(() => setOpen(true), SHOW_DELAY_MS);
     return () => clearTimeout(t);
   }, []);
 
@@ -115,7 +102,7 @@ export default function DonationModal() {
         </button>
 
         <h2 id="donate-title" className="donate-title">
-          Dukung Stalker
+          Dukung Stalker FF
         </h2>
         <p className="donate-text">
           Kalau Stalker membantu kamu mengecek akun Free Fire dengan cepat, kamu bisa ikut mendukung
