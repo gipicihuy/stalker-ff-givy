@@ -89,13 +89,12 @@ export default function DonationModal() {
   if (!open) return null;
 
   return (
-    <div className="donate-backdrop" onClick={close}>
+    <div className="donate-backdrop">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="donate-title"
         className="donate-card"
-        onClick={(e) => e.stopPropagation()}
       >
         <button type="button" className="donate-close" onClick={close} aria-label="Tutup">
           <X size={18} />
