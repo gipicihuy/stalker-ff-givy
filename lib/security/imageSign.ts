@@ -10,9 +10,9 @@ import { IMAGE_TOKEN_TTL_MS } from './constants';
 // ngelayanin path yang beneran baru diterbitin dia sendiri lewat endpoint
 // utama - bukan URL hasil tebak-tebakan/enumerasi UID langsung ke /api/img.
 
-export async function signImagePath(rawPath: string): Promise<string> {
+export async function signImagePath(rawPath: string, ttlMs: number = IMAGE_TOKEN_TTL_MS): Promise<string> {
   const secret = getSigningSecret();
-  const exp = Date.now() + IMAGE_TOKEN_TTL_MS;
+  const exp = Date.now() + ttlMs;
   const sig = await hmacSha256Hex(secret, `${rawPath}|${exp}`);
   const sep = rawPath.includes('?') ? '&' : '?';
   return `${rawPath}${sep}e=${exp}&t=${sig}`;

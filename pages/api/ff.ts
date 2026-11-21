@@ -44,19 +44,19 @@ function getRequestOrigin(req: NextApiRequest): string {
 // /api/img. Dipanggil sekali di titik paling akhir sebelum response
 // dikirim / notif Telegram dibuat. Async karena signing-nya pakai
 // Web Crypto (HMAC).
-async function absolutizeImageUrls<T>(value: T, origin: string): Promise<T> {
+async function absolutizeImageUrls<T>(value: T, origin: string, ttlMs?: number): Promise<T> {
   if (typeof value === 'string') {
     if (!value.startsWith('/api/img?')) return value as unknown as T;
-    const signed = await signImagePath(value);
+    const signed = await signImagePath(value, ttlMs);
     return `${origin}${signed}` as unknown as T;
   }
   if (Array.isArray(value)) {
-    return (await Promise.all(value.map((item) => absolutizeImageUrls(item, origin)))) as unknown as T;
+    return (await Promise.all(value.map((item) => absolutizeImageUrls(item, origin, ttlMs)))) as unknown as T;
   }
   if (value && typeof value === 'object') {
     const out: Record<string, any> = {};
     for (const [key, val] of Object.entries(value as Record<string, any>)) {
-      out[key] = await absolutizeImageUrls(val, origin);
+      out[key] = await absolutizeImageUrls(val, origin, ttlMs);
     }
     return out as unknown as T;
   }
@@ -1101,21 +1101,35 @@ function mergeSources(...sources: any[]) {
   return merged;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export type FfHandlerOptions = {
+  skipGuard?: boolean;
+  skipNotif?: boolean;
+  imageTtlMs?: number;
+  cacheControl?: string;
+  transform?: (body: any) => any;
+};
+
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  return handleFf(req, res, {});
+}
+
+export async function handleFf(req: NextApiRequest, res: NextApiResponse, opts: FfHandlerOptions = {}) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET']);
     return res.status(405).json({ error: `Method ${req.method} tidak diizinkan` });
   }
 
   const ip = getIP(req);
-  const requestOriginForGuard = getRequestOrigin(req);
-  const guard = await guardRequest(req, ip, requestOriginForGuard, {
-    path: GUARD_PATHS.ff,
-    rateLimit: FF_RATE_LIMIT,
-    rateWindowMs: FF_RATE_WINDOW_MS,
-    requireHandshake: true,
-  });
-  if (!guard.ok) return sendGuardRejection(res, guard);
+  if (!opts.skipGuard) {
+    const requestOriginForGuard = getRequestOrigin(req);
+    const guard = await guardRequest(req, ip, requestOriginForGuard, {
+      path: GUARD_PATHS.ff,
+      rateLimit: FF_RATE_LIMIT,
+      rateWindowMs: FF_RATE_WINDOW_MS,
+      requireHandshake: true,
+    });
+    if (!guard.ok) return sendGuardRejection(res, guard);
+  }
 
   const { uid, region } = req.query;
   const uidStr = String(uid || '');
@@ -1312,7 +1326,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         : null,
       pet: petInfoData,
     },
-    requestOrigin
+    requestOrigin,
+    opts.imageTtlMs
   );
 
   // Data tambahan kosong hampir selalu berarti jalurnya kehabisan budget
@@ -1331,16 +1346,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   );
   res.setHeader(
     'Cache-Control',
-    extraLengkap ? 's-maxage=60, stale-while-revalidate=120' : 's-maxage=10, stale-while-revalidate=30'
+    opts.cacheControl ||
+      (extraLengkap ? 's-maxage=60, stale-while-revalidate=120' : 's-maxage=10, stale-while-revalidate=30')
   );
-  res.status(200).json(responseBody);
+  res.status(200).json(opts.transform ? opts.transform(responseBody) : responseBody);
 
   // Notif dikirim default tiap ada hit beneran. generateMetadata di
   // app/stalk/[[...uid]]/page.tsx juga manggil endpoint ini buat bikin OG
   // tags, tapi ditandai lewat header internal 'x-internal-ssr' (bukan query
   // param yang bisa keliatan di Network tab browser), supaya nggak ikut
   // ngirim notif duplikat.
-  const isInternalSsrRequest = req.headers['x-internal-ssr'] === '1';
+  const isInternalSsrRequest = req.headers['x-internal-ssr'] === '1' || Boolean(opts.skipNotif);
   // Selain internal-SSR, cek juga dedup: kalau IP yang sama baru aja dapet
   // notif buat accountId yang sama dalam NOTIF_DEDUP_WINDOW_MS terakhir
   // (misal user gak sengaja double-click tombol search), skip biar gak
