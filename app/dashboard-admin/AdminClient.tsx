@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './admin.css';
 
 type KeyRow = {
@@ -16,14 +16,22 @@ type KeyRow = {
 };
 
 type Created = { key: string; record: KeyRow };
+type Unit = 'minute' | 'hour' | 'day' | 'forever';
+type Filter = 'all' | 'active' | 'revoked' | 'expired';
+type KeyState = 'active' | 'revoked' | 'expired';
 
-const DURATIONS = [
-  { value: 0, label: 'Tanpa batas' },
-  { value: 7, label: '7 hari' },
-  { value: 30, label: '30 hari' },
-  { value: 90, label: '90 hari' },
-  { value: 365, label: '365 hari' },
+const UNITS: { value: Unit; label: string; ms: number }[] = [
+  { value: 'minute', label: 'Menit', ms: 60 * 1000 },
+  { value: 'hour', label: 'Jam', ms: 60 * 60 * 1000 },
+  { value: 'day', label: 'Hari', ms: 24 * 60 * 60 * 1000 },
+  { value: 'forever', label: 'Tanpa batas', ms: 0 },
 ];
+
+const STATE_LABEL: Record<KeyState, string> = {
+  active: 'Aktif',
+  revoked: 'Dicabut',
+  expired: 'Kedaluwarsa',
+};
 
 function Svg({ children, size = 16 }: { children: React.ReactNode; size?: number }) {
   return (
@@ -41,6 +49,13 @@ const IconKey = ({ size }: { size?: number }) => (
   </Svg>
 );
 
+const IconBook = () => (
+  <Svg>
+    <path d="M12 7v14" />
+    <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
+  </Svg>
+);
+
 const IconCopy = () => (
   <Svg>
     <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
@@ -51,13 +66,6 @@ const IconCopy = () => (
 const IconCheck = () => (
   <Svg>
     <path d="M20 6 9 17l-5-5" />
-  </Svg>
-);
-
-const IconCheckCircle = () => (
-  <Svg>
-    <circle cx="12" cy="12" r="10" />
-    <path d="m9 12 2 2 4-4" />
   </Svg>
 );
 
@@ -113,13 +121,6 @@ const IconAlert = () => (
   </Svg>
 );
 
-const IconShield = ({ size }: { size?: number }) => (
-  <Svg size={size}>
-    <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
-    <path d="m9 12 2 2 4-4" />
-  </Svg>
-);
-
 const IconLock = () => (
   <Svg>
     <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
@@ -127,23 +128,10 @@ const IconLock = () => (
   </Svg>
 );
 
-const IconUser = () => (
+const IconSearch = () => (
   <Svg>
-    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-    <circle cx="12" cy="7" r="4" />
-  </Svg>
-);
-
-const IconActivity = () => (
-  <Svg size={18}>
-    <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" />
-  </Svg>
-);
-
-const IconSlash = () => (
-  <Svg size={18}>
-    <circle cx="12" cy="12" r="10" />
-    <path d="m4.9 4.9 14.2 14.2" />
+    <circle cx="11" cy="11" r="8" />
+    <path d="m21 21-4.3-4.3" />
   </Svg>
 );
 
@@ -159,14 +147,26 @@ function fmtDate(ts: number | null) {
   });
 }
 
-function isExpired(row: KeyRow) {
-  return row.expiresAt !== null && Date.now() > row.expiresAt;
+function remaining(ts: number) {
+  const diff = ts - Date.now();
+  if (diff <= 0) return 'sudah lewat';
+  const minutes = Math.ceil(diff / 60000);
+  if (minutes < 60) return `${minutes} menit lagi`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `${hours} jam lagi`;
+  return `${Math.floor(hours / 24)} hari lagi`;
 }
 
-function statusOf(row: KeyRow): { text: string; tone: 'on' | 'off' | 'idle' } {
-  if (row.revoked) return { text: 'Dicabut', tone: 'off' };
-  if (isExpired(row)) return { text: 'Kadaluarsa', tone: 'idle' };
-  return { text: 'Aktif', tone: 'on' };
+function stateOf(row: KeyRow): KeyState {
+  if (row.revoked) return 'revoked';
+  if (row.expiresAt !== null && Date.now() > row.expiresAt) return 'expired';
+  return 'active';
+}
+
+function computeExpiry(amount: number, unit: Unit): number | null {
+  const found = UNITS.find((u) => u.value === unit);
+  if (!found || unit === 'forever' || !Number.isFinite(amount) || amount < 1) return null;
+  return Date.now() + Math.floor(amount) * found.ms;
 }
 
 async function api(path: string, method: string, body?: unknown): Promise<any> {
@@ -183,12 +183,18 @@ async function api(path: string, method: string, body?: unknown): Promise<any> {
 
 export default function AdminClient() {
   const [state, setState] = useState<'loading' | 'out' | 'in' | 'off'>('loading');
+  const [view, setView] = useState<'keys' | 'docs'>('keys');
   const [password, setPassword] = useState('');
-  const [label, setLabel] = useState('');
-  const [days, setDays] = useState(30);
   const [keys, setKeys] = useState<KeyRow[]>([]);
+  const [filter, setFilter] = useState<Filter>('all');
+  const [query, setQuery] = useState('');
+  const [dialog, setDialog] = useState(false);
+  const [label, setLabel] = useState('');
+  const [amount, setAmount] = useState('30');
+  const [unit, setUnit] = useState<Unit>('day');
   const [created, setCreated] = useState<Created | null>(null);
   const [error, setError] = useState('');
+  const [dialogError, setDialogError] = useState('');
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState('');
   const [confirmId, setConfirmId] = useState('');
@@ -214,6 +220,15 @@ export default function AdminClient() {
       }
     })();
   }, [loadKeys]);
+
+  useEffect(() => {
+    if (!dialog) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeDialog();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [dialog]);
 
   const notify = (text: string) => {
     setToast(text);
@@ -247,21 +262,33 @@ export default function AdminClient() {
 
   const logout = async () => {
     await api('/api/admin/session', 'DELETE').catch(() => null);
-    setCreated(null);
     setKeys([]);
+    setCreated(null);
     setState('out');
   };
 
+  const openDialog = () => {
+    setCreated(null);
+    setDialogError('');
+    setLabel('');
+    setDialog(true);
+  };
+
+  function closeDialog() {
+    setDialog(false);
+    setCreated(null);
+    setDialogError('');
+  }
+
   const generate = async () => {
     setBusy(true);
-    setError('');
+    setDialogError('');
     try {
-      const data = await api('/api/admin/keys', 'POST', { label, days });
+      const data = await api('/api/admin/keys', 'POST', { label, amount: Number(amount), unit });
       setCreated(data);
-      setLabel('');
       await loadKeys();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Gagal membuat key');
+      setDialogError(e instanceof Error ? e.message : 'Gagal membuat key');
     } finally {
       setBusy(false);
     }
@@ -290,24 +317,30 @@ export default function AdminClient() {
     }
   };
 
+  const counts = useMemo(() => {
+    const c = { all: keys.length, active: 0, revoked: 0, expired: 0 };
+    for (const k of keys) c[stateOf(k)] += 1;
+    return c;
+  }, [keys]);
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return keys.filter((k) => {
+      if (filter !== 'all' && stateOf(k) !== filter) return false;
+      if (!q) return true;
+      return k.label.toLowerCase().includes(q) || (k.key || '').toLowerCase().includes(q);
+    });
+  }, [keys, filter, query]);
+
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const exampleUrl = created ? `${origin}/api/v1/player?uid=12345678&apikey=${created.key}` : '';
-  const activeCount = keys.filter((k) => !k.revoked && !isExpired(k)).length;
-  const revokedCount = keys.filter((k) => k.revoked).length;
-  const totalHits = keys.reduce((sum, k) => sum + k.hits, 0);
+  const previewExpiry = computeExpiry(Number(amount), unit);
+  const amountInvalid = unit !== 'forever' && !(Number(amount) >= 1);
 
-  if (state === 'loading') {
+  if (state === 'loading' || state === 'off') {
     return (
       <main className="adm-login">
-        <p className="adm-muted">Memuat...</p>
-      </main>
-    );
-  }
-
-  if (state === 'off') {
-    return (
-      <main className="adm-login">
-        <p className="adm-muted">Halaman tidak tersedia.</p>
+        <p style={{ color: 'var(--muted-text)' }}>{state === 'loading' ? 'Memuat...' : 'Halaman tidak tersedia.'}</p>
       </main>
     );
   }
@@ -316,267 +349,408 @@ export default function AdminClient() {
     return (
       <main className="adm-login">
         <div className="adm-login-box">
-          <div className="adm-login-head">
-            <span className="adm-brand-mark">
-              <IconShield size={22} />
-            </span>
-            Masuk ke dashboard admin
-          </div>
-          <div className="adm-stack">
-            <div className="adm-field">
-              <IconLock />
-              <input
-                className="adm-input"
-                type="password"
-                placeholder="Password admin"
-                aria-label="Password admin"
-                value={password}
-                autoComplete="current-password"
-                autoFocus
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && password && !busy && login()}
-              />
-            </div>
-            <button className="adm-btn" disabled={busy || !password} onClick={login}>
-              Masuk
-            </button>
-          </div>
+          <h1>Masuk</h1>
+          <p>Dashboard admin API key.</p>
           {error && (
             <div className="adm-alert" role="alert">
               <IconAlert />
               <span>{error}</span>
             </div>
           )}
+          <div className="adm-field">
+            <IconLock />
+            <input
+              className="adm-input"
+              type="password"
+              placeholder="Password"
+              aria-label="Password"
+              value={password}
+              autoComplete="current-password"
+              autoFocus
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && password && !busy && login()}
+            />
+          </div>
+          <button className="adm-btn" disabled={busy || !password} onClick={login}>
+            Masuk
+          </button>
         </div>
       </main>
     );
   }
 
+  const tabs: { id: Filter; label: string }[] = [
+    { id: 'all', label: 'Semua' },
+    { id: 'active', label: 'Aktif' },
+    { id: 'revoked', label: 'Dicabut' },
+    { id: 'expired', label: 'Kedaluwarsa' },
+  ];
+
   return (
-    <main className="adm">
-      <header className="adm-top">
-        <div className="adm-brand">
-          <span className="adm-brand-mark">
-            <IconKey size={18} />
+    <div className="adm">
+      <aside className="adm-side">
+        <div className="adm-logo">
+          <IconKey size={20} />
+          <span>
+            Free Fire API
+            <span className="adm-logo-sub">Admin</span>
           </span>
-          Manajemen API key
         </div>
-        <button className="adm-iconbtn" onClick={logout} title="Keluar" aria-label="Keluar">
-          <IconLogout />
-        </button>
-      </header>
-
-      <div className="adm-summary">
-        <div className="adm-stat">
-          <span className="adm-stat-icon">
-            <IconCheckCircle />
-          </span>
-          <div>
-            <span className="adm-stat-value">{activeCount.toLocaleString('id-ID')}</span>
-            <span className="adm-stat-label">Key aktif</span>
-          </div>
-        </div>
-        <div className="adm-stat">
-          <span className="adm-stat-icon">
-            <IconActivity />
-          </span>
-          <div>
-            <span className="adm-stat-value">{totalHits.toLocaleString('id-ID')}</span>
-            <span className="adm-stat-label">Total request</span>
-          </div>
-        </div>
-        <div className="adm-stat">
-          <span className="adm-stat-icon">
-            <IconSlash />
-          </span>
-          <div>
-            <span className="adm-stat-value">{revokedCount.toLocaleString('id-ID')}</span>
-            <span className="adm-stat-label">Key dicabut</span>
-          </div>
-        </div>
-      </div>
-
-      <section className="adm-section" aria-labelledby="adm-new">
-        <div className="adm-section-head">
-          <h2 className="adm-h2" id="adm-new">
-            Buat key baru
-          </h2>
-        </div>
-        <div className="adm-form">
-          <div className="adm-field">
-            <IconUser />
-            <input
-              className="adm-input"
-              placeholder="Nama pembeli"
-              aria-label="Nama pembeli"
-              value={label}
-              maxLength={60}
-              onChange={(e) => setLabel(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && label.trim() && !busy && generate()}
-            />
-          </div>
-          <select className="adm-select" aria-label="Masa aktif" value={days} onChange={(e) => setDays(Number(e.target.value))}>
-            {DURATIONS.map((d) => (
-              <option key={d.value} value={d.value}>
-                {d.label}
-              </option>
-            ))}
-          </select>
-          <button className="adm-btn" disabled={busy || !label.trim()} onClick={generate}>
-            <IconPlus />
-            Buat key
+        <nav className="adm-nav" aria-label="Menu">
+          <button className="adm-navitem" aria-current={view === 'keys' ? 'page' : undefined} onClick={() => setView('keys')}>
+            <IconKey />
+            API key
+          </button>
+          <button className="adm-navitem" aria-current={view === 'docs' ? 'page' : undefined} onClick={() => setView('docs')}>
+            <IconBook />
+            Dokumentasi
+          </button>
+        </nav>
+        <div className="adm-side-foot">
+          <button className="adm-navitem" onClick={logout}>
+            <IconLogout />
+            Keluar
           </button>
         </div>
+      </aside>
 
-        {error && (
-          <div className="adm-alert" role="alert">
-            <IconAlert />
-            <span>{error}</span>
-          </div>
+      <main className="adm-main">
+        {view === 'keys' && (
+          <>
+            <div className="adm-head">
+              <div>
+                <h1 className="adm-title">API key</h1>
+                <p className="adm-sub">Akses pembeli ke endpoint /api/v1/player.</p>
+              </div>
+              <button className="adm-btn" onClick={openDialog}>
+                <IconPlus />
+                Buat key
+              </button>
+            </div>
+
+            {error && (
+              <div className="adm-alert" role="alert">
+                <IconAlert />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <div className="adm-toolbar">
+              <div className="adm-tabs" role="tablist">
+                {tabs.map((t) => (
+                  <button key={t.id} className="adm-tab" role="tab" aria-selected={filter === t.id} onClick={() => setFilter(t.id)}>
+                    {t.label}
+                    <span className="adm-count">{counts[t.id]}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="adm-search">
+                <IconSearch />
+                <input
+                  className="adm-input"
+                  placeholder="Cari nama atau key"
+                  aria-label="Cari nama atau key"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {visible.length === 0 ? (
+              <div className="adm-empty">
+                <strong>{keys.length === 0 ? 'Belum ada key' : 'Tidak ada key yang cocok'}</strong>
+                {keys.length === 0 ? 'Klik Buat key untuk menambahkan akses pembeli pertama.' : 'Ubah filter atau kata kunci pencarian.'}
+              </div>
+            ) : (
+              <table className="adm-table">
+                <thead>
+                  <tr>
+                    <th>Pembeli</th>
+                    <th>API key</th>
+                    <th>Status</th>
+                    <th>Berlaku sampai</th>
+                    <th>Request</th>
+                    <th aria-label="Aksi" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {visible.map((row) => {
+                    const st = stateOf(row);
+                    return (
+                      <tr key={row.id}>
+                        <td data-label="Pembeli">
+                          <div>
+                            <span className="adm-cell-title">{row.label}</span>
+                            <span className="adm-cell-sub">Dibuat {fmtDate(row.createdAt)}</span>
+                          </div>
+                        </td>
+                        <td data-label="API key">
+                          <div className="adm-keycell">
+                            {row.key ? (
+                              <>
+                                <span className="adm-mono">{row.key}</span>
+                                <button
+                                  className="adm-iconbtn"
+                                  onClick={() => copy(row.key as string, 'Key disalin')}
+                                  title="Salin key"
+                                  aria-label={`Salin key ${row.label}`}
+                                >
+                                  <IconCopy />
+                                </button>
+                              </>
+                            ) : (
+                              <span className="adm-mono adm-dim">Tidak tersimpan</span>
+                            )}
+                          </div>
+                        </td>
+                        <td data-label="Status">
+                          <span className={`adm-badge adm-badge-${st}`}>{STATE_LABEL[st]}</span>
+                        </td>
+                        <td data-label="Berlaku sampai">
+                          <div>
+                            <span className="adm-cell-title" style={{ fontWeight: 400 }}>
+                              {row.expiresAt ? fmtDate(row.expiresAt) : 'Tanpa batas'}
+                            </span>
+                            {row.expiresAt && st !== 'expired' && <span className="adm-cell-sub">{remaining(row.expiresAt)}</span>}
+                          </div>
+                        </td>
+                        <td data-label="Request">
+                          <div>
+                            <span className="adm-cell-title" style={{ fontWeight: 400 }}>
+                              {row.hits.toLocaleString('id-ID')}
+                            </span>
+                            <span className="adm-cell-sub">{row.lastUsedAt ? `Terakhir ${fmtDate(row.lastUsedAt)}` : 'Belum dipakai'}</span>
+                          </div>
+                        </td>
+                        <td data-label="Aksi">
+                          <div className="adm-actions">
+                            {confirmId === row.id ? (
+                              <>
+                                <button className="adm-link adm-link-danger" onClick={() => remove(row)}>
+                                  Hapus permanen
+                                </button>
+                                <button className="adm-link" onClick={() => setConfirmId('')}>
+                                  Batal
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  className="adm-iconbtn"
+                                  onClick={() => toggleRevoke(row)}
+                                  title={row.revoked ? 'Aktifkan lagi' : 'Cabut akses'}
+                                  aria-label={row.revoked ? `Aktifkan ${row.label}` : `Cabut ${row.label}`}
+                                >
+                                  {row.revoked ? <IconRestore /> : <IconBan />}
+                                </button>
+                                <button
+                                  className="adm-iconbtn adm-iconbtn-danger"
+                                  onClick={() => setConfirmId(row.id)}
+                                  title="Hapus"
+                                  aria-label={`Hapus ${row.label}`}
+                                >
+                                  <IconTrash />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </>
         )}
 
-        {created && (
-          <div className="adm-created">
-            <div className="adm-created-head">
-              <span className="adm-created-title">
-                <IconCheckCircle />
-                Key untuk {created.record.label} sudah dibuat
-              </span>
-              <button className="adm-iconbtn" onClick={() => setCreated(null)} title="Tutup" aria-label="Tutup">
+        {view === 'docs' && (
+          <>
+            <div className="adm-head">
+              <div>
+                <h1 className="adm-title">Dokumentasi</h1>
+                <p className="adm-sub">Ringkasan yang bisa dikirim ke pembeli.</p>
+              </div>
+            </div>
+            <div className="adm-doc">
+              <section>
+                <h2>Endpoint</h2>
+                <pre className="adm-pre adm-mono">GET {origin}/api/v1/player</pre>
+              </section>
+              <section>
+                <h2>Parameter</h2>
+                <table className="adm-params">
+                  <thead>
+                    <tr>
+                      <th>Nama</th>
+                      <th>Keterangan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="adm-mono">uid</td>
+                      <td>ID akun Free Fire, 6 sampai 15 digit. Wajib.</td>
+                    </tr>
+                    <tr>
+                      <td className="adm-mono">apikey</td>
+                      <td>API key dari admin. Wajib.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </section>
+              <section>
+                <h2>Contoh request</h2>
+                <pre className="adm-pre adm-mono">{`curl "${origin}/api/v1/player?uid=12345678&apikey=ffk_xxxxxxxx"`}</pre>
+              </section>
+              <section>
+                <h2>Respon</h2>
+                <p>
+                  JSON berisi data akun lengkap di <span className="adm-mono">player</span> dan ringkasan outfit di{' '}
+                  <span className="adm-mono">outfit</span> (id, nama, dan URL gambar tiap item). URL gambar berlaku 30 hari.
+                </p>
+              </section>
+              <section>
+                <h2>Kode error</h2>
+                <table className="adm-params">
+                  <thead>
+                    <tr>
+                      <th>Status</th>
+                      <th>Arti</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="adm-mono">401</td>
+                      <td>Key tidak valid, dicabut, atau sudah kedaluwarsa.</td>
+                    </tr>
+                    <tr>
+                      <td className="adm-mono">429</td>
+                      <td>Lebih dari 20 request per 10 detik. Tunggu sesuai header Retry-After.</td>
+                    </tr>
+                    <tr>
+                      <td className="adm-mono">400 / 404</td>
+                      <td>UID tidak valid atau akun tidak ditemukan.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </section>
+            </div>
+          </>
+        )}
+      </main>
+
+      {dialog && (
+        <div className="adm-overlay" onMouseDown={(e) => e.target === e.currentTarget && closeDialog()}>
+          <div className="adm-dialog" role="dialog" aria-modal="true" aria-labelledby="adm-dialog-title">
+            <div className="adm-dialog-head">
+              <h2 className="adm-dialog-title" id="adm-dialog-title">
+                {created ? 'Key berhasil dibuat' : 'Buat key baru'}
+              </h2>
+              <button className="adm-iconbtn" onClick={closeDialog} title="Tutup" aria-label="Tutup">
                 <IconX />
               </button>
             </div>
-            <div className="adm-copyrow">
-              <span className="adm-code">{created.key}</span>
-              <button className="adm-iconbtn" onClick={() => copy(created.key, 'Key disalin')} title="Salin key" aria-label="Salin key">
-                <IconCopy />
-              </button>
-            </div>
-            <div className="adm-copyrow">
-              <span className="adm-code adm-code-dim">{exampleUrl}</span>
-              <button className="adm-iconbtn" onClick={() => copy(exampleUrl, 'URL disalin')} title="Salin URL contoh" aria-label="Salin URL contoh">
-                <IconCopy />
-              </button>
-            </div>
+
+            {created ? (
+              <>
+                <div className="adm-dialog-body">
+                  <div>
+                    <span className="adm-label">API key {created.record.label}</span>
+                    <div className="adm-copyrow">
+                      <span className="adm-mono">{created.key}</span>
+                      <button className="adm-iconbtn" onClick={() => copy(created.key, 'Key disalin')} title="Salin key" aria-label="Salin key">
+                        <IconCopy />
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="adm-label">Contoh URL</span>
+                    <div className="adm-copyrow">
+                      <span className="adm-mono adm-dim">{exampleUrl}</span>
+                      <button className="adm-iconbtn" onClick={() => copy(exampleUrl, 'URL disalin')} title="Salin URL" aria-label="Salin URL">
+                        <IconCopy />
+                      </button>
+                    </div>
+                    <p className="adm-hint">
+                      {created.record.expiresAt ? `Berlaku sampai ${fmtDate(created.record.expiresAt)}.` : 'Key ini tidak punya batas waktu.'}
+                    </p>
+                  </div>
+                </div>
+                <div className="adm-dialog-foot">
+                  <button className="adm-btn" onClick={closeDialog}>
+                    Selesai
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="adm-dialog-body">
+                  {dialogError && (
+                    <div className="adm-alert" role="alert" style={{ margin: 0 }}>
+                      <IconAlert />
+                      <span>{dialogError}</span>
+                    </div>
+                  )}
+                  <div>
+                    <label className="adm-label" htmlFor="adm-label">
+                      Nama pembeli
+                    </label>
+                    <input
+                      id="adm-label"
+                      className="adm-input"
+                      value={label}
+                      maxLength={60}
+                      autoFocus
+                      onChange={(e) => setLabel(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && label.trim() && !amountInvalid && !busy && generate()}
+                    />
+                  </div>
+                  <div>
+                    <label className="adm-label" htmlFor="adm-amount">
+                      Masa aktif
+                    </label>
+                    <div className="adm-duration">
+                      <input
+                        id="adm-amount"
+                        className="adm-input"
+                        type="number"
+                        min={1}
+                        inputMode="numeric"
+                        value={unit === 'forever' ? '' : amount}
+                        disabled={unit === 'forever'}
+                        onChange={(e) => setAmount(e.target.value)}
+                        aria-label="Jumlah"
+                      />
+                      <select className="adm-select" value={unit} onChange={(e) => setUnit(e.target.value as Unit)} aria-label="Satuan waktu">
+                        {UNITS.map((u) => (
+                          <option key={u.value} value={u.value}>
+                            {u.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <p className="adm-hint">
+                      {unit === 'forever'
+                        ? 'Key tidak akan kedaluwarsa sampai dicabut.'
+                        : previewExpiry
+                          ? `Berlaku sampai ${fmtDate(previewExpiry)}.`
+                          : 'Isi jumlah minimal 1.'}
+                    </p>
+                  </div>
+                </div>
+                <div className="adm-dialog-foot">
+                  <button className="adm-btn adm-btn-quiet" onClick={closeDialog}>
+                    Batal
+                  </button>
+                  <button className="adm-btn" disabled={busy || !label.trim() || amountInvalid} onClick={generate}>
+                    Buat key
+                  </button>
+                </div>
+              </>
+            )}
           </div>
-        )}
-      </section>
-
-      <section className="adm-section" aria-labelledby="adm-list">
-        <div className="adm-section-head">
-          <h2 className="adm-h2" id="adm-list">
-            Daftar key
-          </h2>
-          <span className="adm-muted">{keys.length} total</span>
         </div>
-
-        <div className="adm-tablewrap">
-          {keys.length === 0 ? (
-            <div className="adm-empty">
-              <span className="adm-empty-mark">
-                <IconKey size={20} />
-              </span>
-              <strong style={{ color: 'var(--white)' }}>Belum ada key</strong>
-              <span>Isi nama pembeli di atas lalu klik Buat key.</span>
-            </div>
-          ) : (
-            <table className="adm-table">
-              <thead>
-                <tr>
-                  <th>Pembeli</th>
-                  <th>API key</th>
-                  <th>Status</th>
-                  <th>Masa aktif</th>
-                  <th>Pemakaian</th>
-                  <th aria-label="Aksi" />
-                </tr>
-              </thead>
-              <tbody>
-                {keys.map((row) => {
-                  const st = statusOf(row);
-                  return (
-                    <tr key={row.id}>
-                      <td data-label="Pembeli">
-                        <div>
-                          <span className="adm-name">{row.label}</span>
-                          <span className="adm-muted">Dibuat {fmtDate(row.createdAt)}</span>
-                        </div>
-                      </td>
-                      <td data-label="API key">
-                        <div className="adm-keycell">
-                          {row.key ? (
-                            <>
-                              <span className="adm-code">{row.key}</span>
-                              <button
-                                className="adm-iconbtn"
-                                onClick={() => copy(row.key as string, 'Key disalin')}
-                                title="Salin key"
-                                aria-label={`Salin key ${row.label}`}
-                              >
-                                <IconCopy />
-                              </button>
-                            </>
-                          ) : (
-                            <span className="adm-code adm-code-dim">Tidak tersimpan (dibuat sebelum update)</span>
-                          )}
-                        </div>
-                      </td>
-                      <td data-label="Status">
-                        <span className="adm-status">
-                          <span className={`adm-dot ${st.tone === 'on' ? 'adm-dot-on' : st.tone === 'off' ? 'adm-dot-off' : ''}`} />
-                          {st.text}
-                        </span>
-                      </td>
-                      <td data-label="Masa aktif">{row.expiresAt ? fmtDate(row.expiresAt) : 'Tanpa batas'}</td>
-                      <td data-label="Pemakaian">
-                        <div>
-                          <span className="adm-name" style={{ fontWeight: 400 }}>
-                            {row.hits.toLocaleString('id-ID')} request
-                          </span>
-                          <span className="adm-muted">Terakhir {fmtDate(row.lastUsedAt)}</span>
-                        </div>
-                      </td>
-                      <td data-label="Aksi">
-                        <div className="adm-actions">
-                          {confirmId === row.id ? (
-                            <>
-                              <button className="adm-textbtn adm-textbtn-danger" onClick={() => remove(row)}>
-                                Hapus
-                              </button>
-                              <button className="adm-textbtn" onClick={() => setConfirmId('')}>
-                                Batal
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                className="adm-iconbtn"
-                                onClick={() => toggleRevoke(row)}
-                                title={row.revoked ? 'Aktifkan lagi' : 'Cabut akses'}
-                                aria-label={row.revoked ? `Aktifkan ${row.label}` : `Cabut ${row.label}`}
-                              >
-                                {row.revoked ? <IconRestore /> : <IconBan />}
-                              </button>
-                              <button
-                                className="adm-iconbtn adm-iconbtn-danger"
-                                onClick={() => setConfirmId(row.id)}
-                                title="Hapus permanen"
-                                aria-label={`Hapus ${row.label}`}
-                              >
-                                <IconTrash />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </section>
+      )}
 
       {toast && (
         <div className="adm-toast" role="status">
@@ -584,6 +758,6 @@ export default function AdminClient() {
           {toast}
         </div>
       )}
-    </main>
+    </div>
   );
 }

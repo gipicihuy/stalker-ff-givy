@@ -14,7 +14,6 @@ import {
 
 const STORE_NAME = '__api_keys_store__';
 const KEY_PREFIX = 'ffk_';
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 const devStore = new Map<string, unknown>();
 
@@ -55,7 +54,7 @@ async function callStore<T>(path: string, body: unknown): Promise<T | null> {
   return (await res.json()) as T;
 }
 
-export async function issueApiKey(label: string, days: number): Promise<{ key: string; record: PublicKeyRecord }> {
+export async function issueApiKey(label: string, durationMs: number | null): Promise<{ key: string; record: PublicKeyRecord }> {
   const key = `${KEY_PREFIX}${randomHex(24)}`;
   const now = Date.now();
   const rec: KeyRecord = {
@@ -65,7 +64,7 @@ export async function issueApiKey(label: string, days: number): Promise<{ key: s
     key,
     hash: await sha256Hex(key),
     createdAt: now,
-    expiresAt: days > 0 ? now + days * DAY_MS : null,
+    expiresAt: durationMs ? now + durationMs : null,
     lastUsedAt: null,
     hits: 0,
     revoked: false,

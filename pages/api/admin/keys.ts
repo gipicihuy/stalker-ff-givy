@@ -3,6 +3,14 @@ import { isAdminSession } from '../../../lib/security/adminAuth';
 import { deleteApiKey, issueApiKey, listApiKeys, setApiKeyRevoked } from '../../../lib/security/apiKeys';
 import { getRequestOrigin } from '../../../lib/security/request';
 
+const UNIT_MS: Record<string, number> = {
+  minute: 60 * 1000,
+  hour: 60 * 60 * 1000,
+  day: 24 * 60 * 60 * 1000,
+};
+
+const MAX_DURATION_MS = 3650 * 24 * 60 * 60 * 1000;
+
 function sameOrigin(req: NextApiRequest): boolean {
   const origin = req.headers['origin'] as string | undefined;
   return !origin || origin === getRequestOrigin(req);
@@ -26,10 +34,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (req.method === 'POST') {
       const label = String(req.body?.label || '').trim().slice(0, 60);
-      const days = Math.floor(Number(req.body?.days) || 0);
-      if (!label) return res.status(400).json({ error: 'label wajib diisi' });
-      if (days < 0 || days > 3650) return res.status(400).json({ error: 'durasi tidak valid' });
-      const issued = await issueApiKey(label, days);
+      const unit = String(req.body?.unit || '');
+      const amount = Math.floor(Number(req.body?.amount) || 0);
+      if (!label) return res.status(400).json({ error: 'Nama pembeli wajib diisi' });
+      let durationMs: number | null = null;
+      if (unit !== 'forever') {
+        const perUnit = UNIT_MS[unit];
+        if (!perUnit) return res.status(400).json({ error: 'Satuan waktu tidak valid' });
+        if (amount < 1) return res.status(400).json({ error: 'Durasi minimal 1' });
+        durationMs = amount * perUnit;
+        if (durationMs > MAX_DURATION_MS) return res.status(400).json({ error: 'Durasi maksimal 10 tahun' });
+      }
+      const issued = await issueApiKey(label, durationMs);
       return res.status(200).json(issued);
     }
 
