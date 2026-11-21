@@ -62,6 +62,7 @@ export async function issueApiKey(label: string, days: number): Promise<{ key: s
     id: randomHex(6),
     label,
     prefix: `${key.slice(0, 8)}...${key.slice(-4)}`,
+    key,
     hash: await sha256Hex(key),
     createdAt: now,
     expiresAt: days > 0 ? now + days * DAY_MS : null,

@@ -9,6 +9,7 @@ export interface KeyRecord {
   id: string;
   label: string;
   prefix: string;
+  key?: string;
   hash: string;
   createdAt: number;
   expiresAt: number | null;

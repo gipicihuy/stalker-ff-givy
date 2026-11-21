@@ -6,6 +6,7 @@ type KeyRow = {
   id: string;
   label: string;
   prefix: string;
+  key?: string;
   createdAt: number;
   expiresAt: number | null;
   lastUsedAt: number | null;
@@ -257,7 +258,7 @@ export default function AdminClient() {
             <div style={{ ...card, borderColor: 'var(--gold)' }}>
               <p style={{ color: 'var(--gold)', fontWeight: 700, marginBottom: 6 }}>Key untuk {created.record.label}</p>
               <p style={{ fontSize: 12, color: 'var(--muted-text)', marginBottom: 10 }}>
-                Salin sekarang. Key lengkap hanya ditampilkan sekali dan tidak bisa dilihat lagi setelah halaman ini ditutup.
+                Key ini juga bisa dilihat lagi kapan saja di daftar di bawah.
               </p>
               <code style={{ display: 'block', background: 'var(--panel-bg-alt)', padding: 10, borderRadius: 8, wordBreak: 'break-all', fontSize: 13 }}>
                 {created.key}
@@ -279,7 +280,7 @@ export default function AdminClient() {
             {keys.length === 0 ? (
               <p style={{ color: 'var(--muted-text)', fontSize: 14 }}>Belum ada key.</p>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 700 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 900 }}>
                 <thead>
                   <tr style={{ textAlign: 'left', color: 'var(--muted-text)' }}>
                     {['Label', 'Key', 'Status', 'Dibuat', 'Kadaluarsa', 'Terakhir dipakai', 'Hit', ''].map((h) => (
@@ -295,7 +296,18 @@ export default function AdminClient() {
                     return (
                       <tr key={row.id} style={{ borderTop: '1px solid var(--panel-border)' }}>
                         <td style={{ padding: '8px' }}>{row.label}</td>
-                        <td style={{ padding: '8px', fontFamily: 'monospace' }}>{row.prefix}</td>
+                        <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: 12, wordBreak: 'break-all', minWidth: 260 }}>
+                          {row.key ? (
+                            <>
+                              {row.key}{' '}
+                              <button style={{ ...btnGhost, padding: '2px 8px' }} onClick={() => copy(row.key as string, `row-${row.id}`)}>
+                                {copied === `row-${row.id}` ? 'Tersalin' : 'Salin'}
+                              </button>
+                            </>
+                          ) : (
+                            <span style={{ color: 'var(--muted-text)' }}>tidak tersimpan (dibuat sebelum update)</span>
+                          )}
+                        </td>
                         <td style={{ padding: '8px', color: st.color }}>{st.text}</td>
                         <td style={{ padding: '8px' }}>{fmt(row.createdAt)}</td>
                         <td style={{ padding: '8px' }}>{row.expiresAt ? fmt(row.expiresAt) : 'Tanpa batas'}</td>
