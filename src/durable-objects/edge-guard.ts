@@ -3,6 +3,15 @@
 // kepake gak langsung lewat import package lain) - lihat penjelasan di
 // lib/security/env.ts.
 import { DurableObject } from 'cloudflare:workers';
+import {
+  storeCheckKey,
+  storeCreateKey,
+  storeDeleteKey,
+  storeListKeys,
+  storeSetRevoked,
+  type KeyRecord,
+  type KvLike,
+} from '../../lib/security/keyStore';
 
 // Durable Object per-IP buat tiga hal sekaligus (satu DO instance = satu
 // IP, id-nya di-derive dari IP lewat idFromName): rate limiting yang
@@ -35,6 +44,10 @@ export class EdgeGuardDO extends DurableObject {
     this.state = ctx;
   }
 
+  private kv(): KvLike {
+    return this.state.storage as unknown as KvLike;
+  }
+
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     try {
@@ -47,6 +60,22 @@ export class EdgeGuardDO extends DurableObject {
           return await this.handleBlacklist(request);
         case '/status':
           return await this.handleStatus();
+        case '/key-create':
+          return Response.json(await storeCreateKey(this.kv(), (await request.json()) as KeyRecord));
+        case '/key-list':
+          return Response.json(await storeListKeys(this.kv()));
+        case '/key-revoke': {
+          const { id, revoked } = (await request.json()) as { id: string; revoked: boolean };
+          return Response.json({ ok: await storeSetRevoked(this.kv(), id, revoked) });
+        }
+        case '/key-delete': {
+          const { id } = (await request.json()) as { id: string };
+          return Response.json({ ok: await storeDeleteKey(this.kv(), id) });
+        }
+        case '/key-check': {
+          const { hash } = (await request.json()) as { hash: string };
+          return Response.json(await storeCheckKey(this.kv(), hash));
+        }
         default:
           return new Response(JSON.stringify({ error: 'not_found' }), { status: 404 });
       }

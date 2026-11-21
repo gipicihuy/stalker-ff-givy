@@ -18,6 +18,7 @@ import type { EdgeGuardDO } from '../../src/durable-objects/edge-guard';
 export interface GuardEnv {
   EDGE_GUARD?: DurableObjectNamespace<EdgeGuardDO>;
   FP_SIGNING_SECRET?: string;
+  ADMIN_PASSWORD?: string;
 }
 
 export function getGuardEnv(): GuardEnv {
