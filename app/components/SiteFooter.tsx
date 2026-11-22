@@ -54,7 +54,7 @@ export default function SiteFooter() {
                   <Send size={16} />
                 </a>
                 <a
-                  href="https://wa.me/62895423300395"
+                  href="https://wa.me/6283182725011"
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="WhatsApp"
